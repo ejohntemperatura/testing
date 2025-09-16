@@ -1,0 +1,17 @@
+{
+    "name": "elms/employee-leave-management-system",
+    "description": "A comprehensive Employee Leave Management System with email verification",
+    "type": "project",
+    "require": {
+        "php": ">=7.4",
+        "phpmailer/phpmailer": "^6.8"
+    },
+    "autoload": {
+        "psr-4": {
+            "ELMS\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+} 
