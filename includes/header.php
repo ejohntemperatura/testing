@@ -20,27 +20,17 @@ $logoColor = $role === 'director' ? 'from-purple-500 to-pink-500' :
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- OFFLINE Tailwind CSS - No internet required! -->
+    <link rel="stylesheet" href="<?php echo (strpos($_SERVER['PHP_SELF'], '/admin/') !== false || strpos($_SERVER['PHP_SELF'], '/user/') !== false || strpos($_SERVER['PHP_SELF'], '/department/') !== false || strpos($_SERVER['PHP_SELF'], '/director/') !== false || strpos($_SERVER['PHP_SELF'], '/auth/') !== false) ? '../assets/css/' : 'assets/css/'; ?>tailwind.css">
+    <link rel="stylesheet" href="<?php echo (strpos($_SERVER['PHP_SELF'], '/admin/') !== false || strpos($_SERVER['PHP_SELF'], '/user/') !== false || strpos($_SERVER['PHP_SELF'], '/department/') !== false || strpos($_SERVER['PHP_SELF'], '/director/') !== false || strpos($_SERVER['PHP_SELF'], '/auth/') !== false) ? '../assets/css/' : 'assets/css/'; ?>font-awesome-local.css">
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $page_title ?? 'ELMS'; ?></title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#0891b2',    // Cyan-600 - Main brand color
-                        secondary: '#f97316',  // Orange-500 - Accent/action color
-                        accent: '#06b6d4',     // Cyan-500 - Highlight color
-                        background: '#0f172a', // Slate-900 - Main background
-                        foreground: '#f8fafc', // Slate-50 - Primary text
-                        muted: '#64748b'       // Slate-500 - Secondary text
-                    }
-                }
-            }
-        }
-    </script>
+    <link rel="stylesheet" href="../assets/libs/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/dark-theme.css">
+    
 </head>
 <body class="bg-slate-900 text-white">
     <!-- Top Navigation Bar -->
@@ -70,7 +60,7 @@ $logoColor = $role === 'director' ? 'from-purple-500 to-pink-500' :
 
     <div class="flex">
         <!-- Left Sidebar -->
-        <aside class="fixed left-0 top-16 h-screen w-64 bg-slate-800 border-r border-slate-700 overflow-y-auto z-40">
+        <aside class="fixed left-0 top-16 h-screen w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40">
             <nav class="p-4 space-y-2">
                 <?php 
                 // Include the sidebar based on role
@@ -84,9 +74,18 @@ $logoColor = $role === 'director' ? 'from-purple-500 to-pink-500' :
                     include 'employee_sidebar.php';
                 }
                 ?>
+                
+                <!-- Logout Section -->
+                <div class="pt-4 border-t border-slate-700">
+                    <a href="../auth/logout.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-sign-out-alt w-5"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
             </nav>
         </aside>
         
         <!-- Main Content -->
         <main class="flex-1 ml-64 p-6">
             <div class="max-w-7xl mx-auto">
+            

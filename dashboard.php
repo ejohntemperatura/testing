@@ -23,231 +23,191 @@ $employee = $stmt->fetch();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ELMS - Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#0891b2',    // Cyan-600 - Main brand color
-                        secondary: '#f97316',  // Orange-500 - Accent/action color
-                        accent: '#06b6d4',     // Cyan-500 - Highlight color
-                        background: '#0f172a', // Slate-900 - Main background
-                        foreground: '#f8fafc', // Slate-50 - Primary text
-                        muted: '#64748b'       // Slate-500 - Secondary text
-                    }
-                }
-            }
-        }
-    </script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/style.css" rel="stylesheet">
 </head>
-<body class="bg-slate-900 text-white">
-    <!-- Top Navigation Bar -->
-    <nav class="bg-slate-800 border-b border-slate-700 fixed top-0 left-0 right-0 z-50 h-16">
-        <div class="px-6 py-4 h-full">
-            <div class="flex items-center justify-between h-full">
-                <!-- Logo and Title -->
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-8 bg-gradient-to-r from-primary to-accent rounded-lg flex items-center justify-center">
-                            <i class="fas fa-calendar-check text-white text-sm"></i>
-                        </div>
-                        <span class="text-xl font-bold text-white">ELMS</span>
-                    </div>
-                </div>
-                
-                <!-- User Menu -->
-                <div class="flex items-center space-x-4">
-                    <a href="logout.php" class="text-slate-300 hover:text-white transition-colors flex items-center space-x-2">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Logout</span>
-                    </a>
-                </div>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">ELMS</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="logout.php">Logout</a>
+                    </li>
+                </ul>
             </div>
         </div>
     </nav>
 
-    <main class="pt-16 min-h-screen">
-        <div class="max-w-7xl mx-auto p-6">
-            <!-- Welcome Section -->
-            <div class="mb-8">
-                <div class="flex items-center gap-4 p-6 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50">
-                    <div class="w-16 h-16 bg-gradient-to-r from-primary to-accent rounded-2xl flex items-center justify-center">
-                        <i class="fas fa-sun text-2xl text-white"></i>
-                    </div>
-                    <div>
-                        <h1 class="text-3xl font-bold text-white mb-2">
-                            Good <?php echo date('H') < 12 ? 'Morning' : (date('H') < 17 ? 'Afternoon' : 'Evening'); ?>, <?php echo htmlspecialchars($employee['name']); ?>!
-                        </h1>
-                        <p class="text-slate-400 flex items-center">
-                            <i class="fas fa-calendar-alt mr-2"></i>
-                            Today is <?php echo date('l, F j, Y'); ?>
-                        </p>
-                    </div>
+    <div class="container-fluid">
+        <!-- Welcome Section -->
+        <div style="margin-bottom: 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem; padding: 1.5rem;">
+                <div style="width: 40px; height: 40px; background: #f8f9fa; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: 1px solid #e9ecef;">
+                    <i class="fas fa-sun" style="font-size: 1.25rem; color: #6c757d;"></i>
+                </div>
+                <div>
+                    <h2 style="margin: 0; font-size: 1.5rem; font-weight: 600; color: #212529;">
+                        Good <?php echo date('H') < 12 ? 'Morning' : (date('H') < 17 ? 'Afternoon' : 'Evening'); ?>, <?php echo htmlspecialchars($employee['name']); ?>!
+                    </h2>
+                    <p style="margin: 0; font-size: 0.95rem; color: #6c757d;">
+                        <i class="fas fa-calendar-alt" style="margin-right: 0.5rem;"></i>
+                        Today is <?php echo date('l, F j, Y'); ?>
+                    </p>
                 </div>
             </div>
+        </div>
 
-            <!-- Statistics and Actions Row -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                <!-- Leave Balance Card -->
-                <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 hover:border-slate-600/50 transition-all duration-300">
-                    <div class="flex items-center justify-between mb-6">
-                        <div class="w-12 h-12 bg-gradient-to-r from-primary to-accent rounded-xl flex items-center justify-center">
-                            <i class="fas fa-calendar-check text-white text-xl"></i>
-                        </div>
-                        <h3 class="text-xl font-semibold text-white">Leave Balance</h3>
+        <!-- Statistics and Actions Row -->
+        <div class="row mb-4">
+            <div class="col-md-4 mb-4">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: var(--primary);">
+                        <i class="fas fa-calendar-check"></i>
                     </div>
-                    
-                    <div class="space-y-4 mb-6">
-                        <div class="flex justify-between items-center p-3 bg-slate-700/30 rounded-lg">
-                            <span class="text-slate-300">Annual Leave</span>
-                            <span class="text-2xl font-bold text-white"><?php echo $employee['annual_leave_balance']; ?> days</span>
+                    <h6 class="card-title">Leave Balance</h6>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted">Annual Leave</span>
+                            <span class="fw-bold"><?php echo $employee['annual_leave_balance']; ?> days</span>
                         </div>
-                        <div class="flex justify-between items-center p-3 bg-slate-700/30 rounded-lg">
-                            <span class="text-slate-300">Sick Leave</span>
-                            <span class="text-2xl font-bold text-white"><?php echo $employee['sick_leave_balance']; ?> days</span>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Sick Leave</span>
+                            <span class="fw-bold"><?php echo $employee['sick_leave_balance']; ?> days</span>
                         </div>
                     </div>
-                    
-                    <button onclick="openLeaveModal()" class="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl">
-                        <i class="fas fa-plus mr-2"></i>Request Leave
+                    <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#leaveRequestModal">
+                        <i class="fas fa-plus me-2"></i>Request Leave
                     </button>
                 </div>
-                
-                <!-- Recent Leave Requests Table -->
-                <div class="lg:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden">
-                    <div class="px-6 py-4 border-b border-slate-700/50 bg-slate-700/30">
-                        <h3 class="text-xl font-semibold text-white flex items-center">
-                            <i class="fas fa-list-alt text-primary mr-3"></i>
+            </div>
+            
+            <div class="col-md-8 mb-4">
+                <div class="leave-table">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="fas fa-list-alt"></i>
                             Recent Leave Requests
-                        </h3>
+                        </h5>
                     </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead class="bg-slate-700/30">
-                                <tr>
-                                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Type</th>
-                                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Start Date</th>
-                                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">End Date</th>
-                                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Status</th>
-                                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Reason</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-700/50">
-                                <?php foreach ($leave_requests as $request): ?>
-                                <tr class="hover:bg-slate-700/30 transition-colors">
-                                    <td class="px-6 py-4">
-                                        <span class="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide">
-                                            <?php echo ucfirst($request['leave_type']); ?>
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 text-slate-300 text-sm"><?php echo date('M d, Y', strtotime($request['start_date'])); ?></td>
-                                    <td class="px-6 py-4 text-slate-300 text-sm"><?php echo date('M d, Y', strtotime($request['end_date'])); ?></td>
-                                    <td class="px-6 py-4">
-                                        <span class="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide <?php 
-                                            echo $request['status'] == 'approved' ? 'bg-green-500/20 text-green-400' : 
-                                                ($request['status'] == 'pending' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'); 
-                                        ?>">
-                                            <?php echo ucfirst($request['status']); ?>
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 text-slate-300 text-sm max-w-xs truncate" title="<?php echo htmlspecialchars($request['reason']); ?>">
-                                        <?php echo htmlspecialchars($request['reason']); ?>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                                <?php if (empty($leave_requests)): ?>
-                                <tr>
-                                    <td colspan="5" class="text-center py-12">
-                                        <i class="fas fa-inbox text-4xl text-slate-500 mb-4"></i>
-                                        <p class="text-slate-400">No recent leave requests.</p>
-                                    </td>
-                                </tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>Start Date</th>
+                                        <th>End Date</th>
+                                        <th>Status</th>
+                                        <th>Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($leave_requests as $request): ?>
+                                    <tr>
+                                        <td>
+                                            <span class="badge badge-primary"><?php echo ucfirst($request['leave_type']); ?></span>
+                                        </td>
+                                        <td><?php echo date('M d, Y', strtotime($request['start_date'])); ?></td>
+                                        <td><?php echo date('M d, Y', strtotime($request['end_date'])); ?></td>
+                                        <td>
+                                            <span class="status-badge bg-<?php 
+                                                echo $request['status'] == 'approved' ? 'success' : 
+                                                    ($request['status'] == 'pending' ? 'warning' : 'danger'); 
+                                            ?>">
+                                                <?php echo ucfirst($request['status']); ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="text-truncate d-inline-block" style="max-width: 200px;" title="<?php echo htmlspecialchars($request['reason']); ?>">
+                                                <?php echo htmlspecialchars($request['reason']); ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                    <?php if (empty($leave_requests)): ?>
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4">
+                                            <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                                            <p class="text-muted mb-0">No recent leave requests.</p>
+                                        </td>
+                                    </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </main>
     </div>
 
     <!-- Leave Request Modal -->
-    <div id="leaveRequestModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-        <div class="bg-slate-800 rounded-2xl p-8 w-full max-w-2xl mx-4 max-h-screen overflow-y-auto border border-slate-700">
-            <div class="flex items-center justify-between mb-6">
-                <h5 class="text-2xl font-bold text-white flex items-center">
-                    <i class="fas fa-calendar-plus text-primary mr-3"></i>Request Leave
-                </h5>
-                <button type="button" onclick="closeLeaveModal()" class="text-slate-400 hover:text-white transition-colors">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
+    <div class="modal fade" id="leaveRequestModal" tabindex="-1" aria-labelledby="leaveRequestModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="leaveRequestModalLabel">
+                        <i class="fas fa-calendar-plus me-2"></i>Request Leave
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="leaveRequestForm" action="submit_leave.php" method="POST">
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="leaveType" class="form-label">Leave Type</label>
+                                <select class="form-select" id="leaveType" name="leave_type" required>
+                                    <option value="">Select Leave Type</option>
+                                    <option value="annual">Annual Leave</option>
+                                    <option value="vacation">Vacation Leave</option>
+                                    <option value="sick">Sick Leave</option>
+                                    <option value="maternity">Maternity Leave</option>
+                                    <option value="paternity">Paternity Leave</option>
+                                    <option value="bereavement">Bereavement Leave</option>
+                                    <option value="study">Study Leave</option>
+                                    <option value="unpaid">Unpaid Leave</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="startDate" class="form-label">Start Date</label>
+                                <input type="date" class="form-control" id="startDate" name="start_date" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="endDate" class="form-label">End Date</label>
+                                <input type="date" class="form-control" id="endDate" name="end_date" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="totalDays" class="form-label">Total Days</label>
+                                <input type="text" class="form-control" id="totalDays" readonly placeholder="Auto-calculated">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">Reason for Leave</label>
+                            <textarea class="form-control" id="reason" name="reason" rows="4" placeholder="Please provide a detailed reason for your leave request..." required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-2"></i>Submit Request
+                        </button>
+                    </div>
+                </form>
             </div>
-            
-            <form id="leaveRequestForm" action="submit_leave.php" method="POST" class="space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="leaveType" class="block text-sm font-semibold text-slate-300 mb-2">Leave Type</label>
-                        <select id="leaveType" name="leave_type" required class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                            <option value="">Select Leave Type</option>
-                            <option value="annual">Annual Leave</option>
-                            <option value="vacation">Vacation Leave</option>
-                            <option value="sick">Sick Leave</option>
-                            <option value="maternity">Maternity Leave</option>
-                            <option value="paternity">Paternity Leave</option>
-                            <option value="bereavement">Bereavement Leave</option>
-                            <option value="study">Study Leave</option>
-                            <option value="unpaid">Unpaid Leave</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="startDate" class="block text-sm font-semibold text-slate-300 mb-2">Start Date</label>
-                        <input type="date" id="startDate" name="start_date" required class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                    </div>
-                </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="endDate" class="block text-sm font-semibold text-slate-300 mb-2">End Date</label>
-                        <input type="date" id="endDate" name="end_date" required class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                    </div>
-                    <div>
-                        <label for="totalDays" class="block text-sm font-semibold text-slate-300 mb-2">Total Days</label>
-                        <input type="text" id="totalDays" readonly placeholder="Auto-calculated" class="w-full bg-slate-700/50 border border-slate-600 rounded-xl px-4 py-3 text-slate-400 cursor-not-allowed">
-                    </div>
-                </div>
-                
-                <div>
-                    <label for="reason" class="block text-sm font-semibold text-slate-300 mb-2">Reason for Leave</label>
-                    <textarea id="reason" name="reason" rows="4" placeholder="Please provide a detailed reason for your leave request..." required class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"></textarea>
-                </div>
-                
-                <div class="flex justify-end space-x-4 pt-6">
-                    <button type="button" onclick="closeLeaveModal()" class="bg-slate-600 hover:bg-slate-500 text-white font-semibold py-3 px-6 rounded-xl transition-colors">
-                        <i class="fas fa-times mr-2"></i>Cancel
-                    </button>
-                    <button type="submit" class="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-[1.02]">
-                        <i class="fas fa-paper-plane mr-2"></i>Submit Request
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Modal functions
-        function openLeaveModal() {
-            document.getElementById('leaveRequestModal').classList.remove('hidden');
-            document.getElementById('leaveRequestModal').classList.add('flex');
-        }
-
-        function closeLeaveModal() {
-            document.getElementById('leaveRequestModal').classList.add('hidden');
-            document.getElementById('leaveRequestModal').classList.remove('flex');
-        }
-
         // Add date validation and total days calculation
         document.addEventListener('DOMContentLoaded', function() {
             const startDateInput = document.getElementById('startDate');

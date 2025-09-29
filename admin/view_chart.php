@@ -16,13 +16,14 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin','manag
 // Get admin info
 $stmt = $pdo->prepare("SELECT * FROM employees WHERE id = ?");
 $stmt->execute([$_SESSION['user_id']]);
-$me = $stmt->fetch();
+$admin = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// Admin can see all leave requests
+// Admin can see all leave requests (excluding annual and unpaid leave types)
 $stmt = $pdo->prepare("
     SELECT lr.*, e.name as employee_name, e.position, e.department
     FROM leave_requests lr 
     JOIN employees e ON lr.employee_id = e.id 
+    WHERE lr.leave_type NOT IN ('annual', 'unpaid')
     ORDER BY lr.start_date ASC
 ");
 $stmt->execute();
@@ -31,28 +32,23 @@ $leave_requests = $stmt->fetchAll();
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- OFFLINE Tailwind CSS - No internet required! -->
+    <link rel="stylesheet" href="../assets/css/tailwind.css">
+        <!-- Font Awesome Local - No internet required! -->
+    <link rel="stylesheet" href="../assets/libs/fontawesome/css/all.min.css">
+    
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ELMS - Admin Leave Calendar</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#0891b2',    // Cyan-600 - Main brand color
-                        secondary: '#f97316',  // Orange-500 - Accent/action color
-                        accent: '#06b6d4',     // Cyan-500 - Highlight color
-                        background: '#0f172a', // Slate-900 - Main background
-                        foreground: '#f8fafc', // Slate-50 - Primary text
-                        muted: '#64748b'       // Slate-500 - Secondary text
-                    }
-                }
-            }
-        }
     </script>
+    
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/dark-theme.css">
+    <link rel="stylesheet" href="../assets/css/admin_style.css">
+    <link href='../assets/libs/fullcalendar/css/main.min.css' rel='stylesheet' />
+    
     <style>
         /* FullCalendar Custom Styling */
         .fc {
@@ -62,37 +58,57 @@ $leave_requests = $stmt->fetchAll();
         .fc-header-toolbar {
             margin-bottom: 1.5rem !important;
             padding: 1rem;
-            background: #f8f9fa;
+            background: #1e293b !important;
             border-radius: 8px;
-            border: 1px solid rgba(0, 0, 0, 0.06);
+            border: 1px solid #334155 !important;
         }
         
         .fc-toolbar-title {
             font-size: 1.5rem !important;
             font-weight: 600 !important;
-            color: #212529 !important;
+            color: #f8fafc !important;
         }
         
         .fc-button {
-            background: var(--primary) !important;
-            border: 1px solid var(--primary) !important;
+            background: #0891b2 !important;
+            border: 1px solid #0891b2 !important;
             border-radius: 6px !important;
             font-weight: 500 !important;
             padding: 0.5rem 1rem !important;
+            color: white !important;
         }
         
         .fc-button:hover {
-            background: var(--primary-hover) !important;
-            border-color: var(--primary-hover) !important;
+            background: #0e7490 !important;
+            border-color: #0e7490 !important;
         }
         
         .fc-button:focus {
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
+            box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.3) !important;
         }
         
         .fc-button-primary:not(:disabled):active {
-            background: var(--primary-hover) !important;
-            border-color: var(--primary-hover) !important;
+            background: #0e7490 !important;
+            border-color: #0e7490 !important;
+        }
+        
+        .fc-button-group {
+            background: #1e293b !important;
+        }
+        
+        .fc-button-group .fc-button {
+            background: #334155 !important;
+            border-color: #475569 !important;
+            color: #f8fafc !important;
+        }
+        
+        .fc-button-group .fc-button:hover {
+            background: #475569 !important;
+            border-color: #64748b !important;
+        }
+        
+        .fc-button-group .fc-button:focus {
+            box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.3) !important;
         }
         
         .fc-event {
@@ -109,40 +125,38 @@ $leave_requests = $stmt->fetchAll();
         
         /* Status Colors - Removed for cleaner look */
         /* Leave Type Colors - Common Color Wheel Colors */
-        .leave-annual { background: #0066cc !important; color: white !important; }      /* Blue */
         .leave-vacation { background: #00cc66 !important; color: white !important; }    /* Green */
         .leave-sick { background: #cc6600 !important; color: white !important; }        /* Orange */
         .leave-maternity { background: #cc0066 !important; color: white !important; }   /* Pink/Magenta */
         .leave-paternity { background: #0066cc !important; color: white !important; }   /* Light Blue */
         .leave-bereavement { background: #666666 !important; color: white !important; } /* Gray */
         .leave-study { background: #9900cc !important; color: white !important; }       /* Purple */
-        .leave-unpaid { background: #ffcc00 !important; color: black !important; }      /* Yellow */
         .leave-emergency { background: #cc0000 !important; color: white !important; }   /* Red */
         
         .calendar-container {
-            background: white;
+            background: #1e293b;
             border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            border: 1px solid rgba(0, 0, 0, 0.06);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+            border: 1px solid #334155;
             overflow: hidden;
         }
         
         .calendar-header {
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
             padding: 1.5rem;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            border-bottom: 1px solid #334155;
         }
         
         .calendar-header h2 {
             margin: 0;
-            color: #212529;
+            color: #f8fafc;
             font-size: 1.5rem;
             font-weight: 600;
         }
         
         .calendar-header p {
             margin: 0.5rem 0 0 0;
-            color: #6c757d;
+            color: #94a3b8;
             font-size: 0.95rem;
         }
         
@@ -182,75 +196,138 @@ $leave_requests = $stmt->fetchAll();
         .filter-group select {
             max-width: 100%;
         }
+        
+        /* FullCalendar Dark Theme */
+        .fc {
+            background: #1e293b !important;
+            color: #f8fafc !important;
+        }
+        
+        .fc-theme-standard td, .fc-theme-standard th {
+            border-color: #334155 !important;
+        }
+        
+        .fc-theme-standard .fc-scrollgrid {
+            border-color: #334155 !important;
+        }
+        
+        .fc-daygrid-day {
+            background: #1e293b !important;
+        }
+        
+        .fc-daygrid-day:hover {
+            background: #334155 !important;
+        }
+        
+        .fc-daygrid-day-number {
+            color: #f8fafc !important;
+        }
+        
+        .fc-daygrid-day.fc-day-today {
+            background: #0f172a !important;
+        }
+        
+        .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+            color: #06b6d4 !important;
+            font-weight: 600 !important;
+        }
+        
+        .fc-col-header-cell {
+            background: #334155 !important;
+            color: #f8fafc !important;
+            font-weight: 600 !important;
+        }
+        
+        .fc-daygrid-day-events {
+            margin-top: 2px !important;
+        }
+        
+        .fc-daygrid-event {
+            margin: 1px 2px !important;
+        }
+        
+        .fc-list {
+            background: #1e293b !important;
+        }
+        
+        .fc-list-day-cushion {
+            background: #334155 !important;
+            color: #f8fafc !important;
+        }
+        
+        .fc-list-event {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+        }
+        
+        .fc-list-event:hover {
+            background: #334155 !important;
+        }
+        
+        .fc-list-event-time {
+            color: #94a3b8 !important;
+        }
+        
+        .fc-list-event-title {
+            color: #f8fafc !important;
+        }
     </style>
 </head>
 <body class="bg-slate-900 text-white">
-    <!-- Top Navigation Bar -->
-    <nav class="bg-slate-800 border-b border-slate-700 fixed top-0 left-0 right-0 z-50 h-16">
-        <div class="px-6 py-4 h-full">
-            <div class="flex items-center justify-between h-full">
-                <!-- Logo and Title -->
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-8 bg-gradient-to-r from-primary to-accent rounded-lg flex items-center justify-center">
-                            <i class="fas fa-calendar text-white text-sm"></i>
-                        </div>
-                        <span class="text-xl font-bold text-white">ELMS Admin</span>
-                    </div>
-                </div>
-                
-                <!-- User Menu -->
-                <div class="flex items-center space-x-4">
-                    <a href="../auth/logout.php" class="text-slate-300 hover:text-white transition-colors flex items-center space-x-2">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Logout</span>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </nav>
+    <?php include '../includes/unified_navbar.php'; ?>
 
     <div class="flex">
         <!-- Left Sidebar -->
-        <aside class="fixed left-0 top-16 h-screen w-64 bg-slate-800 border-r border-slate-700 overflow-y-auto z-40">
+        <aside id="sidebar" class="fixed left-0 top-16 h-screen w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
             <nav class="p-4 space-y-2">
-                <!-- Other Navigation Items -->
+                <!-- Active Navigation Item -->
                 <a href="admin_dashboard.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
                     <i class="fas fa-tachometer-alt w-5"></i>
                     <span>Dashboard</span>
                 </a>
                 
-                <a href="manage_user.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-users-cog w-5"></i>
-                    <span>Manage User</span>
-                </a>
                 
-                <a href="leave_management.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-calendar-check w-5"></i>
-                    <span>Leave Management</span>
-                    <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full" id="pendingLeaveBadge" style="display: none;">0</span>
-                </a>
-                
-                <a href="leave_alerts.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-bell w-5"></i>
-                    <span>Leave Alerts</span>
-                </a>
+                <!-- Section Headers -->
+                <div class="space-y-1">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Management</h3>
+                    
+                    <!-- Navigation Items -->
+                    <a href="manage_user.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-users-cog w-5"></i>
+                        <span>Manage Users</span>
+                    </a>
+                    
+                    <a href="leave_management.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-calendar-check w-5"></i>
+                        <span>Leave Management</span>
+                        <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full" id="pendingLeaveBadge" style="display: none;">0</span>
+                    </a>
                 
                 <!-- Active Navigation Item -->
-                <a href="view_chart.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-primary/20 rounded-lg border border-primary/30">
+                <a href="leave_alerts.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-bell w-5"></i>
+                        <span>Leave Alerts</span>
+                    </a>
+                
+                </div>
+
+                <div class="space-y-1">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
+                    
+                <!-- Active Navigation Item -->
+                <a href="view_chart.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
                     <i class="fas fa-calendar w-5"></i>
                     <span>Leave Chart</span>
                 </a>
-                
                 <a href="reports.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-file-alt w-5"></i>
-                    <span>Reports</span>
-                </a>
-            </nav>
+                        <i class="fas fa-file-alt w-5"></i>
+                        <span>Reports</span>
+                    </a>
+                </div>
         </aside>
         
         <!-- Main Content -->
-        <main class="flex-1 ml-64 p-6">
+        <main class="flex-1 ml-64 p-6 pt-24">
             <div class="max-w-7xl mx-auto">
                 <!-- Page Header -->
                 <div class="mb-8">
@@ -266,7 +343,7 @@ $leave_requests = $stmt->fetchAll();
                 </div>
 
                 <!-- Filters -->
-                <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden mb-8">
+                <div class="bg-slate-800 rounded-2xl border border-slate-700/50 overflow-hidden mb-8">
                     <div class="px-6 py-4 border-b border-slate-700/50 bg-slate-700/30">
                         <h3 class="text-xl font-semibold text-white flex items-center">
                             <i class="fas fa-filter text-primary mr-3"></i>Filters
@@ -289,15 +366,14 @@ $leave_requests = $stmt->fetchAll();
                                 <label for="leaveTypeFilter" class="block text-sm font-semibold text-slate-300 mb-2">Filter by Leave Type</label>
                                 <select id="leaveTypeFilter" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
                                     <option value="">All Leave Types</option>
-                                    <option value="annual">Annual Leave</option>
-                                    <option value="vacation">Vacation Leave</option>
-                                    <option value="sick">Sick Leave</option>
-                                    <option value="maternity">Maternity Leave</option>
-                                    <option value="paternity">Paternity Leave</option>
-                                    <option value="bereavement">Bereavement Leave</option>
-                                    <option value="study">Study Leave</option>
-                                    <option value="unpaid">Unpaid Leave</option>
-                                    <option value="emergency">Emergency Leave</option>
+                                    <option value="mandatory">Mandatory/Forced Leave</option>
+                                    <option value="special_privilege">Special Leave Privilege</option>
+                                    <option value="solo_parent">Solo Parent Leave</option>
+                                    <option value="vawc">10-Day VAWC Leave</option>
+                                    <option value="rehabilitation">Rehabilitation Privilege</option>
+                                    <option value="special_women">Special Leave Benefits for Women</option>
+                                    <option value="special_emergency">Special Emergency Leave (Calamity)</option>
+                                    <option value="adoption">Adoption Leave</option>
                                 </select>
                             </div>
                         </div>
@@ -306,10 +382,6 @@ $leave_requests = $stmt->fetchAll();
                 
                 <!-- Legend -->
                 <div class="legend">
-                    <div class="legend-item">
-                        <div class="legend-color leave-annual"></div>
-                        <span>Annual Leave</span>
-                    </div>
                     <div class="legend-item">
                         <div class="legend-color leave-vacation"></div>
                         <span>Vacation Leave</span>
@@ -335,10 +407,6 @@ $leave_requests = $stmt->fetchAll();
                         <span>Study Leave</span>
                     </div>
                     <div class="legend-item">
-                        <div class="legend-color leave-unpaid"></div>
-                        <span>Unpaid Leave</span>
-                    </div>
-                    <div class="legend-item">
                         <div class="legend-color leave-emergency"></div>
                         <span>Emergency Leave</span>
                     </div>
@@ -352,9 +420,25 @@ $leave_requests = $stmt->fetchAll();
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
+    <script src="../assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src='../assets/libs/fullcalendar/js/main.min.js'></script>
     <script>
+        // User dropdown toggle function
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const userDropdown = document.getElementById('userDropdown');
+            const userButton = event.target.closest('[onclick="toggleUserDropdown()"]');
+            
+            if (userDropdown && !userDropdown.contains(event.target) && !userButton) {
+                userDropdown.classList.add('hidden');
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', function() {
             var calendarEl = document.getElementById('calendar');
             var calendar = new FullCalendar.Calendar(calendarEl, {

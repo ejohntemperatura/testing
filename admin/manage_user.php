@@ -8,6 +8,11 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin','manag
     exit();
 }
 
+// Get admin details
+$stmt = $pdo->prepare("SELECT * FROM employees WHERE id = ?");
+$stmt->execute([$_SESSION['user_id']]);
+$admin = $stmt->fetch(PDO::FETCH_ASSOC);
+
 // Handle user actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
@@ -67,8 +72,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                   $_SERVER['REMOTE_ADDR'] ?? 'unknown', $_SERVER['HTTP_USER_AGENT'] ?? 'unknown']);
                     
                     // Send verification email
-                    require_once '../includes/EmailService.php';
-                    $emailService = new EmailService();
+                    require_once '../includes/RobustEmail.php';
+                    $emailService = new RobustEmail($pdo);
                     
                     if ($emailService->sendVerificationEmail($email, $name, $verificationToken)) {
                         $success_message = "User added successfully! A verification email has been sent to {$email}";
@@ -126,6 +131,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
 
             case 'delete':
+                // Debug logging
+                error_log("Delete request received for user ID: " . ($_POST['id'] ?? 'not set'));
+                error_log("Session user ID: " . ($_SESSION['user_id'] ?? 'not set'));
+                error_log("Session role: " . ($_SESSION['role'] ?? 'not set'));
+                
                 // Validate ID
                 if (empty($_POST['id'])) {
                     $error_message = "User ID is required!";
@@ -153,40 +163,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 try {
                     // Start transaction to ensure data consistency
                     $pdo->beginTransaction();
+                    error_log("Transaction started for user deletion: $id");
                     
                     // Check if user has related records
-                    $stmt = $pdo->prepare("SELECT COUNT(*) FROM leave_requests WHERE employee_id = ?");
-                    $stmt->execute([$id]);
-                    $leave_count = $stmt->fetchColumn();
+                    $tables_to_check = [
+                        'leave_requests' => 'employee_id',
+                        'dtr' => 'user_id',
+                        'email_verification_logs' => 'employee_id',
+                        'leave_alerts' => 'employee_id',
+                        'leave_credit_earnings' => 'employee_id',
+                        'leave_credit_history' => 'employee_id'
+                    ];
                     
-                    $stmt = $pdo->prepare("SELECT COUNT(*) FROM dtr WHERE user_id = ?");
-                    $stmt->execute([$id]);
-                    $dtr_count = $stmt->fetchColumn();
+                    $total_records = 0;
+                    foreach ($tables_to_check as $table => $column) {
+                        $stmt = $pdo->prepare("SELECT COUNT(*) FROM $table WHERE $column = ?");
+                        $stmt->execute([$id]);
+                        $count = $stmt->fetchColumn();
+                        $total_records += $count;
+                        error_log("$table count: $count");
+                    }
                     
-                    if ($leave_count > 0 || $dtr_count > 0) {
-                        // User has related records - delete them first
-                        if ($leave_count > 0) {
-                            $stmt = $pdo->prepare("DELETE FROM leave_requests WHERE employee_id = ?");
-                            $stmt->execute([$id]);
-                        }
-                        
-                        if ($dtr_count > 0) {
-                            $stmt = $pdo->prepare("DELETE FROM dtr WHERE user_id = ?");
-                            $stmt->execute([$id]);
-                        }
+                    // Delete related records first (in correct order)
+                    foreach ($tables_to_check as $table => $column) {
+                        $stmt = $pdo->prepare("DELETE FROM $table WHERE $column = ?");
+                        $result = $stmt->execute([$id]);
+                        $deleted = $stmt->rowCount();
+                        error_log("Deleted from $table: " . ($result ? "success" : "failed") . " ($deleted records)");
+                    }
+                    
+                    // Also delete leave_alerts where sent_by = user_id
+                    $stmt = $pdo->prepare("DELETE FROM leave_alerts WHERE sent_by = ?");
+                    $result = $stmt->execute([$id]);
+                    $deleted = $stmt->rowCount();
+                    error_log("Deleted leave_alerts (sent_by): " . ($result ? "success" : "failed") . " ($deleted records)");
+                    
+                    // Also delete leave_requests where any approver = user_id
+                    $approver_columns = ['admin_approved_by', 'approved_by', 'dept_head_approved_by', 'director_approved_by', 'rejected_by'];
+                    foreach ($approver_columns as $column) {
+                        $stmt = $pdo->prepare("UPDATE leave_requests SET $column = NULL WHERE $column = ?");
+                        $result = $stmt->execute([$id]);
+                        $updated = $stmt->rowCount();
+                        error_log("Updated leave_requests ($column): " . ($result ? "success" : "failed") . " ($updated records)");
                     }
                     
                     // Now delete the user
                     $stmt = $pdo->prepare("DELETE FROM employees WHERE id = ?");
-                    $stmt->execute([$id]);
+                    $result = $stmt->execute([$id]);
+                    $rowCount = $stmt->rowCount();
+                    error_log("Delete user result: " . ($result ? "success" : "failed") . ", rows affected: $rowCount");
                     
-                    // Commit transaction
-                    $pdo->commit();
-                    
-                    $success_message = "User '{$user['name']}' and all related records deleted successfully!";
+                    if ($result && $rowCount > 0) {
+                        // Commit transaction
+                        $pdo->commit();
+                        error_log("Transaction committed successfully");
+                        $success_message = "User '{$user['name']}' and all related records deleted successfully!";
+                    } else {
+                        $pdo->rollBack();
+                        error_log("Transaction rolled back - no rows affected");
+                        $error_message = "Failed to delete user. User may not exist or already deleted.";
+                    }
                 } catch (PDOException $e) {
                     // Rollback transaction on error
                     $pdo->rollBack();
+                    error_log("Database error during deletion: " . $e->getMessage());
                     $error_message = "Error deleting user: " . $e->getMessage();
                 }
                 break;
@@ -202,101 +242,78 @@ $users = $stmt->fetchAll();
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- OFFLINE Tailwind CSS - No internet required! -->
+    <link rel="stylesheet" href="../assets/css/tailwind.css">
+        <!-- Font Awesome Local - No internet required! -->
+    <link rel="stylesheet" href="../assets/libs/fontawesome/css/all.min.css">
+    
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ELMS - Manage Users</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#0891b2',    // Cyan-600 - Main brand color
-                        secondary: '#f97316',  // Orange-500 - Accent/action color
-                        accent: '#06b6d4',     // Cyan-500 - Highlight color
-                        background: '#0f172a', // Slate-900 - Main background
-                        foreground: '#f8fafc', // Slate-50 - Primary text
-                        muted: '#64748b'       // Slate-500 - Secondary text
-                    }
-                }
-            }
-        }
+    </script>
+    
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/dark-theme.css">
+    <link rel="stylesheet" href="../assets/css/admin_style.css">
+    <script>
     </script>
 </head>
 <body class="bg-slate-900 text-white">
-    <!-- Top Navigation Bar -->
-    <nav class="bg-slate-800 border-b border-slate-700 fixed top-0 left-0 right-0 z-50 h-16">
-        <div class="px-6 py-4 h-full">
-            <div class="flex items-center justify-between h-full">
-                <!-- Logo and Title -->
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-8 bg-gradient-to-r from-primary to-accent rounded-lg flex items-center justify-center">
-                            <i class="fas fa-user-shield text-white text-sm"></i>
-                        </div>
-                        <span class="text-xl font-bold text-white">ELMS Admin</span>
-                    </div>
-                </div>
-                
-                <!-- User Menu -->
-                <div class="flex items-center space-x-4">
-                    <a href="../auth/logout.php" class="text-slate-300 hover:text-white transition-colors flex items-center space-x-2">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Logout</span>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </nav>
+    <?php include '../includes/unified_navbar.php'; ?>
 
     <div class="flex">
         <!-- Left Sidebar -->
-        <aside class="fixed left-0 top-16 h-screen w-64 bg-slate-800 border-r border-slate-700 overflow-y-auto z-40">
+        <aside class="fixed left-0 top-16 h-screen w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40">
             <nav class="p-4 space-y-2">
-                <?php 
-                    $role = $_SESSION['role'];
-                    $panelTitle = $role === 'director' ? 'Director Panel' : ($role === 'manager' ? 'Department Head' : 'Admin Panel');
-                    $dashboardLink = $role === 'director' ? 'director_head_dashboard.php' : ($role === 'manager' ? 'department_head_dashboard.php' : 'admin_dashboard.php');
-                ?>
-                
-                <!-- Active Navigation Item -->
-                <a href="manage_user.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-primary/20 rounded-lg border border-primary/30">
-                    <i class="fas fa-users-cog w-5"></i>
-                    <span>Manage Users</span>
-                </a>
-                
-                <!-- Other Navigation Items -->
-                <a href="<?php echo $dashboardLink; ?>" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                <!-- Active Navigation Item (Dashboard) -->
+                <a href="admin_dashboard.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
                     <i class="fas fa-tachometer-alt w-5"></i>
                     <span>Dashboard</span>
                 </a>
                 
-                <a href="leave_management.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-calendar-check w-5"></i>
-                    <span>Leave Management</span>
-                    <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full" id="pendingLeaveBadge" style="display: none;">0</span>
-                </a>
+                <!-- Section Headers -->
+                <div class="space-y-1">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Management</h3>
+                    
+                    <!-- Navigation Items -->
+                    <a href="manage_user.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
+                        <i class="fas fa-users-cog w-5"></i>
+                        <span>Manage Users</span>
+                    </a>
+                    
+                    <a href="leave_management.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-calendar-check w-5"></i>
+                        <span>Leave Management</span>
+                        <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full" id="pendingLeaveBadge" style="display: none;">0</span>
+                    </a>
+                    
+                    <a href="leave_alerts.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-bell w-5"></i>
+                        <span>Leave Alerts</span>
+                    </a>
+                </div>
                 
-                <a href="leave_alerts.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-bell w-5"></i>
-                    <span>Leave Alerts</span>
-                </a>
+                <div class="space-y-1">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
+                    
+                    <a href="view_chart.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-calendar w-5"></i>
+                        <span>Leave Chart</span>
+                    </a>
+                    
+                    <a href="reports.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-file-alt w-5"></i>
+                        <span>Reports</span>
+                    </a>
+                </div>
                 
-                <a href="view_chart.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-calendar w-5"></i>
-                    <span>Leave Chart</span>
-                </a>
-                
-                <a href="reports.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-file-alt w-5"></i>
-                    <span>Reports</span>
-                </a>
             </nav>
         </aside>
         
         <!-- Main Content -->
-        <main class="flex-1 ml-64 p-6">
+        <main class="flex-1 ml-64 p-6 pt-24">
             <div class="max-w-7xl mx-auto">
                 <!-- Page Header -->
                 <div class="mb-8">
@@ -314,7 +331,7 @@ $users = $stmt->fetchAll();
                 </div>
 
                 <!-- Search Section -->
-                <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 mb-8 border border-slate-700/50">
+                <div class="bg-slate-800 rounded-2xl p-6 mb-8 border border-slate-700">
                     <div class="relative">
                         <input type="text" 
                                id="searchInput" 
@@ -327,7 +344,7 @@ $users = $stmt->fetchAll();
                 <!-- Users Grid -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="usersRow">
                     <?php foreach ($users as $user): ?>
-                    <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 hover:border-slate-600/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl">
+                    <div id="user-card-<?php echo $user['id']; ?>" class="bg-slate-800 rounded-2xl p-6 border border-slate-700 hover:border-slate-600/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl">
                         <div class="flex justify-between items-start mb-4">
                             <div class="flex items-center space-x-3">
                                 <div class="w-12 h-12 bg-gradient-to-r from-primary to-accent rounded-xl flex items-center justify-center">
@@ -518,6 +535,22 @@ $users = $stmt->fetchAll();
     </div>
 
     <script>
+        // User dropdown toggle function
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const userDropdown = document.getElementById('userDropdown');
+            const userButton = event.target.closest('[onclick="toggleUserDropdown()"]');
+            
+            if (userDropdown && !userDropdown.contains(event.target) && !userButton) {
+                userDropdown.classList.add('hidden');
+            }
+        });
+
         // Modal functions
         function openAddUserModal() {
             document.getElementById('addUserModal').classList.remove('hidden');
@@ -545,24 +578,84 @@ $users = $stmt->fetchAll();
                 return;
             }
             
+            // Find and hide the user card immediately
+            const userCard = document.getElementById(`user-card-${userId}`);
+            if (userCard) {
+                userCard.style.opacity = '0.5';
+                userCard.style.pointerEvents = 'none';
+                // Add loading animation
+                userCard.innerHTML = `
+                    <div class="flex items-center justify-center h-32">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                        <span class="ml-3 text-slate-300">Deleting user...</span>
+                    </div>
+                `;
+            }
+            
             showNotification('Deleting user...', 'info');
             
             const formData = new FormData();
             formData.append('action', 'delete');
             formData.append('id', userId);
             
+            // Add timeout to prevent hanging
+            const timeoutId = setTimeout(() => {
+                if (userCard) {
+                    userCard.style.opacity = '1';
+                    userCard.style.pointerEvents = 'auto';
+                    userCard.innerHTML = ''; // Clear loading content
+                    window.location.reload(); // Reload to restore original state
+                }
+                showNotification('Delete request timed out. Please try again.', 'error');
+            }, 10000); // 10 second timeout
+            
             fetch('manage_user.php', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.text())
+            .then(response => {
+                clearTimeout(timeoutId);
+                return response.text();
+            })
             .then(data => {
-                showNotification('User deleted successfully!', 'success');
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
+                console.log('Response:', data); // Debug log
+                
+                // Check if the response contains an error message
+                if (data.includes('error_message') || data.includes('Error') || data.includes('Failed')) {
+                    // Restore the user card if deletion failed
+                    if (userCard) {
+                        userCard.style.opacity = '1';
+                        userCard.style.pointerEvents = 'auto';
+                        // Reload the page to restore the original content
+                        window.location.reload();
+                    }
+                    
+                    // Try to extract the specific error message
+                    const errorMatch = data.match(/error_message.*?['"](.*?)['"]/);
+                    const errorMsg = errorMatch ? errorMatch[1] : 'Error deleting user. Please try again.';
+                    showNotification(errorMsg, 'error');
+                } else {
+                    showNotification('User deleted successfully!', 'success');
+                    // Remove the user card from DOM immediately
+                    if (userCard) {
+                        userCard.remove();
+                    }
+                    // Force immediate page reload as backup
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                }
             })
             .catch(error => {
+                clearTimeout(timeoutId);
+                console.error('Delete error:', error);
+                // Restore the user card if deletion failed
+                if (userCard) {
+                    userCard.style.opacity = '1';
+                    userCard.style.pointerEvents = 'auto';
+                    userCard.innerHTML = ''; // Clear loading content
+                    window.location.reload(); // Reload to restore original state
+                }
                 showNotification('Error deleting user: ' + error.message, 'error');
             });
         }

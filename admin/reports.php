@@ -8,6 +8,11 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin','manag
     exit();
 }
 
+// Get user information
+$stmt = $pdo->prepare("SELECT * FROM employees WHERE id = ?");
+$stmt->execute([$_SESSION['user_id']]);
+$user = $stmt->fetch();
+
 // Get date range for filtering
 $start_date = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-01');
 $end_date = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-t');
@@ -118,27 +123,54 @@ if (isset($_POST['export'])) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- OFFLINE Tailwind CSS - No internet required! -->
+    <link rel="stylesheet" href="../assets/css/tailwind.css">
+        <!-- Font Awesome Local - No internet required! -->
+    <link rel="stylesheet" href="../assets/libs/fontawesome/css/all.min.css">
+    
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reports - ELMS</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#0891b2',    // Cyan-600 - Main brand color
-                        secondary: '#f97316',  // Orange-500 - Accent/action color
-                        accent: '#06b6d4',     // Cyan-500 - Highlight color
-                        background: '#0f172a', // Slate-900 - Main background
-                        foreground: '#f8fafc', // Slate-50 - Primary text
-                        muted: '#64748b'       // Slate-500 - Secondary text
-                    }
-                }
+    </script>
+    
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/dark-theme.css">
+    <link rel="stylesheet" href="../assets/css/admin_style.css">
+    <script src="../assets/libs/chartjs/chart.umd.min.js"></script>
+    
+    <script>
+        // Toggle user dropdown
+        function toggleUserDropdown() {
+            console.log('toggleUserDropdown called');
+            const dropdown = document.getElementById('userDropdown');
+            console.log('Dropdown element:', dropdown);
+            if (dropdown) {
+                dropdown.classList.toggle('hidden');
+                console.log('Dropdown classes after toggle:', dropdown.className);
+            } else {
+                console.error('Dropdown element not found');
             }
         }
+
+        // Make function globally available
+        window.toggleUserDropdown = toggleUserDropdown;
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('userDropdown');
+            const button = event.target.closest('button[onclick="toggleUserDropdown()"]');
+            
+            if (dropdown && !dropdown.contains(event.target) && !button) {
+                dropdown.classList.add('hidden');
+            }
+        });
+
+        // Ensure function is available when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, toggleUserDropdown function available:', typeof window.toggleUserDropdown);
+        });
     </script>
 </head>
 <body class="bg-slate-900 text-white">
@@ -148,64 +180,50 @@ if (isset($_POST['export'])) {
         $panelTitle = $role === 'director' ? 'Director Panel' : ($role === 'manager' ? 'Department Head' : 'Admin Panel');
         $dashboardLink = $role === 'director' ? 'director_head_dashboard.php' : ($role === 'manager' ? 'department_head_dashboard.php' : 'admin_dashboard.php');
     ?>
-    <!-- Top Navigation Bar -->
-    <nav class="bg-slate-800 border-b border-slate-700 fixed top-0 left-0 right-0 z-50 h-16">
-        <div class="px-6 py-4 h-full">
-            <div class="flex items-center justify-between h-full">
-                <!-- Logo and Title -->
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-8 bg-gradient-to-r from-primary to-accent rounded-lg flex items-center justify-center">
-                            <i class="fas fa-file-alt text-white text-sm"></i>
-                        </div>
-                        <span class="text-xl font-bold text-white">ELMS Admin</span>
-                    </div>
-                </div>
-                
-                <!-- User Menu -->
-                <div class="flex items-center space-x-4">
-                    <a href="../auth/logout.php" class="text-slate-300 hover:text-white transition-colors flex items-center space-x-2">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Logout</span>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </nav>
+    <?php include '../includes/unified_navbar.php'; ?>
 
     <div class="flex">
         <!-- Left Sidebar -->
-        <aside class="fixed left-0 top-16 h-screen w-64 bg-slate-800 border-r border-slate-700 overflow-y-auto z-40">
+        <aside id="sidebar" class="fixed left-0 top-16 h-screen w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
             <nav class="p-4 space-y-2">
-                <!-- Other Navigation Items -->
+                <!-- Active Navigation Item -->
                 <a href="<?php echo $dashboardLink; ?>" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
                     <i class="fas fa-tachometer-alt w-5"></i>
                     <span>Dashboard</span>
                 </a>
                 
-                <a href="manage_user.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-users-cog w-5"></i>
-                    <span>Manage User</span>
-                </a>
+                <!-- Section Headers -->
+                <div class="space-y-1">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Management</h3>
+                    
+                    <!-- Navigation Items -->
+                    <a href="manage_user.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-users-cog w-5"></i>
+                        <span>Manage Users</span>
+                    </a>
+                    
+                    <a href="leave_management.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-calendar-check w-5"></i>
+                        <span>Leave Management</span>
+                        <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full" id="pendingLeaveBadge" style="display: none;">0</span>
+                    </a>
+                 
+                    <a href="leave_alerts.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-bell w-5"></i>
+                        <span>Leave Alerts</span>
+                    </a>
                 
-                <a href="leave_management.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-calendar-check w-5"></i>
-                    <span>Leave Management</span>
-                    <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full" id="pendingLeaveBadge" style="display: none;">0</span>
-                </a>
                 
-                <a href="leave_alerts.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-bell w-5"></i>
-                    <span>Leave Alerts</span>
-                </a>
-                
-                <a href="view_chart.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-calendar w-5"></i>
-                    <span>Leave Chart</span>
-                </a>
+                    <div class="space-y-1">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
+                    
+                    <a href="view_chart.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-calendar w-5"></i>
+                        <span>Leave Chart</span>
+                    </a>
                 
                 <!-- Active Navigation Item -->
-                <a href="reports.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-primary/20 rounded-lg border border-primary/30">
+                <a href="reports.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
                     <i class="fas fa-file-alt w-5"></i>
                     <span>Reports</span>
                 </a>
@@ -213,7 +231,7 @@ if (isset($_POST['export'])) {
         </aside>
         
         <!-- Main Content -->
-        <main class="flex-1 ml-64 p-6">
+        <main class="flex-1 ml-64 p-6 pt-24">
             <div class="max-w-7xl mx-auto">
 
                 <!-- Page Header -->
@@ -230,8 +248,8 @@ if (isset($_POST['export'])) {
                 </div>
 
                 <!-- Date Range Filter -->
-                <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden mb-8">
-                    <div class="px-6 py-4 border-b border-slate-700/50 bg-slate-700/30">
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden mb-8">
+                    <div class="px-6 py-4 border-b border-slate-700 bg-slate-700/30">
                         <h3 class="text-xl font-semibold text-white flex items-center">
                             <i class="fas fa-calendar text-primary mr-3"></i>Date Range Filter
                         </h3>
@@ -258,8 +276,8 @@ if (isset($_POST['export'])) {
                 </div>
 
                 <!-- Export Section -->
-                <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden mb-8">
-                    <div class="px-6 py-4 border-b border-slate-700/50 bg-slate-700/30">
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden mb-8">
+                    <div class="px-6 py-4 border-b border-slate-700 bg-slate-700/30">
                         <h3 class="text-xl font-semibold text-white flex items-center">
                             <i class="fas fa-download text-primary mr-3"></i>Export Reports
                         </h3>
@@ -286,7 +304,7 @@ if (isset($_POST['export'])) {
 
                 <!-- Statistics Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 hover:border-slate-600/50 transition-all duration-300">
+                    <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700 hover:border-slate-600/50 transition-all duration-300">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-slate-400 text-sm font-medium">Total Requests</p>
@@ -297,7 +315,7 @@ if (isset($_POST['export'])) {
                             </div>
                         </div>
                     </div>
-                    <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 hover:border-slate-600/50 transition-all duration-300">
+                    <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700 hover:border-slate-600/50 transition-all duration-300">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-slate-400 text-sm font-medium">Pending</p>
@@ -309,7 +327,7 @@ if (isset($_POST['export'])) {
                         </div>
                     </div>
                     
-                    <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 hover:border-slate-600/50 transition-all duration-300">
+                    <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700 hover:border-slate-600/50 transition-all duration-300">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-slate-400 text-sm font-medium">Approved</p>
@@ -321,7 +339,7 @@ if (isset($_POST['export'])) {
                         </div>
                     </div>
                     
-                    <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 hover:border-slate-600/50 transition-all duration-300">
+                    <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700 hover:border-slate-600/50 transition-all duration-300">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-slate-400 text-sm font-medium">Rejected</p>
@@ -454,8 +472,9 @@ if (isset($_POST['export'])) {
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script>
+
         // Department Chart
         const departmentCtx = document.getElementById('departmentChart').getContext('2d');
         new Chart(departmentCtx, {

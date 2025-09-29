@@ -8,8 +8,21 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin','manag
     exit();
 }
 
-// Handle bulk actions
+// Get admin details
+$stmt = $pdo->prepare("SELECT * FROM employees WHERE id = ?");
+$stmt->execute([$_SESSION['user_id']]);
+$admin = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Admin interface is read-only - no bulk actions needed
+// Handle bulk actions (DISABLED - Admin is read-only)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Admin is read-only - no actions allowed
+    $_SESSION['error'] = 'Admin interface is read-only. Approval/rejection is handled by Department Heads and Directors.';
+    header('Location: leave_management.php');
+    exit();
+}
+
+if (false) { // Disabled bulk actions
     if (isset($_POST['bulk_action']) && isset($_POST['selected_requests'])) {
         $action = $_POST['bulk_action'];
         $selected_ids = $_POST['selected_requests'];
@@ -284,163 +297,130 @@ $employees = $stmt->fetchAll(PDO::FETCH_COLUMN);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Leave Management - ELMS</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#0891b2',    // Cyan-600 - Main brand color
-                        secondary: '#f97316',  // Orange-500 - Accent/action color
-                        accent: '#06b6d4',     // Cyan-500 - Highlight color
-                        background: '#0f172a', // Slate-900 - Main background
-                        foreground: '#f8fafc', // Slate-50 - Primary text
-                        muted: '#64748b'       // Slate-500 - Secondary text
-                    }
-                }
-            }
-        }
-    </script>
+    <!-- OFFLINE Tailwind CSS - No internet required! -->
+    <link rel="stylesheet" href="../assets/css/tailwind.css">
+        <!-- Font Awesome Local - No internet required! -->
+    <link rel="stylesheet" href="../assets/libs/fontawesome/css/all.min.css">
+    <!-- Font Awesome Local - No internet required! -->
+    
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/dark-theme.css">
+    <link rel="stylesheet" href="../assets/css/admin_style.css">
+    
 </head>
 <body class="bg-slate-900 text-white">
-    <!-- Top Navigation Bar -->
-    <nav class="bg-slate-800 border-b border-slate-700 fixed top-0 left-0 right-0 z-50 h-16">
-        <div class="px-6 py-4 h-full">
-            <div class="flex items-center justify-between h-full">
-                <!-- Logo and Title -->
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-8 bg-gradient-to-r from-primary to-accent rounded-lg flex items-center justify-center">
-                            <i class="fas fa-calendar-check text-white text-sm"></i>
-                        </div>
-                        <span class="text-xl font-bold text-white">ELMS Admin</span>
-                    </div>
-                </div>
-                
-                <!-- User Menu -->
-                <div class="flex items-center space-x-4">
-                    <a href="../auth/logout.php" class="text-slate-300 hover:text-white transition-colors flex items-center space-x-2">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Logout</span>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </nav>
+    <?php include '../includes/unified_navbar.php'; ?>
 
     <div class="flex">
         <!-- Left Sidebar -->
-        <aside class="fixed left-0 top-16 h-screen w-64 bg-slate-800 border-r border-slate-700 overflow-y-auto z-40">
+        <aside class="fixed left-0 top-16 h-screen w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40">
             <nav class="p-4 space-y-2">
-                <?php 
-                    $role = $_SESSION['role'];
-                    $panelTitle = $role === 'director' ? 'Director Panel' : ($role === 'manager' ? 'Department Head' : 'Admin Panel');
-                    $dashboardLink = $role === 'director' ? 'director_head_dashboard.php' : ($role === 'manager' ? 'department_head_dashboard.php' : 'admin_dashboard.php');
-                ?>
-                
-                <!-- Other Navigation Items -->
-                <a href="<?php echo $dashboardLink; ?>" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                <!-- Active Navigation Item (Dashboard) -->
+                <a href="admin_dashboard.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
                     <i class="fas fa-tachometer-alt w-5"></i>
                     <span>Dashboard</span>
                 </a>
                 
-                <a href="manage_user.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-users-cog w-5"></i>
-                    <span>Manage User</span>
-                </a>
+                <!-- Section Headers -->
+                <div class="space-y-1">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Management</h3>
+                    
+                    <!-- Navigation Items -->
+                    <a href="manage_user.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-users-cog w-5"></i>
+                        <span>Manage Users</span>
+                    </a>
+                    
+                    <a href="leave_management.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
+                        <i class="fas fa-calendar-check w-5"></i>
+                        <span>Leave Management</span>
+                        <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full" id="pendingLeaveBadge" style="display: none;">0</span>
+                    </a>
+                    
+                    <a href="leave_alerts.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-bell w-5"></i>
+                        <span>Leave Alerts</span>
+                    </a>
+                </div>
                 
-                <!-- Active Navigation Item -->
-                <a href="leave_management.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-primary/20 rounded-lg border border-primary/30">
-                    <i class="fas fa-calendar-check w-5"></i>
-                    <span>Leave Management</span>
-                    <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full" id="pendingLeaveBadge" style="display: none;">0</span>
-                </a>
+                <div class="space-y-1">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
+                    
+                    <a href="view_chart.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-calendar w-5"></i>
+                        <span>Leave Chart</span>
+                    </a>
+                    
+                    <a href="reports.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-file-alt w-5"></i>
+                        <span>Reports</span>
+                    </a>
+                </div>
                 
-                <a href="leave_alerts.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-bell w-5"></i>
-                    <span>Leave Alerts</span>
-                </a>
-                
-                <a href="view_chart.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-calendar w-5"></i>
-                    <span>Leave Chart</span>
-                </a>
-                
-                <a href="reports.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-file-alt w-5"></i>
-                    <span>Reports</span>
-                </a>
             </nav>
         </aside>
-        
-        <!-- Main Content -->
-        <main class="flex-1 ml-64 p-6">
-            <div class="max-w-7xl mx-auto">
 
     <!-- Main Content -->
-    <div class="main-content">
-        <div class="container-fluid">
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div style="padding: 1.5rem;">
-                        <h2 class="mb-0">
-                            <i class="fas fa-calendar-check me-2"></i>
-                            Leave Management
-                        </h2>
+        <main class="flex-1 ml-64 p-6 pt-24">
+            <div class="max-w-7xl mx-auto">
+
+                <!-- Page Header -->
+                <div class="mb-8">
+                    <div class="flex items-center gap-4">
+                        <div class="w-16 h-16 bg-gradient-to-r from-primary to-accent rounded-2xl flex items-center justify-center">
+                            <i class="fas fa-calendar-check text-2xl text-white"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-3xl font-bold text-white mb-2">Leave Management</h1>
+                            <p class="text-slate-400">Review and manage all leave requests across the organization</p>
                     </div>
                 </div>
             </div>
 
+                <!-- Success Message -->
             <?php if (isset($_SESSION['success'])): ?>
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <?php 
-                    echo $_SESSION['success'];
-                    unset($_SESSION['success']);
-                    ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <div class="bg-green-500/20 border border-green-500/30 text-green-400 p-4 rounded-xl mb-6 flex items-center">
+                        <i class="fas fa-check-circle mr-3"></i>
+                        <?php echo $_SESSION['success']; unset($_SESSION['success']); ?>
                 </div>
             <?php endif; ?>
 
+                <!-- Error Message -->
             <?php if (isset($_SESSION['error'])): ?>
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <?php 
-                    echo $_SESSION['error'];
-                    unset($_SESSION['error']);
-                    ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <div class="bg-red-500/20 border border-red-500/30 text-red-400 p-4 rounded-xl mb-6 flex items-center">
+                        <i class="fas fa-exclamation-circle mr-3"></i>
+                        <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
                 </div>
             <?php endif; ?>
 
             <!-- Filters -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-filter me-2"></i>Filters
-                            </h5>
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden mb-8">
+                    <div class="px-6 py-4 border-b border-slate-700 bg-slate-700/30">
+                        <h3 class="text-xl font-semibold text-white flex items-center">
+                            <i class="fas fa-filter text-primary mr-3"></i>Filters
+                        </h3>
                         </div>
-                        <div class="card-body">
-                            <form method="GET" class="row g-3">
-                                <div class="col-md-3">
-                                    <label for="status" class="form-label">Status</label>
-                                    <select class="form-select" name="status" id="status">
+                    <div class="p-6">
+                        <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                            <div>
+                                <label for="status" class="block text-sm font-semibold text-slate-300 mb-2">Status</label>
+                                <select name="status" id="status" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
                                         <option value="">All Status</option>
                                         <option value="pending" <?php echo (isset($_GET['status']) && $_GET['status'] == 'pending') ? 'selected' : ''; ?>>Pending</option>
                                         <option value="approved" <?php echo (isset($_GET['status']) && $_GET['status'] == 'approved') ? 'selected' : ''; ?>>Approved</option>
                                         <option value="rejected" <?php echo (isset($_GET['status']) && $_GET['status'] == 'rejected') ? 'selected' : ''; ?>>Rejected</option>
                                     </select>
                                 </div>
-                                <div class="col-md-3">
-                                    <label for="employee" class="form-label">Employee</label>
-                                    <input type="text" class="form-control" name="employee" id="employee" 
+                            <div>
+                                <label for="employee" class="block text-sm font-semibold text-slate-300 mb-2">Employee</label>
+                                <input type="text" name="employee" id="employee" 
                                            value="<?php echo isset($_GET['employee']) ? htmlspecialchars($_GET['employee']) : ''; ?>" 
-                                           placeholder="Search by employee name">
+                                       placeholder="Search by employee name"
+                                       class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
                                 </div>
-                                <div class="col-md-3">
-                                    <label for="leave_type" class="form-label">Leave Type</label>
-                                    <select class="form-select" name="leave_type" id="leave_type">
+                            <div>
+                                <label for="leave_type" class="block text-sm font-semibold text-slate-300 mb-2">Leave Type</label>
+                                <select name="leave_type" id="leave_type" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
                                         <option value="">All Types</option>
                                         <?php foreach ($leave_types as $type): ?>
                                             <option value="<?php echo htmlspecialchars($type); ?>" 
@@ -450,258 +430,223 @@ $employees = $stmt->fetchAll(PDO::FETCH_COLUMN);
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">&nbsp;</label>
-                                    <div class="d-grid">
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="fas fa-search me-2"></i>Filter
+                            <div class="flex items-end">
+                                <button type="submit" class="w-full bg-primary hover:bg-primary/80 text-white px-4 py-3 rounded-xl transition-colors flex items-center justify-center">
+                                    <i class="fas fa-search mr-2"></i>Filter
                                         </button>
-                                    </div>
                                 </div>
                             </form>
-                        </div>
-                    </div>
                 </div>
             </div>
 
             <!-- Leave Requests Table -->
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h5 class="card-title mb-0">
-                                    <i class="fas fa-list me-2"></i>Leave Requests
-                                </h5>
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-success btn-sm" onclick="bulkAction('approved')">
-                                        <i class="fas fa-check me-1"></i>Approve Selected
-                                    </button>
-                                    <button type="button" class="btn btn-danger btn-sm" onclick="bulkAction('rejected')">
-                                        <i class="fas fa-times me-1"></i>Reject Selected
-                                    </button>
-                                </div>
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden mb-8">
+                    <div class="px-6 py-4 border-b border-slate-700 bg-slate-700/30">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-semibold text-white flex items-center">
+                                <i class="fas fa-list text-primary mr-3"></i>Leave Requests
+                            </h3>
+                            <div class="text-slate-400 text-sm">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Admin View - Read Only Access. You can view all leave request details and print approved leave forms. Approval/rejection is handled by Department Heads and Directors.
                             </div>
-                            <div class="alert alert-info py-2 mb-0">
-                                <i class="fas fa-info-circle me-2"></i>
-                                <strong>All leave requests are visible here.</strong> You can only take action (approve/reject) on requests where both the Department Head and Director have already made their decisions.
+                            </div>
+                        <div class="bg-blue-500/20 border border-blue-500/30 rounded-xl p-4">
+                            <div class="flex items-center">
+                                <i class="fas fa-info-circle text-blue-400 mr-3"></i>
+                                <div>
+                                    <p class="text-white font-semibold">All leave requests are visible here.</p>
+                                    <p class="text-slate-300 text-sm">You can only take action (approve/reject) on requests where both the Department Head and Director have already made their decisions.</p>
                             </div>
                         </div>
-                        <div class="card-body">
+                        </div>
+                    </div>
+                    <div class="p-6">
                             <form id="bulkForm" method="POST">
                                 <input type="hidden" name="bulk_action" id="bulkAction">
-                                <div class="table-responsive">
-                                    <table class="table table-hover">
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
                                         <thead>
-                                            <tr>
-                                                <th>
-                                                    <input type="checkbox" id="selectAll" class="form-check-input">
-                                                </th>
-                                                <th>Employee</th>
-                                                <th>Department</th>
-                                                <th>Leave Type</th>
-                                                <th>Start Date</th>
-                                                <th>End Date</th>
-                                                <th>Days</th>
-                                                <th>Reason</th>
-                                                <th>Dept Head</th>
-                                                <th>Director</th>
-                                                <th>Admin</th>
-                                                <th>Final Status</th>
-                                                <th>Actions</th>
+                                        <tr class="border-b border-slate-700">
+                                            <th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Employee</th>
+                                            <th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Department</th>
+                                            <th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Leave Type</th>
+                                            <th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Start Date</th>
+                                            <th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">End Date</th>
+                                            <th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Days</th>
+                                            <th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Reason</th>
+                                            <th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Dept Head</th>
+                                            <th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Director</th>
+                                            <th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Final Status</th>
+                                            <th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <?php if (empty($leave_requests)): ?>
                                                 <tr>
-                                                    <td colspan="12" class="text-center py-4">
-                                                        <div class="text-muted">
-                                                            <i class="fas fa-info-circle fa-2x mb-3"></i>
-                                                            <h5>No Leave Requests Found</h5>
-                                                            <p>No leave requests match your current filter criteria.<br>
-                                                            Try adjusting your filters or check back later.</p>
+                                                <td colspan="11" class="text-center py-12">
+                                                    <div class="w-16 h-16 bg-slate-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                        <i class="fas fa-info-circle text-slate-400 text-2xl"></i>
                                                         </div>
+                                                    <h4 class="text-lg font-semibold text-white mb-2">No Leave Requests Found</h4>
+                                                    <p class="text-slate-400">No leave requests match your current filter criteria.<br>
+                                                    Try adjusting your filters or check back later.</p>
                                                     </td>
                                                 </tr>
                                             <?php else: ?>
                                             <?php foreach ($leave_requests as $request): ?>
-                                            <tr data-request-id="<?php echo $request['id']; ?>">
-                                                <td>
-                                                    <input type="checkbox" name="selected_requests[]" 
-                                                           value="<?php echo $request['id']; ?>" 
-                                                           class="form-check-input request-checkbox">
+                                            <tr data-request-id="<?php echo $request['id']; ?>" class="border-b border-slate-700/30 hover:bg-slate-700/30 transition-colors">
+                                                <td class="py-4 px-4">
+                                                    <div class="font-semibold text-white"><?php echo htmlspecialchars($request['employee_name']); ?></div>
                                                 </td>
-                                                <td><?php echo htmlspecialchars($request['employee_name']); ?></td>
-                                                <td><?php echo htmlspecialchars($request['department']); ?></td>
-                                                <td><?php echo htmlspecialchars($request['leave_type']); ?></td>
-                                                <td><?php echo date('M d, Y', strtotime($request['start_date'])); ?></td>
-                                                <td><?php echo date('M d, Y', strtotime($request['end_date'])); ?></td>
-                                                <td>
+                                                <td class="py-4 px-4 text-slate-300"><?php echo htmlspecialchars($request['department']); ?></td>
+                                                <td class="py-4 px-4">
+                                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
+                                                        <?php echo htmlspecialchars($request['leave_type']); ?>
+                                                    </span>
+                                                </td>
+                                                <td class="py-4 px-4 text-slate-300"><?php echo date('M d, Y', strtotime($request['start_date'])); ?></td>
+                                                <td class="py-4 px-4 text-slate-300"><?php echo date('M d, Y', strtotime($request['end_date'])); ?></td>
+                                                <td class="py-4 px-4">
+                                                    <span class="inline-flex items-center justify-center w-8 h-8 bg-slate-700 rounded-full text-sm font-semibold text-white">
                                                     <?php 
                                                     $start = new DateTime($request['start_date']);
                                                     $end = new DateTime($request['end_date']);
                                                     $days = $start->diff($end)->days + 1;
                                                     echo $days;
                                                     ?>
+                                                    </span>
                                                 </td>
-                                                <td>
-                                                    <span class="text-truncate d-inline-block" style="max-width: 150px;" 
+                                                <td class="py-4 px-4">
+                                                    <span class="text-slate-300 max-w-[150px] truncate block" 
                                                           title="<?php echo htmlspecialchars($request['reason']); ?>">
                                                         <?php echo htmlspecialchars($request['reason']); ?>
                                                     </span>
                                                 </td>
                                                 <!-- Department Head Approval -->
-                                                <td>
+                                                <td class="py-4 px-4">
                                                     <?php 
                                                     $dept_status = $request['dept_head_approval'] ?? 'pending';
-                                                    $dept_class = $dept_status == 'approved' ? 'success' : ($dept_status == 'rejected' ? 'danger' : 'warning');
+                                                    $dept_color = $dept_status == 'approved' ? 'green' : ($dept_status == 'rejected' ? 'red' : 'yellow');
                                                     ?>
-                                                    <span class="badge bg-<?php echo $dept_class; ?>" data-dept-status="<?php echo ucfirst($dept_status); ?>">
+                                                    <div class="flex flex-col gap-1">
+                                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-<?php echo $dept_color; ?>-500/20 text-<?php echo $dept_color; ?>-400 border border-<?php echo $dept_color; ?>-500/30" data-dept-status="<?php echo ucfirst($dept_status); ?>">
                                                         <?php echo ucfirst($dept_status); ?>
                                                     </span>
-                                                    <?php if ($dept_status != 'pending' && !empty($request['dept_head_name'])): ?>
-                                                        <br><small class="text-muted" data-dept-approver="<?php echo htmlspecialchars($request['dept_head_name']); ?>">by <?php echo htmlspecialchars($request['dept_head_name']); ?></small>
-                                                    <?php else: ?>
-                                                        <br><small class="text-muted" data-dept-approver="Not decided">Not decided</small>
-                                                    <?php endif; ?>
+                                                    </div>
                                                 </td>
                                                 <!-- Director Approval -->
-                                                <td>
+                                                <td class="py-4 px-4">
                                                     <?php 
                                                     $director_status = $request['director_approval'] ?? 'pending';
-                                                    $director_class = $director_status == 'approved' ? 'success' : ($director_status == 'rejected' ? 'danger' : 'warning');
+                                                    $director_color = $director_status == 'approved' ? 'green' : ($director_status == 'rejected' ? 'red' : 'yellow');
                                                     ?>
-                                                    <span class="badge bg-<?php echo $director_class; ?>" data-director-status="<?php echo ucfirst($director_status); ?>">
+                                                    <div class="flex flex-col gap-1">
+                                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-<?php echo $director_color; ?>-500/20 text-<?php echo $director_color; ?>-400 border border-<?php echo $director_color; ?>-500/30" data-director-status="<?php echo ucfirst($director_status); ?>">
                                                         <?php echo ucfirst($director_status); ?>
                                                     </span>
-                                                    <?php if ($director_status != 'pending' && !empty($request['director_name'])): ?>
-                                                        <br><small class="text-muted" data-director-approver="<?php echo htmlspecialchars($request['director_name']); ?>">by <?php echo htmlspecialchars($request['director_name']); ?></small>
-                                                    <?php else: ?>
-                                                        <br><small class="text-muted" data-director-approver="Not decided">Not decided</small>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <!-- Admin Approval -->
-                                                <td>
-                                                    <?php 
-                                                    $admin_status = $request['admin_approval'] ?? 'pending';
-                                                    $admin_class = $admin_status == 'approved' ? 'success' : ($admin_status == 'rejected' ? 'danger' : 'warning');
-                                                    ?>
-                                                    <span class="badge bg-<?php echo $admin_class; ?>" data-admin-status="<?php echo ucfirst($admin_status); ?>">
-                                                        <?php echo ucfirst($admin_status); ?>
-                                                    </span>
-                                                    <?php if ($admin_status != 'pending' && !empty($request['admin_name'])): ?>
-                                                        <br><small class="text-muted" data-admin-approver="<?php echo htmlspecialchars($request['admin_name']); ?>">by <?php echo htmlspecialchars($request['admin_name']); ?></small>
-                                                    <?php else: ?>
-                                                        <br><small class="text-muted" data-admin-approver="Not decided">Not decided</small>
-                                                    <?php endif; ?>
+                                                    </div>
                                                 </td>
                                                 <!-- Final Status -->
-                                                <td>
-                                                    <div class="d-flex align-items-center gap-2">
-                                                        <span class="badge bg-<?php 
-                                                            echo $request['status'] == 'approved' ? 'success' : 
-                                                                ($request['status'] == 'pending' ? 'warning' : 'danger'); 
-                                                        ?>" data-final-status="<?php echo ucfirst($request['status']); ?>">
+                                                <td class="py-4 px-4">
+                                                    <div class="flex items-center gap-2">
+                                                        <?php 
+                                                        $status_color = $request['status'] == 'approved' ? 'green' : 
+                                                                        ($request['status'] == 'pending' ? 'yellow' : 'red'); 
+                                                        ?>
+                                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-<?php echo $status_color; ?>-500/20 text-<?php echo $status_color; ?>-400 border border-<?php echo $status_color; ?>-500/30" data-final-status="<?php echo ucfirst($request['status']); ?>">
                                                             <?php echo ucfirst($request['status']); ?>
                                                         </span>
-                                                        <button type="button" class="btn btn-sm btn-outline-info" 
+                                                        <button type="button" class="p-1 text-slate-400 hover:text-white transition-colors" 
                                                                 onclick="showStatusInfo(<?php echo $request['id']; ?>)"
                                                                 title="View Status Details">
-                                                            <i class="fas fa-info-circle"></i>
+                                                            <i class="fas fa-info-circle text-sm"></i>
                                                         </button>
                                                     </div>
                                                 </td>
                                                 <!-- Actions -->
-                                                <td>
+                                                <td class="py-4 px-4">
                                                     <?php 
                                                     // Check approval status at each level
                                                     $dept_status = $request['dept_head_approval'] ?? 'pending';
                                                     $director_status = $request['director_approval'] ?? 'pending';
-                                                    $admin_status = $request['admin_approval'] ?? 'pending';
                                                     
                                                     $dept_approved = $dept_status == 'approved';
                                                     $director_approved = $director_status == 'approved';
                                                     $both_approved = $dept_approved && $director_approved;
                                                     $any_rejected = $dept_status == 'rejected' || $director_status == 'rejected';
-                                                    $admin_can_act = $both_approved && !$any_rejected && $admin_status == 'pending';
-                                                    $admin_already_acted = $admin_status != 'pending';
                                                     ?>
                                                     
-                                                    <?php if ($admin_can_act): ?>
-                                                        <div class="btn-group btn-group-sm" role="group">
-                                                            <button type="button" class="btn btn-success" 
-                                                                    onclick="updateRequestStatus(<?php echo $request['id']; ?>, 'approved')"
-                                                                    title="Approve">
-                                                                <i class="fas fa-check"></i>
-                                                            </button>
-                                                            <button type="button" class="btn btn-danger" 
-                                                                    onclick="updateRequestStatus(<?php echo $request['id']; ?>, 'rejected')"
-                                                                    title="Reject">
-                                                                <i class="fas fa-times"></i>
-                                                            </button>
-                                                        </div>
+                                                    <div class="flex flex-col gap-2">
+                                                    <?php if ($both_approved): ?>
+                                                        <!-- Print functionality for approved requests -->
+                                                        <a href="print_leave_request.php?id=<?php echo $request['id']; ?>" target="_blank" class="inline-flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors">
+                                                            <i class="fas fa-print mr-1"></i> Print
+                                                        </a>
                                                     <?php elseif ($any_rejected): ?>
                                                         <div class="text-center">
-                                                            <span class="badge bg-danger mb-1">Rejected</span>
-                                                            <br><small class="text-muted">by previous approver</small>
+                                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-400 border border-red-500/30">Rejected</span>
                                                         </div>
-                                                    <?php elseif ($admin_already_acted): ?>
+                                                    <?php else: ?>
                                                         <div class="text-center">
-                                                            <span class="badge bg-<?php echo $admin_status == 'approved' ? 'success' : 'danger'; ?> mb-1">
-                                                                <?php echo ucfirst($admin_status); ?>
-                                                            </span>
-                                                            <br><small class="text-muted">by admin</small>
-                                                        </div>
-                                                    <?php elseif (!$both_approved): ?>
-                                                        <div class="text-center">
-                                                            <span class="badge bg-warning mb-1">Waiting</span>
-                                                            <br><small class="text-muted">
-                                                                <?php if ($dept_status == 'pending'): ?>
-                                                                    Dept Head
-                                                                <?php elseif ($director_status == 'pending'): ?>
-                                                                    Director
-                                                                <?php endif; ?>
-                                                            </small>
+                                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">Waiting</span>
                                                         </div>
                                                     <?php endif; ?>
                                                     
-                                                    <button type="button" class="btn btn-primary btn-sm" 
+                                                        <button type="button" class="inline-flex items-center px-3 py-1 bg-primary hover:bg-primary/80 text-white text-xs font-medium rounded-lg transition-colors" 
                                                             onclick="viewRequestDetails(<?php echo $request['id']; ?>)"
                                                             title="View Details">
-                                                        <i class="fas fa-eye"></i>
+                                                            <i class="fas fa-eye mr-1"></i>View
                                                     </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                             <?php endforeach; ?>
                                             <?php endif; ?>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </form>
-                        </div>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
-        </div>
+        </main>
     </div>
 
     <!-- Request Details Modal -->
-    <div class="modal fade" id="requestDetailsModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Leave Request Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div id="requestDetailsModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="px-6 py-4 border-b border-slate-700 bg-slate-700/30">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-semibold text-white">Leave Request Details</h3>
+                    <button type="button" class="text-slate-400 hover:text-white transition-colors" onclick="closeRequestModal()">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
                 </div>
-                <div class="modal-body" id="requestDetailsContent">
-                    <!-- Content will be loaded here -->
-                </div>
+            </div>
+            <div class="p-6" id="requestDetailsContent">
+                <!-- Content will be loaded here -->
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // User dropdown toggle function
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const userDropdown = document.getElementById('userDropdown');
+            const userButton = event.target.closest('[onclick="toggleUserDropdown()"]');
+            
+            if (userDropdown && !userDropdown.contains(event.target) && !userButton) {
+                userDropdown.classList.add('hidden');
+            }
+        });
+
         // Select all functionality
         document.getElementById('selectAll').addEventListener('change', function() {
             const checkboxes = document.querySelectorAll('.request-checkbox');
@@ -754,11 +699,7 @@ $employees = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
             // Extract data from the row
             const deptStatus = row.querySelector('[data-dept-status]')?.textContent.trim() || 'Pending';
-            const deptApprover = row.querySelector('[data-dept-approver]')?.textContent.trim() || 'Not decided';
             const directorStatus = row.querySelector('[data-director-status]')?.textContent.trim() || 'Pending';
-            const directorApprover = row.querySelector('[data-director-approver]')?.textContent.trim() || 'Not decided';
-            const adminStatus = row.querySelector('[data-admin-status]')?.textContent.trim() || 'Pending';
-            const adminApprover = row.querySelector('[data-admin-approver]')?.textContent.trim() || 'Not decided';
             const finalStatus = row.querySelector('[data-final-status]')?.textContent.trim() || 'Pending';
 
             // Create modal HTML
@@ -783,7 +724,6 @@ $employees = $stmt->fetchAll(PDO::FETCH_COLUMN);
                                                 ${deptStatus}
                                             </span>
                                         </p>
-                                        <p><strong>Approved by:</strong> ${deptApprover}</p>
                                     </div>
                                     <div class="col-md-6">
                                         <h6 class="text-primary mb-3">
@@ -794,23 +734,11 @@ $employees = $stmt->fetchAll(PDO::FETCH_COLUMN);
                                                 ${directorStatus}
                                             </span>
                                         </p>
-                                        <p><strong>Approved by:</strong> ${directorApprover}</p>
                                     </div>
                                 </div>
                                 <hr>
                                 <div class="row">
-                                    <div class="col-md-6">
-                                        <h6 class="text-primary mb-3">
-                                            <i class="fas fa-user-shield me-2"></i>Admin
-                                        </h6>
-                                        <p><strong>Status:</strong> 
-                                            <span class="badge bg-${adminStatus === 'Approved' ? 'success' : adminStatus === 'Rejected' ? 'danger' : 'warning'}">
-                                                ${adminStatus}
-                                            </span>
-                                        </p>
-                                        <p><strong>Approved by:</strong> ${adminApprover}</p>
-                                    </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-12">
                                         <h6 class="text-success mb-3">
                                             <i class="fas fa-flag-checkered me-2"></i>Final Status
                                         </h6>
@@ -844,6 +772,31 @@ $employees = $stmt->fetchAll(PDO::FETCH_COLUMN);
             modal.show();
         }
 
+        // Close request modal
+        function closeRequestModal() {
+            const modal = document.getElementById('requestDetailsModal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
+
+        // Show request details modal
+        function viewRequestDetails(leaveId) {
+            // This would typically fetch data via AJAX
+            // For now, just show the modal
+            const modal = document.getElementById('requestDetailsModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+            }
+        }
+
+        // Show status info modal
+        function showStatusInfo(leaveId) {
+            // This would typically fetch data via AJAX
+            // For now, just show an alert
+            alert('Status information for leave request #' + leaveId);
+        }
+
         // Function to fetch pending leave count
         function fetchPendingLeaveCount() {
             fetch('api/get_pending_leave_count.php')
@@ -869,6 +822,7 @@ $employees = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
         // Update pending leave count every 30 seconds
         setInterval(fetchPendingLeaveCount, 30000);
+
     </script>
 </body>
 </html> 

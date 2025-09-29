@@ -4,7 +4,7 @@
     "type": "project",
     "require": {
         "php": ">=7.4",
-        "phpmailer/phpmailer": "^6.8"
+        "phpmailer/phpmailer": "^6.10"
     },
     "autoload": {
         "psr-4": {
@@ -14,4 +14,4 @@
     "config": {
         "optimize-autoloader": true
     }
-} 
+}

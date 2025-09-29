@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'elms/employee-leave-management-system',
-        'pretty_version' => '1.0.0+no-version-set',
-        'version' => '1.0.0.0',
-        'reference' => null,
+        'pretty_version' => 'dev-master',
+        'version' => 'dev-master',
+        'reference' => '730fb0a0041ccc1e95677928d392d2c5183b8783',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         'elms/employee-leave-management-system' => array(
-            'pretty_version' => '1.0.0+no-version-set',
-            'version' => '1.0.0.0',
-            'reference' => null,
+            'pretty_version' => 'dev-master',
+            'version' => 'dev-master',
+            'reference' => '730fb0a0041ccc1e95677928d392d2c5183b8783',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

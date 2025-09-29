@@ -41,6 +41,10 @@ function sendLeaveStatusEmail($employee_email, $employee_name, $status, $start_d
     $message = "
     <html>
     <head>
+    <!-- OFFLINE Tailwind CSS - No internet required! -->
+    <link rel="stylesheet" href="../assets/css/tailwind.css">
+    <link rel="stylesheet" href="../assets/css/font-awesome-local.css">
+
         <title>Leave Request Update</title>
         <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }

@@ -8,6 +8,11 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+// Get user info
+$stmt = $pdo->prepare("SELECT * FROM employees WHERE id = ?");
+$stmt->execute([$_SESSION['user_id']]);
+$employee = $stmt->fetch();
+
 // Get leave history
 $stmt = $pdo->prepare("
     SELECT lr.*, 
@@ -25,94 +30,74 @@ $leave_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- OFFLINE Tailwind CSS - No internet required! -->
+    <link rel="stylesheet" href="../assets/css/tailwind.css">
+        <!-- Font Awesome Local - No internet required! -->
+    <link rel="stylesheet" href="../assets/libs/fontawesome/css/all.min.css">
+    
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Leave History - ELMS</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#0891b2',    // Cyan-600 - Main brand color
-                        secondary: '#f97316',  // Orange-500 - Accent/action color
-                        accent: '#06b6d4',     // Cyan-500 - Highlight color
-                        background: '#0f172a', // Slate-900 - Main background
-                        foreground: '#f8fafc', // Slate-50 - Primary text
-                        muted: '#64748b'       // Slate-500 - Secondary text
-                    }
-                }
-            }
-        }
-    </script>
+    
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/dark-theme.css">
+    
 </head>
 <body class="bg-slate-900 text-white">
-    <!-- Top Navigation Bar -->
-    <nav class="bg-slate-800 border-b border-slate-700 fixed top-0 left-0 right-0 z-50 h-16">
-        <div class="px-6 py-4 h-full">
-            <div class="flex items-center justify-between h-full">
-                <!-- Logo and Title -->
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-8 bg-gradient-to-r from-primary to-accent rounded-lg flex items-center justify-center">
-                            <i class="fas fa-user text-white text-sm"></i>
-                        </div>
-                        <span class="text-xl font-bold text-white">ELMS Employee</span>
-                    </div>
-                </div>
-                
-                <!-- User Menu -->
-                <div class="flex items-center space-x-4">
-                    <a href="../auth/logout.php" class="text-slate-300 hover:text-white transition-colors flex items-center space-x-2">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Logout</span>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </nav>
+    <?php include '../includes/unified_navbar.php'; ?>
 
     <div class="flex">
         <!-- Left Sidebar -->
-        <aside class="fixed left-0 top-16 h-screen w-64 bg-slate-800 border-r border-slate-700 overflow-y-auto z-40">
+        <aside class="fixed left-0 top-16 h-screen w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40">
             <nav class="p-4 space-y-2">
-                <!-- Other Navigation Items -->
+                <!-- Active Navigation Item (Dashboard) -->
                 <a href="dashboard.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
                     <i class="fas fa-tachometer-alt w-5"></i>
                     <span>Dashboard</span>
                 </a>
                 
-                <!-- Active Navigation Item -->
-                <a href="leave_history.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-primary/20 rounded-lg border border-primary/30">
-                    <i class="fas fa-history w-5"></i>
-                    <span>Leave History</span>
-                </a>
+                <!-- Section Headers -->
+                <div class="space-y-1">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Leave Management</h3>
+                    
+                    <!-- Navigation Items -->
+                  <!-- Navigation Items -->
+                  <a href="leave_history.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
+                        <i class="fas fa-history w-5"></i>
+                        <span>Leave History</span>
+                    </a>
+                    <a href="leave_credits.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-calculator w-5"></i>
+                        <span>Leave Credits</span>
+                    </a>
+                    
                 
-                <a href="profile.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-user w-5"></i>
-                    <span>Profile</span>
-                </a>
+                </div>
                 
-                <a href="leave_credits.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-calculator w-5"></i>
-                    <span>Leave Credits</span>
-                </a>
+                <div class="space-y-1">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
+                    
+                    <a href="view_chart.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-calendar w-5"></i>
+                        <span>Leave Chart</span>
+                    </a>
+                </div>
                 
-                <a href="apply_leave.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-calendar-plus w-5"></i>
-                    <span>Apply Leave</span>
-                </a>
+                <div class="space-y-1">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Account</h3>
+                    
+                    <a href="profile.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-user w-5"></i>
+                        <span>Profile</span>
+                    </a>
+                </div>
                 
-                <a href="view_chart.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-calendar w-5"></i>
-                    <span>Leave Chart</span>
-                </a>
             </nav>
         </aside>
         
         <!-- Main Content -->
-        <main class="flex-1 ml-64 p-6">
+        <main class="flex-1 ml-64 p-6 pt-24">
             <div class="max-w-7xl mx-auto">
                 <!-- Page Header -->
                 <div class="mb-8">
@@ -166,11 +151,6 @@ $leave_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                 <span class="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide">
                                                     <?php echo ucfirst(str_replace('_', ' ', $request['display_leave_type'])); ?>
                                                 </span>
-                                                <?php if ($request['is_late']): ?>
-                                                    <span class="bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded-full text-xs font-semibold uppercase tracking-wide inline-block w-fit">
-                                                        <i class="fas fa-exclamation-triangle mr-1"></i>Late Application
-                                                    </span>
-                                                <?php endif; ?>
                                             </div>
                                         </td>
                                         <td class="px-6 py-4 text-slate-300 text-sm"><?php echo date('M d, Y', strtotime($request['start_date'])); ?></td>
@@ -214,14 +194,16 @@ $leave_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <!-- Leave Details Modal -->
     <div id="leaveDetailsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-        <div class="bg-slate-800 rounded-2xl p-8 w-full max-w-2xl mx-4 max-h-screen overflow-y-auto border border-slate-700">
+        <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-8 w-full max-w-2xl mx-4 max-h-screen overflow-y-auto border border-slate-700/50">
             <div class="flex items-center justify-between mb-6">
                 <h5 class="text-2xl font-bold text-white flex items-center">
                     <i class="fas fa-eye text-primary mr-3"></i>Leave Request Details
                 </h5>
-                <button type="button" onclick="closeLeaveDetailsModal()" class="text-slate-400 hover:text-white transition-colors">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
+                <div class="flex items-center gap-3">
+                    <button type="button" onclick="closeLeaveDetailsModal()" class="text-slate-400 hover:text-white transition-colors">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
             </div>
             <div id="leaveDetailsContent" class="text-slate-300">
                 <!-- Content will be loaded here -->
@@ -235,6 +217,22 @@ $leave_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <script>
+        // User dropdown toggle function
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const userDropdown = document.getElementById('userDropdown');
+            const userButton = event.target.closest('[onclick="toggleUserDropdown()"]');
+            
+            if (userDropdown && !userDropdown.contains(event.target) && !userButton) {
+                userDropdown.classList.add('hidden');
+            }
+        });
+
         function openLeaveDetailsModal() {
             document.getElementById('leaveDetailsModal').classList.remove('hidden');
             document.getElementById('leaveDetailsModal').classList.add('flex');
@@ -245,7 +243,10 @@ $leave_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
             document.getElementById('leaveDetailsModal').classList.remove('flex');
         }
 
+        let currentLeaveId = null;
+
         function viewLeaveDetails(leaveId) {
+            currentLeaveId = leaveId;
             // Fetch leave details via AJAX
             fetch(`get_leave_details.php?id=${leaveId}`)
                 .then(response => response.json())
@@ -260,7 +261,6 @@ $leave_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <h6 class="text-slate-400 mb-2 font-semibold">Leave Type</h6>
                                     <p class="mb-3">
                                         <span class="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide">${leave.leave_type.charAt(0).toUpperCase() + leave.leave_type.slice(1).replace('_', ' ')}</span>
-                                        ${leave.is_late ? '<span class="bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ml-2">Late Application</span>' : ''}
                                     </p>
                                     
                                     <h6 class="text-slate-400 mb-2 font-semibold">Start Date</h6>
@@ -310,6 +310,7 @@ $leave_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     alert('Error loading leave details');
                 });
         }
+
     </script>
 </body>
 </html> 

@@ -13,43 +13,45 @@ $stmt = $pdo->prepare("SELECT * FROM employees WHERE id = ?");
 $stmt->execute([$_SESSION['user_id']]);
 $me = $stmt->fetch();
 
-// Get leave requests for department head's department
+// Get leave requests for department head's department (excluding annual and unpaid leave types)
 // Department head can see all requests from their department for management
 $stmt = $pdo->prepare("
     SELECT lr.*, e.name as employee_name, e.position, e.department
     FROM leave_requests lr 
     JOIN employees e ON lr.employee_id = e.id 
-    WHERE e.department = ?
+    WHERE e.department = ? 
+    AND (lr.leave_type NOT IN ('annual', 'unpaid') OR lr.leave_type IS NULL OR lr.leave_type = '')
     ORDER BY lr.start_date ASC
 ");
 $stmt->execute([$me['department']]);
 $leave_requests = $stmt->fetchAll();
+
+// Debug: Log department and leave requests
+error_log("Department Head Department: " . $me['department']);
+error_log("Number of leave requests found: " . count($leave_requests));
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- OFFLINE Tailwind CSS - No internet required! -->
+    <link rel="stylesheet" href="../assets/css/tailwind.css">
+        <!-- Font Awesome Local - No internet required! -->
+    <link rel="stylesheet" href="../assets/libs/fontawesome/css/all.min.css">
+    
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>ELMS - Department Leave Calendar</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#0891b2',    // Cyan-600 - Main brand color
-                        secondary: '#f97316',  // Orange-500 - Accent/action color
-                        accent: '#06b6d4',     // Cyan-500 - Highlight color
-                        background: '#0f172a', // Slate-900 - Main background
-                        foreground: '#f8fafc', // Slate-50 - Primary text
-                        muted: '#64748b'       // Slate-500 - Secondary text
-                    }
-                }
-            }
-        }
     </script>
+    
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/dark-theme.css">
+    <link href='../assets/libs/fullcalendar/css/main.min.css' rel='stylesheet' />
+    
     <style>
         /* FullCalendar Custom Styling */
         .fc {
@@ -59,37 +61,57 @@ $leave_requests = $stmt->fetchAll();
         .fc-header-toolbar {
             margin-bottom: 1.5rem !important;
             padding: 1rem;
-            background: #f8f9fa;
+            background: #1e293b !important;
             border-radius: 8px;
-            border: 1px solid rgba(0, 0, 0, 0.06);
+            border: 1px solid #334155 !important;
         }
         
         .fc-toolbar-title {
             font-size: 1.5rem !important;
             font-weight: 600 !important;
-            color: #212529 !important;
+            color: #f8fafc !important;
         }
         
         .fc-button {
-            background: var(--primary) !important;
-            border: 1px solid var(--primary) !important;
+            background: #0891b2 !important;
+            border: 1px solid #0891b2 !important;
             border-radius: 6px !important;
             font-weight: 500 !important;
             padding: 0.5rem 1rem !important;
+            color: white !important;
         }
         
         .fc-button:hover {
-            background: var(--primary-hover) !important;
-            border-color: var(--primary-hover) !important;
+            background: #0e7490 !important;
+            border-color: #0e7490 !important;
         }
         
         .fc-button:focus {
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
+            box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.3) !important;
         }
         
         .fc-button-primary:not(:disabled):active {
-            background: var(--primary-hover) !important;
-            border-color: var(--primary-hover) !important;
+            background: #0e7490 !important;
+            border-color: #0e7490 !important;
+        }
+        
+        .fc-button-group {
+            background: #1e293b !important;
+        }
+        
+        .fc-button-group .fc-button {
+            background: #334155 !important;
+            border-color: #475569 !important;
+            color: #f8fafc !important;
+        }
+        
+        .fc-button-group .fc-button:hover {
+            background: #475569 !important;
+            border-color: #64748b !important;
+        }
+        
+        .fc-button-group .fc-button:focus {
+            box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.3) !important;
         }
         
         .fc-event {
@@ -107,42 +129,40 @@ $leave_requests = $stmt->fetchAll();
         /* Status Colors - Removed for cleaner look */
         
         /* Leave Type Colors - Common Color Wheel Colors */
-        .leave-annual { background: #0066cc !important; color: white !important; }      /* Blue */
         .leave-vacation { background: #00cc66 !important; color: white !important; }    /* Green */
         .leave-sick { background: #cc6600 !important; color: white !important; }        /* Orange */
         .leave-maternity { background: #cc0066 !important; color: white !important; }   /* Pink/Magenta */
         .leave-paternity { background: #0066cc !important; color: white !important; }   /* Light Blue */
         .leave-bereavement { background: #666666 !important; color: white !important; } /* Gray */
         .leave-study { background: #9900cc !important; color: white !important; }       /* Purple */
-        .leave-unpaid { background: #ffcc00 !important; color: black !important; }      /* Yellow */
         .leave-emergency { background: #cc0000 !important; color: white !important; }   /* Red */
         
         /* Status-based colors removed - only leave type colors are used */
         
         .calendar-container {
-            background: white;
+            background: #1e293b;
             border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            border: 1px solid rgba(0, 0, 0, 0.06);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+            border: 1px solid #334155;
             overflow: hidden;
         }
         
         .calendar-header {
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
             padding: 1.5rem;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            border-bottom: 1px solid #334155;
         }
         
         .calendar-header h2 {
             margin: 0;
-            color: #212529;
+            color: #f8fafc;
             font-size: 1.5rem;
             font-weight: 600;
         }
         
         .calendar-header p {
             margin: 0.5rem 0 0 0;
-            color: #6c757d;
+            color: #94a3b8;
             font-size: 0.95rem;
         }
         
@@ -174,37 +194,327 @@ $leave_requests = $stmt->fetchAll();
         .department-filter select {
             max-width: 300px;
         }
+        
+        /* FullCalendar Dark Theme */
+        .fc {
+            background: #0f172a !important;
+            color: #f8fafc !important;
+        }
+        
+        .fc-header-toolbar {
+            background: #0f172a !important;
+            border: 1px solid #334155 !important;
+            margin-bottom: 1rem !important;
+        }
+        
+        .fc-toolbar-title {
+            color: #f8fafc !important;
+            font-size: 1.5rem !important;
+            font-weight: 600 !important;
+        }
+        
+        .fc-button {
+            background: #0891b2 !important;
+            border: 1px solid #0891b2 !important;
+            border-radius: 6px !important;
+            font-weight: 500 !important;
+            padding: 0.5rem 1rem !important;
+            color: white !important;
+        }
+        
+        .fc-button:hover {
+            background: #0e7490 !important;
+            border-color: #0e7490 !important;
+        }
+        
+        .fc-button:focus {
+            box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.3) !important;
+        }
+        
+        .fc-button-primary:not(:disabled):active {
+            background: #0e7490 !important;
+            border-color: #0e7490 !important;
+        }
+        
+        .fc-button-group {
+            background: #0f172a !important;
+        }
+        
+        .fc-button-group .fc-button {
+            background: #334155 !important;
+            border-color: #475569 !important;
+            color: #f8fafc !important;
+        }
+        
+        .fc-button-group .fc-button:hover {
+            background: #475569 !important;
+            border-color: #64748b !important;
+        }
+        
+        .fc-button-group .fc-button:focus {
+            box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.3) !important;
+        }
+        
+        .fc-daygrid-day {
+            background: #0f172a !important;
+            border-color: #334155 !important;
+        }
+        
+        .fc-daygrid-day-number {
+            color: #f8fafc !important;
+        }
+        
+        .fc-daygrid-day:hover {
+            background: #1e293b !important;
+        }
+        
+        .fc-daygrid-day.fc-day-today {
+            background: #1e293b !important;
+        }
+        
+        .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+            color: #0891b2 !important;
+            font-weight: bold !important;
+        }
+        
+        .fc-col-header-cell {
+            background: #1e293b !important;
+            color: #f8fafc !important;
+            border-color: #334155 !important;
+        }
+        
+        .fc-scrollgrid {
+            border-color: #334155 !important;
+            background: #0f172a !important;
+        }
+        
+        .fc-scrollgrid-sync-table {
+            border-color: #334155 !important;
+        }
+        
+        .fc-scrollgrid-section > * {
+            border-color: #334155 !important;
+        }
+        
+        .fc-daygrid-body {
+            background: #0f172a !important;
+        }
+        
+        .fc-daygrid-day-frame {
+            background: #0f172a !important;
+        }
+        
+        .fc-daygrid-day-events {
+            background: #0f172a !important;
+            margin-top: 2px !important;
+        }
+        
+        .fc-daygrid-event {
+            margin: 1px 2px !important;
+        }
+        
+        .fc-event {
+            border-radius: 4px !important;
+            border: none !important;
+            padding: 4px 8px !important;
+            font-size: 0.9rem !important;
+            font-weight: 600 !important;
+            min-height: 20px !important;
+            opacity: 1 !important;
+            display: block !important;
+        }
+        
+        .fc-event-title {
+            font-weight: 600 !important;
+        }
+        
+        /* Ensure all calendar elements are dark */
+        .fc-daygrid-day-bg {
+            background: #0f172a !important;
+        }
+        
+        .fc-daygrid-day-top {
+            background: #0f172a !important;
+        }
+        
+        .fc-daygrid-day-bottom {
+            background: #0f172a !important;
+        }
+        
+        .fc-daygrid-day-content {
+            background: #0f172a !important;
+        }
+        
+        .fc-daygrid-day-bg .fc-daygrid-day-number {
+            color: #f8fafc !important;
+        }
+        
+        /* List view dark theme */
+        .fc-list {
+            background: #0f172a !important;
+            color: #f8fafc !important;
+        }
+        
+        .fc-list-day-cushion {
+            background: #1e293b !important;
+            color: #f8fafc !important;
+        }
+        
+        .fc-list-event {
+            background: #0f172a !important;
+            color: #f8fafc !important;
+        }
+        
+        .fc-list-event-title {
+            color: #f8fafc !important;
+        }
+        
+        .fc-list {
+            background: #1e293b !important;
+        }
+        
+        .fc-list-day-cushion {
+            background: #334155 !important;
+            color: #f8fafc !important;
+        }
+        
+        .fc-list-event {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+        }
+        
+        .fc-list-event:hover {
+            background: #334155 !important;
+        }
+        
+        .fc-list-event-time {
+            color: #94a3b8 !important;
+        }
+        
+        .fc-list-event-title {
+            color: #f8fafc !important;
+        }
+        
+        /* Leave type specific colors */
+        .leave-general {
+            background-color: #3b82f6 !important;
+            border-color: #3b82f6 !important;
+            color: white !important;
+        }
+        
+        .leave-vacation {
+            background-color: #10b981 !important;
+            border-color: #10b981 !important;
+            color: white !important;
+        }
+        
+        .leave-sick {
+            background-color: #f59e0b !important;
+            border-color: #f59e0b !important;
+            color: white !important;
+        }
+        
+        .leave-maternity {
+            background-color: #ec4899 !important;
+            border-color: #ec4899 !important;
+            color: white !important;
+        }
+        
+        .leave-paternity {
+            background-color: #8b5cf6 !important;
+            border-color: #8b5cf6 !important;
+            color: white !important;
+        }
+        
+        .leave-bereavement {
+            background-color: #6b7280 !important;
+            border-color: #6b7280 !important;
+            color: white !important;
+        }
+        
+        .leave-study {
+            background-color: #eab308 !important;
+            border-color: #eab308 !important;
+            color: white !important;
+        }
+        
+        .leave-emergency {
+            background-color: #ef4444 !important;
+            border-color: #ef4444 !important;
+            color: white !important;
+        }
+        
+        .calendar-container {
+            background: #1e293b;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+            border: 1px solid #334155;
+            overflow: hidden;
+        }
+        
+        .calendar-header {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            padding: 1.5rem;
+            border-bottom: 1px solid #334155;
+        }
+        
+        .calendar-header h2 {
+            margin: 0;
+            color: #f8fafc;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .calendar-header p {
+            margin: 0.5rem 0 0 0;
+            color: #94a3b8;
+            font-size: 0.95rem;
+        }
+        
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+        
+        .filters-row {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .filter-group select {
+            max-width: 100%;
+        }
     </style>
 </head>
 <body class="bg-slate-900 text-white">
-    <!-- Top Navigation Bar -->
-    <nav class="bg-slate-800 border-b border-slate-700 fixed top-0 left-0 right-0 z-50 h-16">
-        <div class="px-6 py-4 h-full">
-            <div class="flex items-center justify-between h-full">
-                <!-- Logo and Title -->
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-8 bg-gradient-to-r from-primary to-accent rounded-lg flex items-center justify-center">
-                            <i class="fas fa-calendar text-white text-sm"></i>
-                        </div>
-                        <span class="text-xl font-bold text-white">ELMS Department</span>
-                    </div>
-                </div>
-                
-                <!-- User Menu -->
-                <div class="flex items-center space-x-4">
-                    <a href="../auth/logout.php" class="text-slate-300 hover:text-white transition-colors flex items-center space-x-2">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Logout</span>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </nav>
+    <?php include '../includes/unified_navbar.php'; ?>
 
     <div class="flex">
         <!-- Left Sidebar -->
-        <aside class="fixed left-0 top-16 h-screen w-64 bg-slate-800 border-r border-slate-700 overflow-y-auto z-40">
+        <aside id="sidebar" class="fixed left-0 top-16 h-screen w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40">
             <nav class="p-4 space-y-2">
                 <!-- Other Navigation Items -->
                 <a href="department_head_dashboard.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
@@ -212,28 +522,36 @@ $leave_requests = $stmt->fetchAll();
                     <span>Dashboard</span>
                 </a>
                 
-                <!-- Active Navigation Item -->
-                <a href="view_chart.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-primary/20 rounded-lg border border-primary/30">
-                    <i class="fas fa-calendar w-5"></i>
-                    <span>Calendar View</span>
-                </a>
+                <!-- Section Headers -->
+                <div class="space-y-1">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Management</h3>
+                    
+                    <!-- Active Navigation Item -->
+                    <a href="view_chart.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
+                        <i class="fas fa-calendar w-5"></i>
+                        <span>Calendar View</span>
+                    </a>
+                </div>
                 
-                <a href="reports.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-file-alt w-5"></i>
-                    <span>Reports</span>
-                </a>
-                
-                <a href="audit_logs.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-history w-5"></i>
-                    <span>Audit Logs</span>
-                </a>
+                <div class="space-y-1">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
+                    
+                    <a href="reports.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-file-alt w-5"></i>
+                        <span>Reports</span>
+                    </a>
+                    
+                    <a href="audit_logs.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                        <i class="fas fa-history w-5"></i>
+                        <span>Audit Logs</span>
+                    </a>
+                </div>
             </nav>
         </aside>
         
         <!-- Main Content -->
-        <main class="flex-1 ml-64 p-6">
+        <main class="flex-1 ml-64 p-6 pt-24">
             <div class="max-w-7xl mx-auto">
-
                 <!-- Page Header -->
                 <div class="mb-8">
                     <div class="flex items-center gap-4">
@@ -248,8 +566,8 @@ $leave_requests = $stmt->fetchAll();
                 </div>
 
                 <!-- Filters -->
-                <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden mb-8">
-                    <div class="px-6 py-4 border-b border-slate-700/50 bg-slate-700/30">
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden mb-8">
+                    <div class="px-6 py-4 border-b border-slate-700 bg-slate-700/30">
                         <h3 class="text-xl font-semibold text-white flex items-center">
                             <i class="fas fa-filter text-primary mr-3"></i>Filters
                         </h3>
@@ -257,13 +575,13 @@ $leave_requests = $stmt->fetchAll();
                     <div class="p-6">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label for="employeeFilter" class="block text-sm font-semibold text-slate-300 mb-2">Filter by Employee</label>
-                                <select id="employeeFilter" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                                    <option value="">All Employees</option>
+                                <label for="departmentFilter" class="block text-sm font-semibold text-slate-300 mb-2">Filter by Department</label>
+                                <select id="departmentFilter" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    <option value="">All Departments</option>
                                     <?php
-                                    $employees = array_unique(array_column($leave_requests, 'employee_name'));
-                                    foreach ($employees as $employee): ?>
-                                        <option value="<?php echo htmlspecialchars($employee); ?>"><?php echo htmlspecialchars($employee); ?></option>
+                                    $departments = array_unique(array_column($leave_requests, 'department'));
+                                    foreach ($departments as $dept): ?>
+                                        <option value="<?php echo htmlspecialchars($dept); ?>"><?php echo htmlspecialchars($dept); ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
@@ -271,15 +589,14 @@ $leave_requests = $stmt->fetchAll();
                                 <label for="leaveTypeFilter" class="block text-sm font-semibold text-slate-300 mb-2">Filter by Leave Type</label>
                                 <select id="leaveTypeFilter" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
                                     <option value="">All Leave Types</option>
-                                    <option value="annual">Annual Leave</option>
-                                    <option value="vacation">Vacation Leave</option>
-                                    <option value="sick">Sick Leave</option>
-                                    <option value="maternity">Maternity Leave</option>
-                                    <option value="paternity">Paternity Leave</option>
-                                    <option value="bereavement">Bereavement Leave</option>
-                                    <option value="study">Study Leave</option>
-                                    <option value="unpaid">Unpaid Leave</option>
-                                    <option value="emergency">Emergency Leave</option>
+                                    <option value="mandatory">Mandatory/Forced Leave</option>
+                                    <option value="special_privilege">Special Leave Privilege</option>
+                                    <option value="solo_parent">Solo Parent Leave</option>
+                                    <option value="vawc">10-Day VAWC Leave</option>
+                                    <option value="rehabilitation">Rehabilitation Privilege</option>
+                                    <option value="special_women">Special Leave Benefits for Women</option>
+                                    <option value="special_emergency">Special Emergency Leave (Calamity)</option>
+                                    <option value="adoption">Adoption Leave</option>
                                 </select>
                             </div>
                         </div>
@@ -287,69 +604,72 @@ $leave_requests = $stmt->fetchAll();
                 </div>
                 
                 <!-- Legend -->
-                <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden mb-8">
-                    <div class="px-6 py-4 border-b border-slate-700/50 bg-slate-700/30">
-                        <h3 class="text-xl font-semibold text-white flex items-center">
-                            <i class="fas fa-palette text-primary mr-3"></i>Leave Type Legend
-                        </h3>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color leave-vacation"></div>
+                        <span>Vacation Leave</span>
                     </div>
-                    <div class="p-6">
-                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-4 h-4 bg-blue-500 rounded"></div>
-                                <span class="text-slate-300 text-sm">Annual Leave</span>
-                            </div>
-                            <div class="flex items-center space-x-3">
-                                <div class="w-4 h-4 bg-green-500 rounded"></div>
-                                <span class="text-slate-300 text-sm">Vacation Leave</span>
-                            </div>
-                            <div class="flex items-center space-x-3">
-                                <div class="w-4 h-4 bg-red-500 rounded"></div>
-                                <span class="text-slate-300 text-sm">Sick Leave</span>
-                            </div>
-                            <div class="flex items-center space-x-3">
-                                <div class="w-4 h-4 bg-pink-500 rounded"></div>
-                                <span class="text-slate-300 text-sm">Maternity Leave</span>
-                            </div>
-                            <div class="flex items-center space-x-3">
-                                <div class="w-4 h-4 bg-purple-500 rounded"></div>
-                                <span class="text-slate-300 text-sm">Paternity Leave</span>
-                            </div>
-                            <div class="flex items-center space-x-3">
-                                <div class="w-4 h-4 bg-gray-500 rounded"></div>
-                                <span class="text-slate-300 text-sm">Bereavement Leave</span>
-                            </div>
-                            <div class="flex items-center space-x-3">
-                                <div class="w-4 h-4 bg-yellow-500 rounded"></div>
-                                <span class="text-slate-300 text-sm">Study Leave</span>
-                            </div>
-                            <div class="flex items-center space-x-3">
-                                <div class="w-4 h-4 bg-orange-500 rounded"></div>
-                                <span class="text-slate-300 text-sm">Unpaid Leave</span>
-                            </div>
-                            <div class="flex items-center space-x-3">
-                                <div class="w-4 h-4 bg-indigo-500 rounded"></div>
-                                <span class="text-slate-300 text-sm">Emergency Leave</span>
-                            </div>
-                        </div>
+                    <div class="legend-item">
+                        <div class="legend-color leave-sick"></div>
+                        <span>Sick Leave</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color leave-maternity"></div>
+                        <span>Maternity Leave</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color leave-paternity"></div>
+                        <span>Paternity Leave</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color leave-bereavement"></div>
+                        <span>Bereavement Leave</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color leave-study"></div>
+                        <span>Study Leave</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color leave-emergency"></div>
+                        <span>Emergency Leave</span>
                     </div>
                 </div>
+            </div>
 
-                <!-- Calendar Container -->
-                <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden">
-                    <div class="p-6">
-                        <div id="calendar"></div>
-                    </div>
-                </div>
+            <!-- Calendar Container -->
+            <div class="calendar-container">
+                <div id="calendar"></div>
+            </div>
             </div>
         </main>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
+    <script src="../assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src='../assets/libs/fullcalendar/js/main.min.js'></script>
     <script>
+        // User dropdown toggle function
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const userDropdown = document.getElementById('userDropdown');
+            const userButton = event.target.closest('[onclick="toggleUserDropdown()"]');
+            
+            if (userDropdown && !userDropdown.contains(event.target) && !userButton) {
+                userDropdown.classList.add('hidden');
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', function() {
             var calendarEl = document.getElementById('calendar');
+            
+            // Debug: Log calendar initialization
+            console.log('Department View Chart - Initializing calendar...');
+            console.log('Calendar element:', calendarEl);
+            
             var calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'dayGridMonth',
                 headerToolbar: {
@@ -359,13 +679,18 @@ $leave_requests = $stmt->fetchAll();
                 },
                 height: 'auto',
                 events: [
-                    <?php foreach ($leave_requests as $request): ?>
+                    <?php 
+                    // Debug: Log the number of leave requests
+                    error_log("Department View Chart - Number of leave requests: " . count($leave_requests));
+                    foreach ($leave_requests as $request): 
+                        error_log("Leave request: " . $request['employee_name'] . " - " . $request['leave_type'] . " (" . $request['start_date'] . " to " . $request['end_date'] . ")");
+                    ?>
                     {
                         id: '<?php echo $request['id']; ?>',
-                        title: '<?php echo addslashes($request['employee_name']); ?> - <?php echo ucfirst(str_replace('_', ' ', $request['leave_type'])); ?>',
+                        title: '<?php echo addslashes($request['employee_name']); ?> - <?php echo !empty($request['leave_type']) ? ucfirst(str_replace('_', ' ', $request['leave_type'])) : 'Leave Request'; ?>',
                         start: '<?php echo $request['start_date']; ?>',
                         end: '<?php echo date('Y-m-d', strtotime($request['end_date'] . ' +1 day')); ?>',
-                        className: 'leave-<?php echo $request['leave_type']; ?>',
+                        className: 'leave-<?php echo !empty($request['leave_type']) ? $request['leave_type'] : 'general'; ?>',
                         extendedProps: {
                             employee: '<?php echo addslashes($request['employee_name']); ?>',
                             position: '<?php echo addslashes($request['position']); ?>',
@@ -451,9 +776,21 @@ $leave_requests = $stmt->fetchAll();
             
             calendar.render();
             
+            // Debug: Log calendar events after render
+            console.log('Department View Chart - Calendar rendered');
+            console.log('Number of events:', calendar.getEvents().length);
+            console.log('Calendar element:', calendarEl);
+            console.log('Calendar element dimensions:', calendarEl.offsetWidth, 'x', calendarEl.offsetHeight);
+            calendar.getEvents().forEach(function(event, index) {
+                console.log('Event ' + index + ':', event.title, event.start, event.end, event.extendedProps);
+            });
+            
+            // Force calendar to render again
+            calendar.render();
+            
             // Filter functionality
             function applyFilters() {
-                var selectedEmployee = document.getElementById('employeeFilter').value;
+                var selectedDepartment = document.getElementById('departmentFilter').value;
                 var selectedLeaveType = document.getElementById('leaveTypeFilter').value;
                 var events = calendar.getEvents();
                 
@@ -461,7 +798,7 @@ $leave_requests = $stmt->fetchAll();
                     var showEvent = true;
                     var props = event.extendedProps;
                     
-                    if (selectedEmployee !== '' && props.employee !== selectedEmployee) {
+                    if (selectedDepartment !== '' && props.department !== selectedDepartment) {
                         showEvent = false;
                     }
                     if (selectedLeaveType !== '' && props.leaveType !== selectedLeaveType) {
@@ -473,7 +810,7 @@ $leave_requests = $stmt->fetchAll();
             }
             
             // Add event listeners to both filters
-            document.getElementById('employeeFilter').addEventListener('change', applyFilters);
+            document.getElementById('departmentFilter').addEventListener('change', applyFilters);
             document.getElementById('leaveTypeFilter').addEventListener('change', applyFilters);
         });
     </script>
