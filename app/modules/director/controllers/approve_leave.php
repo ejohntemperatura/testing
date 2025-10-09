@@ -1,0 +1,101 @@
+<?php
+session_start();
+require_once '../../../../config/database.php';
+
+// Check if user is logged in and is a director
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'director') {
+    header('Location: ../../../../auth/views/login.php');
+    exit();
+}
+
+// Get request ID and approval parameters
+$request_id = $_GET['id'] ?? '';
+$approved_days = $_GET['days'] ?? '';
+$pay_status = $_GET['pay_status'] ?? 'with_pay';
+
+if (empty($request_id)) {
+    $_SESSION['error'] = 'Invalid request ID';
+    header('Location: ../views/dashboard.php');
+    exit();
+}
+
+if (empty($approved_days) || !is_numeric($approved_days) || $approved_days < 1) {
+    $_SESSION['error'] = 'Invalid number of days specified';
+    header('Location: ../views/dashboard.php');
+    exit();
+}
+
+try {
+    $pdo->beginTransaction();
+    
+    // Get leave request details
+    $stmt = $pdo->prepare("SELECT lr.*, e.id as emp_id, e.name, e.email FROM leave_requests lr JOIN employees e ON lr.employee_id = e.id WHERE lr.id = ?");
+    $stmt->execute([$request_id]);
+    $request = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$request) {
+        throw new Exception('Leave request not found');
+    }
+    
+    // Check if department head has already approved
+    if (($request['dept_head_approval'] ?? 'pending') !== 'approved') {
+        throw new Exception('Department Head must approve first before Director can approve.');
+    }
+    
+    // Update director approval status and final status with pay status
+    $stmt = $pdo->prepare("UPDATE leave_requests SET director_approval = 'approved', director_approved_by = ?, director_approved_at = NOW(), status = 'approved', approved_days = ?, pay_status = ? WHERE id = ?");
+    $stmt->execute([$_SESSION['user_id'], $approved_days, $pay_status, $request_id]);
+    
+    // Deduct leave credits only if approved with pay
+    if ($pay_status === 'with_pay') {
+        $leave_type = strtolower(trim($request['leave_type']));
+        $balance_field = $leave_type . '_leave_balance';
+        
+        // Check if balance field exists and has sufficient balance
+        if (isset($request[$balance_field]) && $request[$balance_field] >= $approved_days) {
+            // Deduct leave balance
+            $stmt = $pdo->prepare("UPDATE employees SET $balance_field = $balance_field - ? WHERE id = ?");
+            $stmt->execute([$approved_days, $request['emp_id']]);
+        }
+    }
+    
+    $pdo->commit();
+    $pay_text = $pay_status === 'with_pay' ? 'with pay' : 'without pay';
+    $_SESSION['success'] = "Leave request approved by Director! Final approval completed - {$approved_days} day(s) {$pay_text}.";
+    
+    // Send email notification for approval
+    try {
+        require_once '../../../../app/core/services/EmailService.php';
+        $emailService = new EmailService();
+        
+        // Get director name for email
+        $stmt = $pdo->prepare("SELECT name FROM employees WHERE id = ?");
+        $stmt->execute([$_SESSION['user_id']]);
+        $director = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Create custom status message for email
+        $custom_status = $pay_status === 'with_pay' ? 'approved_with_pay' : 'approved_without_pay';
+        
+        $emailService->sendLeaveStatusNotification(
+            $request['email'],
+            $request['name'],
+            $custom_status,
+            $request['start_date'],
+            $request['end_date'],
+            $request['leave_type'],
+            $director['name'] ?? 'Director',
+            'director',
+            $approved_days
+        );
+    } catch (Exception $e) {
+        error_log("Email notification failed: " . $e->getMessage());
+    }
+    
+} catch (Exception $e) {
+    $pdo->rollBack();
+    $_SESSION['error'] = 'Error approving leave request: ' . $e->getMessage();
+}
+
+header('Location: ../views/dashboard.php');
+exit();
+?>

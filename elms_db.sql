@@ -1,4 +1,4 @@
--- Create database
+ database
 CREATE DATABASE IF NOT EXISTS elms_db;
 USE elms_db;
 
@@ -29,7 +29,17 @@ CREATE TABLE IF NOT EXISTS leave_requests (
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     reason TEXT NOT NULL,
-    status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+    status ENUM('pending', 'approved', 'rejected', 'under_appeal') DEFAULT 'pending',
+    days_requested INT DEFAULT 1,
+    is_late TINYINT(1) DEFAULT 0,
+    late_justification TEXT NULL,
+    location_type ENUM('office', 'remote', 'hybrid') NULL,
+    location_specify VARCHAR(255) NULL,
+    medical_condition ENUM('minor', 'serious', 'chronic') NULL,
+    illness_specify VARCHAR(255) NULL,
+    special_women_condition ENUM('pregnancy', 'menstruation', 'miscarriage', 'other') NULL,
+    study_type ENUM('conference', 'training', 'seminar', 'course', 'exam') NULL,
+    medical_certificate_path VARCHAR(500) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (employee_id) REFERENCES employees(id)
 );

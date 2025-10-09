@@ -1,0 +1,838 @@
+<?php
+session_start();
+require_once '../../../../config/database.php';
+
+// Auto-process emails when internet is available
+require_once '../../../../app/core/services/auto_email_processor.php';
+
+// Director or Admin access
+if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['director','admin'])) {
+	header('Location: ../../../../auth/views/login.php');
+	exit();
+}
+
+$stmt = $pdo->prepare("SELECT * FROM employees WHERE id = ?");
+$stmt->execute([$_SESSION['user_id']]);
+$me = $stmt->fetch();
+
+// Get stats for dashboard
+$stmt = $pdo->query("SELECT COUNT(*) as total FROM employees");
+$total_employees = $stmt->fetch()['total'];
+
+$stmt = $pdo->query("
+    SELECT COUNT(*) as approved 
+    FROM leave_requests 
+    WHERE director_approval = 'approved'
+");
+$approved_this_month = $stmt->fetch()['approved'];
+
+// Get pending leave requests for stats
+$stmt = $pdo->prepare("
+    SELECT lr.*, e.name as employee_name, e.position, e.department 
+    FROM leave_requests lr 
+    JOIN employees e ON lr.employee_id = e.id 
+    WHERE lr.dept_head_approval = 'approved'
+    AND (lr.director_approval IS NULL OR lr.director_approval = 'pending')
+    AND lr.status != 'rejected'
+    ORDER BY lr.is_late DESC, lr.created_at DESC 
+    LIMIT 10
+");
+$stmt->execute();
+$pending_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- OFFLINE Tailwind CSS - No internet required! -->
+    <link rel="stylesheet" href="../../../../assets/css/tailwind.css">
+        <!-- Font Awesome Local - No internet required! -->
+    <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
+    
+    <link rel="stylesheet" href="../../../../assets/css/style.css">
+    <link rel="stylesheet" href="../../../../assets/css/dark-theme.css">
+    <script src="../../../../assets/libs/chartjs/chart.umd.min.js"></script>
+
+
+
+    
+	
+    <link rel="stylesheet" href="../../../../assets/css/style.css">
+    <link rel="stylesheet" href="../../../../assets/css/dark-theme.css">
+    <style>
+        /* Fix navbar dropdown z-index for director dashboard */
+        #userDropdown {
+            z-index: 1300 !important;
+        }
+        nav {
+            z-index: 1200 !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white" data-user-role="director">
+	<?php include '../../../../includes/unified_navbar.php'; ?>
+
+	<div class="flex">
+		<!-- Left Sidebar -->
+		<aside id="sidebar" class="fixed left-0 top-16 h-screen w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40">
+			<nav class="p-4 space-y-2">
+				<!-- Active Navigation Item -->
+				<a href="dashboard.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
+					<i class="fas fa-tachometer-alt w-5"></i>
+					<span>Dashboard</span>
+				</a>
+				
+				<!-- Section Headers -->
+				<div class="space-y-1">
+					<h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Management</h3>
+					
+					<!-- Navigation Items -->
+					<a href="calendar.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+						<i class="fas fa-calendar w-5"></i>
+						<span>Leave Chart</span>
+					</a>
+				</div>
+				
+				<div class="space-y-1">
+					
+					
+				</div>
+			</nav>
+		</aside>
+		
+		<!-- Main Content -->
+		<main class="flex-1 ml-64 p-6 pt-24">
+			<div class="max-w-7xl mx-auto">
+
+				<!-- Success Message -->
+				<?php if (isset($_SESSION['success'])): ?>
+					<div class="bg-green-500/20 border border-green-500/30 text-green-400 p-4 rounded-xl mb-6 flex items-center">
+						<i class="fas fa-check-circle mr-3"></i>
+						<?php echo $_SESSION['success']; unset($_SESSION['success']); ?>
+					</div>
+				<?php endif; ?>
+				
+				<!-- Error Message -->
+				<?php if (isset($_SESSION['error'])): ?>
+					<div class="bg-red-500/20 border border-red-500/30 text-red-400 p-4 rounded-xl mb-6 flex items-center">
+						<i class="fas fa-exclamation-circle mr-3"></i>
+						<?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
+					</div>
+				<?php endif; ?>
+				
+				<!-- Welcome Section -->
+				<div class="mb-10 mt-16">
+					<div class="flex items-start justify-between">
+						<div class="flex items-center gap-5">
+							<div class="w-16 h-16 bg-gradient-to-r from-slate-700 to-slate-800 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+								<i class="fas fa-crown text-2xl text-white"></i>
+							</div>
+							<div class="flex-1">
+								<h1 class="text-3xl font-bold text-white mb-2 leading-tight">Welcome, <?php echo htmlspecialchars($me['name'] ?? 'Director Head'); ?>!</h1>
+								<p class="text-slate-400 text-lg leading-relaxed">Executive overview and actions</p>
+							</div>
+						</div>
+						
+						<!-- Notification Button -->
+					</div>
+				</div>
+
+
+				<!-- Pending Leave Requests -->
+				<div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden mb-8">
+					<div class="px-6 py-5 border-b border-slate-700/50 bg-slate-700/30">
+						<h3 class="text-xl font-semibold text-white flex items-center">
+							<i class="fas fa-clock text-yellow-400 mr-3"></i>Pending Leave Requests
+						</h3>
+					</div>
+					<div class="p-8">
+						
+						<?php if (empty($pending_requests)): ?>
+							<div class="text-center py-16">
+								<div class="w-20 h-20 bg-gradient-to-r from-slate-600/20 to-slate-700/20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+									<i class="fas fa-check-circle text-slate-400 text-3xl"></i>
+								</div>
+								<h4 class="text-xl font-semibold text-white mb-3">All Caught Up!</h4>
+								<p class="text-slate-400 text-lg mb-4">No pending leave requests at the moment</p>
+								<div class="inline-flex items-center px-4 py-2 bg-slate-600/10 border border-slate-600/20 rounded-lg">
+									<i class="fas fa-thumbs-up text-slate-400 mr-2"></i>
+									<span class="text-slate-400 font-medium">Great job staying on top of approvals!</span>
+								</div>
+							</div>
+						<?php else: ?>
+							<div class="overflow-x-auto">
+								<table class="w-full">
+									<thead>
+										<tr class="border-b border-slate-700/50">
+											<th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Employee</th>
+											<th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Leave Type</th>
+											<th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Start Date</th>
+											<th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">End Date</th>
+											<th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Days</th>
+											<th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Reason</th>
+											<th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Status</th>
+											<th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Actions</th>
+										</tr>
+									</thead>
+									<tbody>
+										<?php foreach ($pending_requests as $request): ?>
+											<tr class="border-b border-slate-700/50/30 hover:bg-slate-700/30 transition-colors">
+												<td class="py-4 px-4">
+													<div>
+														<div class="font-semibold text-white"><?php echo htmlspecialchars($request['employee_name']); ?></div>
+														<div class="text-sm text-slate-400"><?php echo htmlspecialchars($request['position']); ?></div>
+													</div>
+												</td>
+												<td class="py-4 px-4">
+													<div class="flex flex-col gap-2">
+														<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
+															<?php echo ucfirst(str_replace('_', ' ', $request['leave_type'])); ?>
+														</span>
+														<?php if ($request['is_late'] == 1): ?>
+															<span class="bg-orange-500/20 text-orange-400 px-2 py-1 rounded-full text-xs font-semibold flex items-center">
+																<i class="fas fa-exclamation-triangle mr-1"></i>
+																Late Application
+															</span>
+														<?php endif; ?>
+													</div>
+												</td>
+												<td class="py-4 px-4 text-white"><?php echo date('M d, Y', strtotime($request['start_date'])); ?></td>
+												<td class="py-4 px-4 text-white"><?php echo date('M d, Y', strtotime($request['end_date'])); ?></td>
+												<td class="py-4 px-4">
+													<span class="inline-flex items-center justify-center w-8 h-8 bg-slate-700 rounded-full text-sm font-semibold text-white">
+														<?php 
+														$start = new DateTime($request['start_date']);
+														$end = new DateTime($request['end_date']);
+														$days = $start->diff($end)->days + 1;
+														echo $days;
+														?>
+													</span>
+												</td>
+												<td class="py-4 px-4">
+													<span class="text-slate-300" title="<?php echo htmlspecialchars($request['reason']); ?>">
+														<?php echo strlen($request['reason']) > 30 ? substr(htmlspecialchars($request['reason']), 0, 30) . '...' : htmlspecialchars($request['reason']); ?>
+													</span>
+												</td>
+												<td class="py-4 px-4">
+													<div class="flex items-center gap-2">
+														<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+															Pending
+														</span>
+														<button type="button" class="p-1 text-slate-400 hover:text-white transition-colors" 
+																onclick="showStatusInfo(<?php echo $request['id']; ?>)"
+																title="View Status Details">
+															<i class="fas fa-info-circle text-sm"></i>
+														</button>
+													</div>
+												</td>
+												<td class="py-4 px-4">
+                                                <div class="flex items-center gap-2">
+                                                    <button onclick="openDirectorApprovalModal(<?php echo $request['id']; ?>)" class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/80 text-white text-sm font-medium rounded-lg transition-colors">
+                                                        <i class="fas fa-gavel mr-2"></i> Process Request
+                                                    </button>
+                                                </div>
+												</td>
+												</tr>
+											<?php endforeach; ?>
+										</tbody>
+									</table>
+								</div>
+								<div class="text-center mt-6">
+									<a href="calendar.php" class="inline-flex items-center px-4 py-2 bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 rounded-xl transition-colors">
+										<i class="fas fa-eye mr-2"></i>View All Requests
+									</a>
+								</div>
+							<?php endif; ?>
+					</div>
+				</div>
+
+				<!-- Leave Chart Quick Action Card -->
+				<div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden hover:border-slate-600/50 transition-all duration-300 group">
+					<div class="p-6">
+						<div class="flex items-center mb-4">
+							<div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mr-4 group-hover:scale-110 transition-transform duration-300">
+								<i class="fas fa-chart-line text-white text-lg"></i>
+							</div>
+							<h3 class="text-xl font-semibold text-white">Leave Chart</h3>
+						</div>
+						<p class="text-slate-400 mb-6">View comprehensive leave analytics and calendar overview across the organization.</p>
+						<a href="calendar.php" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors">
+							<i class="fas fa-chart-line mr-2"></i>View Leave Chart
+						</a>
+					</div>
+				</div>
+			</div>
+		</main>
+	</div>
+
+	<script>
+		// User dropdown toggle function
+		function toggleUserDropdown() {
+			const dropdown = document.getElementById('userDropdown');
+			dropdown.classList.toggle('hidden');
+		}
+
+		// Close dropdown when clicking outside
+		document.addEventListener('click', function(event) {
+			const userDropdown = document.getElementById('userDropdown');
+			const userButton = event.target.closest('[onclick="toggleUserDropdown()"]');
+			
+			if (userDropdown && !userDropdown.contains(event.target) && !userButton) {
+				userDropdown.classList.add('hidden');
+			}
+		});
+
+		// Show status information modal
+		function showStatusInfo(leaveId) {
+			// Create modal HTML
+			const modalHtml = `
+				<div id="statusInfoModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+					<div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+						<div class="px-6 py-4 border-b border-slate-700/50 bg-slate-700/30">
+							<div class="flex items-center justify-between">
+								<h3 class="text-xl font-semibold text-white flex items-center">
+									<i class="fas fa-info-circle text-primary mr-3"></i>Leave Request Status
+								</h3>
+								<button type="button" class="text-slate-400 hover:text-white transition-colors" onclick="closeStatusModal()">
+									<i class="fas fa-times text-xl"></i>
+								</button>
+							</div>
+						</div>
+						<div class="p-6">
+							<div class="bg-blue-500/20 border border-blue-500/30 rounded-xl p-4 mb-6">
+								<h4 class="text-lg font-semibold text-white mb-2 flex items-center">
+									<i class="fas fa-clock text-blue-400 mr-2"></i>Current Status
+								</h4>
+								<p class="text-slate-300">This leave request has been <strong class="text-white">approved by the department head</strong> and is now waiting for your decision.</p>
+							</div>
+							<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+								<div class="bg-slate-700/50 rounded-xl p-4">
+									<h4 class="text-green-400 font-semibold mb-3 flex items-center">
+										<i class="fas fa-user-tie mr-2"></i>Department Head
+									</h4>
+									<p class="text-slate-300 mb-2"><strong class="text-white">Status:</strong> 
+										<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30 ml-2">Approved</span>
+									</p>
+									<p class="text-slate-400 text-sm">Already reviewed and approved</p>
+								</div>
+								<div class="bg-slate-700/50 rounded-xl p-4">
+									<h4 class="text-primary font-semibold mb-3 flex items-center">
+										<i class="fas fa-user-tie mr-2"></i>Director (You)
+									</h4>
+									<p class="text-slate-300 mb-2"><strong class="text-white">Status:</strong> 
+										<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 ml-2">Pending</span>
+									</p>
+									<p class="text-slate-400 text-sm">Action Required: Approve or Reject this request</p>
+								</div>
+							</div>
+							<div class="border-t border-slate-700/50 pt-6">
+								<div class="bg-slate-700/50 rounded-xl p-4">
+									<h4 class="text-slate-400 font-semibold mb-3 flex items-center">
+										<i class="fas fa-flag-checkered mr-2"></i>Final Status
+									</h4>
+									<p class="text-slate-300 mb-2"><strong class="text-white">Result:</strong> 
+										<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-500/20 text-slate-400 border border-slate-500/30 ml-2">Pending</span>
+									</p>
+									<p class="text-slate-400 text-sm">Depends on all approval levels</p>
+								</div>
+							</div>
+							<div class="flex justify-end mt-6">
+								<button type="button" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition-colors" onclick="closeStatusModal()">Close</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			`;
+
+			// Remove existing modal if any
+			const existingModal = document.getElementById('statusInfoModal');
+			if (existingModal) {
+				existingModal.remove();
+			}
+
+			// Add modal to body
+			document.body.insertAdjacentHTML('beforeend', modalHtml);
+		}
+
+		// Close status modal
+		function closeStatusModal() {
+			const modal = document.getElementById('statusInfoModal');
+			if (modal) {
+				modal.remove();
+			}
+		}
+		
+
+		// Director Approval Modal Functions
+		function openDirectorApprovalModal(requestId) {
+			// First, get the leave request details via AJAX
+			fetch(`../api/get_leave_request_details.php?id=${requestId}`)
+				.then(response => response.json())
+				.then(data => {
+					if (data.success) {
+						const request = data.leave;
+						const modalHtml = `
+							<div id="directorApprovalModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+								<div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+									<div class="px-6 py-4 border-b border-slate-700/50 bg-slate-700/30">
+										<div class="flex items-center justify-between">
+											<h3 class="text-2xl font-bold text-white flex items-center">
+												<i class="fas fa-gavel text-primary mr-3"></i>
+												Director Approval - Leave Request
+											</h3>
+											<button type="button" onclick="closeDirectorApprovalModal()" class="text-slate-400 hover:text-white transition-colors">
+												<i class="fas fa-times text-xl"></i>
+											</button>
+										</div>
+									</div>
+									
+									<div class="p-6">
+										<!-- Status Information -->
+										${request.is_late == 1 || request.is_late === true ? `
+										<div class="bg-orange-500/20 border border-orange-500/30 rounded-xl p-4 mb-6">
+											<div class="flex items-center">
+												<i class="fas fa-exclamation-triangle text-orange-400 mr-3 text-xl"></i>
+												<div>
+													<h4 class="text-lg font-semibold text-white mb-1">Late Leave Application</h4>
+													<p class="text-orange-400">This is a late leave application that has been approved by the Department Head. Please review the late justification carefully before making your final decision.</p>
+												</div>
+											</div>
+										</div>
+										` : `
+										<div class="bg-blue-500/20 border border-blue-500/30 rounded-xl p-4 mb-6">
+											<div class="flex items-center">
+												<i class="fas fa-info-circle text-blue-400 mr-3 text-xl"></i>
+												<div>
+													<h4 class="text-lg font-semibold text-white mb-1">Approval Status</h4>
+													<p class="text-blue-400">This leave request has been approved by the Department Head and is now awaiting your final decision.</p>
+												</div>
+											</div>
+										</div>
+										`}
+										
+										<!-- Leave Request Details -->
+										<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+											<!-- Employee Information -->
+											<div class="bg-slate-700/30 rounded-xl p-6 border border-slate-600/50">
+												<h4 class="text-lg font-semibold text-white mb-4 flex items-center">
+													<i class="fas fa-user-circle text-blue-500 mr-3"></i>
+													Employee Information
+												</h4>
+												<div class="space-y-3">
+													<div>
+														<label class="block text-sm font-semibold text-slate-300 mb-1">Employee Name</label>
+														<p class="text-white font-medium">${request.employee_name}</p>
+													</div>
+													<div>
+														<label class="block text-sm font-semibold text-slate-300 mb-1">Department</label>
+														<p class="text-white">${request.department || 'N/A'}</p>
+													</div>
+													<div>
+														<label class="block text-sm font-semibold text-slate-300 mb-1">Position</label>
+														<p class="text-white">${request.position || 'N/A'}</p>
+													</div>
+												</div>
+											</div>
+											
+											<!-- Leave Details -->
+											<div class="bg-slate-700/30 rounded-xl p-6 border border-slate-600/50">
+												<h4 class="text-lg font-semibold text-white mb-4 flex items-center">
+													<i class="fas fa-calendar-alt text-green-500 mr-3"></i>
+													Leave Details
+												</h4>
+												<div class="space-y-3">
+													<div>
+														<label class="block text-sm font-semibold text-slate-300 mb-1">Leave Type</label>
+														<p class="text-white font-medium">${request.leave_type}</p>
+													</div>
+													<div>
+														<label class="block text-sm font-semibold text-slate-300 mb-1">Start Date</label>
+														<p class="text-white">${request.start_date}</p>
+													</div>
+													<div>
+														<label class="block text-sm font-semibold text-slate-300 mb-1">End Date</label>
+														<p class="text-white">${request.end_date}</p>
+													</div>
+													<div>
+														<label class="block text-sm font-semibold text-slate-300 mb-1">Days Requested</label>
+														<p class="text-white">${request.days_requested} day(s)</p>
+													</div>
+												</div>
+											</div>
+										</div>
+										
+										<!-- Reason -->
+										<div class="bg-slate-700/30 rounded-xl p-6 border border-slate-600/50 mb-6">
+											<h4 class="text-lg font-semibold text-white mb-4 flex items-center">
+												<i class="fas fa-comment-alt text-purple-500 mr-3"></i>
+												Reason for Leave
+											</h4>
+											<p class="text-slate-300 leading-relaxed">${request.reason}</p>
+										</div>
+										
+										<!-- Late Justification (only for late applications) -->
+										${request.is_late == 1 || request.is_late === true ? `
+										<div class="bg-orange-500/10 border border-orange-500/20 rounded-xl p-6 mb-6">
+											<h4 class="text-lg font-semibold text-white mb-4 flex items-center">
+												<i class="fas fa-exclamation-triangle text-orange-400 mr-3"></i>
+												Late Justification
+											</h4>
+											<p class="text-slate-300 leading-relaxed bg-orange-500/5 p-4 rounded-lg">${request.late_justification || 'No justification provided'}</p>
+										</div>
+										` : ''}
+										
+										<!-- Conditional Details -->
+										<div class="bg-slate-700/30 rounded-xl p-6 border border-slate-600/50 mb-6" id="conditionalDetailsSection">
+											<h4 class="text-lg font-semibold text-white mb-4 flex items-center">
+												<i class="fas fa-info-circle text-cyan-500 mr-3"></i>
+												Additional Details
+											</h4>
+											<div id="conditionalDetailsContent">
+												<!-- Vacation/Special Privilege Details -->
+												<div id="vacationDetails" style="display: none;">
+													<div class="space-y-3">
+														<div>
+															<label class="block text-sm font-semibold text-slate-300 mb-1">Location Type</label>
+															<p class="text-white">${request.location_type || 'N/A'}</p>
+														</div>
+														<div>
+															<label class="block text-sm font-semibold text-slate-300 mb-1">Specific Address</label>
+															<p class="text-slate-300">${request.location_specify || 'N/A'}</p>
+														</div>
+													</div>
+												</div>
+												
+												<!-- Sick Leave Details -->
+												<div id="sickDetails" style="display: none;">
+													<div class="space-y-3">
+														<div>
+															<label class="block text-sm font-semibold text-slate-300 mb-1">Medical Condition</label>
+															<p class="text-white">${request.medical_condition || 'N/A'}</p>
+														</div>
+														<div>
+															<label class="block text-sm font-semibold text-slate-300 mb-1">Illness Specification</label>
+															<p class="text-slate-300">${request.illness_specify || 'N/A'}</p>
+														</div>
+														${request.medical_certificate_path ? `
+														<div>
+															<label class="block text-sm font-semibold text-slate-300 mb-1">Medical Certificate</label>
+															<div class="flex items-center space-x-3">
+																<a href="../../api/view_medical_certificate.php?file=${encodeURIComponent(request.medical_certificate_path.replace(/^.*uploads\/medical_certificates\//, ''))}" target="_blank" 
+																   class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+																	<i class="fas fa-file-medical mr-2"></i>View Medical Certificate
+																</a>
+																<span class="text-slate-400 text-sm">Medical certificate attached</span>
+															</div>
+														</div>
+														` : `
+														<div>
+															<label class="block text-sm font-semibold text-slate-300 mb-1">Medical Certificate</label>
+															<p class="text-slate-400">No medical certificate provided</p>
+														</div>
+														`}
+													</div>
+												</div>
+												
+												<!-- Special Women Leave Details -->
+												<div id="specialWomenDetails" style="display: none;">
+													<div class="space-y-3">
+														<div>
+															<label class="block text-sm font-semibold text-slate-300 mb-1">Illness Specification</label>
+															<p class="text-slate-300">${request.special_women_condition || 'N/A'}</p>
+														</div>
+													</div>
+												</div>
+												
+												<!-- Study Leave Details -->
+												<div id="studyDetails" style="display: none;">
+													<div class="space-y-3">
+														<div>
+															<label class="block text-sm font-semibold text-slate-300 mb-1">Study Type</label>
+															<p class="text-white">${request.study_type || 'N/A'}</p>
+														</div>
+													</div>
+												</div>
+											</div>
+										</div>
+										
+										
+										<!-- Approval Options -->
+										<div class="bg-slate-700/30 rounded-xl p-6 border border-slate-600/50 mb-6" id="approvalOptionsSection" style="display: none;">
+											<h4 class="text-lg font-semibold text-white mb-4 flex items-center">
+												<i class="fas fa-cogs text-indigo-500 mr-3"></i>
+												Approval Options
+											</h4>
+											
+											<!-- Days Specification -->
+											<div class="space-y-4">
+												<div>
+													<label class="block text-sm font-semibold text-slate-300 mb-2">Number of Days to Approve:</label>
+													<div class="flex items-center space-x-4">
+														<input type="number" id="approvedDays" min="1" max="${request.days_requested}" value="${request.days_requested}" 
+															   class="w-20 px-3 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+														<span class="text-slate-300">out of ${request.days_requested} requested days</span>
+													</div>
+												</div>
+												
+												<!-- Pay Status Selection -->
+												<div id="payStatusSection">
+													<label class="block text-sm font-semibold text-slate-300 mb-3">Pay Status:</label>
+													<div class="flex space-x-4">
+														<label class="flex items-center">
+															<input type="radio" name="approvalType" value="with_pay" class="form-radio text-green-500" checked>
+															<span class="ml-2 text-white">With Pay</span>
+														</label>
+														<label class="flex items-center">
+															<input type="radio" name="approvalType" value="without_pay" class="form-radio text-yellow-500">
+															<span class="ml-2 text-white">Without Pay</span>
+														</label>
+													</div>
+												</div>
+											</div>
+										</div>
+										
+										<!-- Rejection Options -->
+										<div class="bg-slate-700/30 rounded-xl p-6 border border-slate-600/50 mb-6" id="rejectionOptionsSection" style="display: none;">
+											<h4 class="text-lg font-semibold text-white mb-4 flex items-center">
+												<i class="fas fa-times-circle text-red-500 mr-3"></i>
+												Rejection Options
+											</h4>
+											
+											<!-- Rejection Reason -->
+											<div>
+												<label class="block text-sm font-semibold text-slate-300 mb-2">Reason for Rejection:</label>
+												<textarea id="rejectionReasonText" rows="3" 
+														  class="w-full px-3 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+														  placeholder="Please provide a reason for rejection..."></textarea>
+											</div>
+										</div>
+										
+										<!-- Action Buttons -->
+										<div class="flex justify-center space-x-4 pt-6 border-t border-slate-700/50">
+											<button type="button" onclick="closeDirectorApprovalModal()" class="bg-slate-600 hover:bg-slate-500 text-white font-semibold py-3 px-8 rounded-xl transition-colors">
+												<i class="fas fa-times mr-2"></i>Cancel
+											</button>
+											
+											<!-- Initial Action Buttons -->
+											<div id="initialActionButtons">
+												<button onclick="showApprovalOptions()" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-8 rounded-xl transition-colors">
+													<i class="fas fa-check mr-2"></i>Approve Request
+												</button>
+												<button onclick="showRejectionOptions()" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-8 rounded-xl transition-colors">
+													<i class="fas fa-times mr-2"></i>Reject Request
+												</button>
+											</div>
+											
+											<!-- Approval Action Buttons -->
+											<div id="approvalActionButtons" style="display: none;">
+												<button onclick="confirmApproval(${requestId})" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-8 rounded-xl transition-colors">
+													<i class="fas fa-check mr-2"></i>Confirm Approval
+												</button>
+												<button onclick="hideApprovalOptions()" class="bg-slate-600 hover:bg-slate-500 text-white font-semibold py-3 px-8 rounded-xl transition-colors">
+													<i class="fas fa-arrow-left mr-2"></i>Back
+												</button>
+											</div>
+											
+											<!-- Rejection Action Buttons -->
+											<div id="rejectionActionButtons" style="display: none;">
+												<button onclick="confirmRejection(${requestId})" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-8 rounded-xl transition-colors">
+													<i class="fas fa-times mr-2"></i>Confirm Rejection
+												</button>
+												<button onclick="hideRejectionOptions()" class="bg-slate-600 hover:bg-slate-500 text-white font-semibold py-3 px-8 rounded-xl transition-colors">
+													<i class="fas fa-arrow-left mr-2"></i>Back
+												</button>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						`;
+						
+						// Remove existing modal if any
+						const existingModal = document.getElementById('directorApprovalModal');
+						if (existingModal) {
+							existingModal.remove();
+						}
+						
+						// Add modal to body
+						document.body.insertAdjacentHTML('beforeend', modalHtml);
+						
+						// Show conditional details based on leave type
+						showConditionalDetails(request.leave_type);
+					} else {
+						alert('Error loading leave request details');
+					}
+				})
+				.catch(error => {
+					console.error('Error:', error);
+					alert('Error loading leave request details');
+				});
+		}
+		
+		// Show Approval Options (First Step)
+		function showApprovalOptions() {
+			// Hide initial buttons and show approval options
+			document.getElementById('initialActionButtons').style.display = 'none';
+			document.getElementById('approvalOptionsSection').style.display = 'block';
+			document.getElementById('approvalActionButtons').style.display = 'block';
+		}
+		
+		// Hide Approval Options (Back to Initial)
+		function hideApprovalOptions() {
+			// Show initial buttons and hide approval options
+			document.getElementById('initialActionButtons').style.display = 'block';
+			document.getElementById('approvalOptionsSection').style.display = 'none';
+			document.getElementById('approvalActionButtons').style.display = 'none';
+		}
+		
+		// Show Rejection Options (First Step)
+		function showRejectionOptions() {
+			// Hide initial buttons and show rejection options
+			document.getElementById('initialActionButtons').style.display = 'none';
+			document.getElementById('rejectionOptionsSection').style.display = 'block';
+			document.getElementById('rejectionActionButtons').style.display = 'block';
+		}
+		
+		// Hide Rejection Options (Back to Initial)
+		function hideRejectionOptions() {
+			// Show initial buttons and hide rejection options
+			document.getElementById('initialActionButtons').style.display = 'block';
+			document.getElementById('rejectionOptionsSection').style.display = 'none';
+			document.getElementById('rejectionActionButtons').style.display = 'none';
+		}
+		
+		// Confirm Approval (Final Step)
+		function confirmApproval(requestId) {
+			const approvalType = document.querySelector('input[name="approvalType"]:checked').value;
+			const approvedDays = document.getElementById('approvedDays').value;
+			const daysRequested = document.getElementById('approvedDays').max;
+			
+			if (!approvedDays || approvedDays < 1 || approvedDays > daysRequested) {
+				alert('Please enter a valid number of days to approve (1-' + daysRequested + ')');
+				return;
+			}
+			
+			const payStatus = approvalType === 'with_pay' ? 'with pay' : 'without pay';
+			const confirmMessage = `Are you sure you want to approve ${approvedDays} day(s) ${payStatus}?\n\nThis will be the final approval for this leave request.`;
+			
+			if (confirm(confirmMessage)) {
+				const url = `../controllers/approve_leave.php?id=${requestId}&days=${approvedDays}&pay_status=${approvalType}`;
+				
+				// Show loading state
+				event.target.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+				event.target.disabled = true;
+				
+				// Redirect to action URL
+				window.location.href = url;
+			}
+		}
+		
+		// Confirm Rejection (Final Step)
+		function confirmRejection(requestId) {
+			const rejectionReason = document.getElementById('rejectionReasonText').value.trim();
+			
+			if (!rejectionReason) {
+				alert('Please provide a reason for rejection.');
+				document.getElementById('rejectionReasonText').focus();
+				return;
+			}
+			
+			const confirmMessage = `Are you sure you want to reject this leave request?\n\nReason: ${rejectionReason}`;
+			
+			if (confirm(confirmMessage)) {
+				const url = `../controllers/reject_leave.php?id=${requestId}`;
+				
+				// Create form to submit rejection reason
+				const form = document.createElement('form');
+				form.method = 'POST';
+				form.action = url;
+				
+				const reasonInput = document.createElement('input');
+				reasonInput.type = 'hidden';
+				reasonInput.name = 'reason';
+				reasonInput.value = rejectionReason;
+				
+				form.appendChild(reasonInput);
+				document.body.appendChild(form);
+				form.submit();
+			}
+		}
+		
+		
+		// Toggle form sections based on approval type
+		function toggleDaysInput(type) {
+			const daysSection = document.getElementById('daysInputSection');
+			const othersSection = document.getElementById('othersSpecifySection');
+			const rejectionSection = document.getElementById('rejectionReasonSection');
+			const submitButton = document.getElementById('submitButton');
+			const actionInput = document.getElementById('selectedAction');
+			
+			// Hide all sections first
+			daysSection.classList.add('hidden');
+			othersSection.classList.add('hidden');
+			rejectionSection.classList.add('hidden');
+			
+			// Show relevant section and update button
+			if (type === 'with_pay' || type === 'without_pay') {
+				daysSection.classList.remove('hidden');
+				actionInput.value = type === 'with_pay' ? 'approve_with_pay' : 'approve_without_pay';
+				submitButton.innerHTML = '<i class="fas fa-check mr-2"></i>' + (type === 'with_pay' ? 'Approve with Pay' : 'Approve without Pay');
+				submitButton.className = 'bg-gradient-to-r ' + (type === 'with_pay' ? 'from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700' : 'from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700') + ' text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-[1.02]';
+			} else if (type === 'reject') {
+				rejectionSection.classList.remove('hidden');
+				actionInput.value = 'reject';
+				submitButton.innerHTML = '<i class="fas fa-times mr-2"></i>Reject Request';
+				submitButton.className = 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-[1.02]';
+			} else if (type === 'others') {
+				othersSection.classList.remove('hidden');
+				actionInput.value = 'others';
+				submitButton.innerHTML = '<i class="fas fa-edit mr-2"></i>Process Others';
+				submitButton.className = 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-[1.02]';
+			}
+		}
+
+		function closeDirectorApprovalModal() {
+			const modal = document.getElementById('directorApprovalModal');
+			if (modal) {
+				modal.remove();
+			}
+		}
+		
+		// Function to show conditional details based on leave type
+		function showConditionalDetails(leaveType) {
+			// Hide all conditional detail sections first
+			const vacationDetails = document.getElementById('vacationDetails');
+			const sickDetails = document.getElementById('sickDetails');
+			const specialWomenDetails = document.getElementById('specialWomenDetails');
+			const studyDetails = document.getElementById('studyDetails');
+			const conditionalSection = document.getElementById('conditionalDetailsSection');
+			
+			if (vacationDetails) vacationDetails.style.display = 'none';
+			if (sickDetails) sickDetails.style.display = 'none';
+			if (specialWomenDetails) specialWomenDetails.style.display = 'none';
+			if (studyDetails) studyDetails.style.display = 'none';
+			
+			// Show relevant section based on leave type
+			if (leaveType === 'vacation' || leaveType === 'special_privilege' || leaveType === 'Vacation' || leaveType === 'Special Privilege') {
+				if (vacationDetails) vacationDetails.style.display = 'block';
+			} else if (leaveType === 'sick' || leaveType === 'Sick') {
+				if (sickDetails) sickDetails.style.display = 'block';
+			} else if (leaveType === 'special_women' || leaveType === 'Special Women') {
+				if (specialWomenDetails) specialWomenDetails.style.display = 'block';
+			} else if (leaveType === 'study' || leaveType === 'Study') {
+				if (studyDetails) studyDetails.style.display = 'block';
+			}
+			
+			// Hide the entire conditional section if no relevant details
+			const hasRelevantDetails = (leaveType === 'vacation' || leaveType === 'special_privilege' || 
+										leaveType === 'sick' || leaveType === 'special_women' || leaveType === 'study' ||
+										leaveType === 'Vacation' || leaveType === 'Special Privilege' || 
+										leaveType === 'Sick' || leaveType === 'Special Women' || leaveType === 'Study');
+			if (conditionalSection) {
+				conditionalSection.style.display = hasRelevantDetails ? 'block' : 'none';
+			}
+		}
+	</script>
+</body>
+</html>
+
+
