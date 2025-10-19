@@ -13,6 +13,7 @@ session_start();
 
 // Simple path to database config
 require_once '../../../../config/database.php';
+require_once '../../../../config/leave_types.php';
 
 // Check if user is logged in and has department head access
 if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'manager'])) {
@@ -64,7 +65,12 @@ try {
     // Format dates for display
     $leaveRequest['start_date'] = $startDate->format('F j, Y');
     $leaveRequest['end_date'] = $endDate->format('F j, Y');
-    $leaveRequest['leave_type'] = ucfirst(str_replace('_', ' ', $leaveRequest['leave_type']));
+    
+    // Get leave types configuration
+    $leaveTypes = getLeaveTypes();
+    
+    // Format leave type display using helper function
+    $leaveRequest['leave_type'] = getLeaveTypeDisplayName($leaveRequest['leave_type'], $leaveRequest['original_leave_type'] ?? null, $leaveTypes);
     
     // Format location type for display
     if ($leaveRequest['location_type']) {

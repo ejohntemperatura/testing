@@ -380,27 +380,27 @@ foreach ($alertData as $employeeId => $data) {
                     </div>
                 </div>
 
-                <!-- Enhanced Alert Info -->
+                <!-- Alert Info -->
                 <div class="bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-2xl p-6 mb-8">
                     <div class="flex items-center mb-4">
                         <i class="fas fa-info-circle text-blue-400 text-2xl mr-4"></i>
                         <div>
-                            <h3 class="text-xl font-semibold text-white mb-2">Enhanced Leave Maximization System</h3>
-                            <p class="text-slate-300">Advanced alert system with CSC compliance tracking, year-end forfeiture warnings, and intelligent prioritization based on Civil Service Commission guidelines.</p>
+                            <h3 class="text-xl font-semibold text-white mb-2">Leave Maximization Alert System</h3>
+                            <p class="text-slate-300">Simple and effective system to remind employees about their leave balance, low utilization, and year-end forfeiture risks.</p>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                         <div class="flex items-center space-x-2">
                             <i class="fas fa-check-circle text-green-400"></i>
-                            <span class="text-slate-300 text-sm">CSC Compliance Monitoring</span>
+                            <span class="text-slate-300 text-sm">Leave Balance Reminders</span>
                         </div>
                         <div class="flex items-center space-x-2">
                             <i class="fas fa-check-circle text-green-400"></i>
-                            <span class="text-slate-300 text-sm">Intelligent Prioritization</span>
+                            <span class="text-slate-300 text-sm">Utilization Monitoring</span>
                         </div>
                         <div class="flex items-center space-x-2">
                             <i class="fas fa-check-circle text-green-400"></i>
-                            <span class="text-slate-300 text-sm">Year-End Forfeiture Alerts</span>
+                            <span class="text-slate-300 text-sm">Year-End Warnings</span>
                         </div>
                     </div>
                 </div>
@@ -456,14 +456,14 @@ foreach ($alertData as $employeeId => $data) {
                         </div>
                     </div>
                 <?php else: ?>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         <?php foreach ($employees as $index => $employee): ?>
                             <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden hover:border-slate-600/50 transition-all duration-300 <?php 
                                 echo $employee['priority'] === 'urgent' ? 'ring-2 ring-red-500/50' : 
                                     ($employee['priority'] === 'critical' ? 'ring-2 ring-orange-500/50' : 
                                     ($employee['priority'] === 'moderate' ? 'ring-2 ring-yellow-500/50' : 'ring-2 ring-blue-500/50')); 
                             ?>" data-employee-id="<?php echo $employee['id']; ?>">
-                            <div class="p-6">
+                            <div class="p-4">
                                     <!-- Header -->
                                 <div class="flex justify-between items-start mb-4">
                                     <div>
@@ -523,7 +523,7 @@ foreach ($alertData as $employeeId => $data) {
                                 </div>
 
                                     <!-- Key Leave Types -->
-                                    <div class="space-y-3 mb-6">
+                                    <div class="space-y-2 mb-4">
                                         <?php 
                                         $keyLeaveTypes = ['vacation', 'sick', 'special_privilege'];
                                         foreach ($keyLeaveTypes as $type): 
@@ -547,44 +547,32 @@ foreach ($alertData as $employeeId => $data) {
                                         <?php endif; endforeach; ?>
                                 </div>
 
-                                    <!-- Enhanced Alert Details -->
+                                    <!-- Compact Alert Details -->
                                     <?php if (!empty($employee['alerts'])): ?>
-                                    <div class="mb-4">
-                                        <p class="text-xs text-slate-400 mb-2">Alert Details:</p>
-                                        <div class="space-y-2">
-                                            <?php foreach (array_slice($employee['alerts'], 0, 3) as $alert): ?>
-                                            <div class="p-2 rounded-lg <?php 
+                                    <div class="mb-3">
+                                        <div class="space-y-1">
+                                            <?php foreach (array_slice($employee['alerts'], 0, 2) as $alert): ?>
+                                            <div class="p-2 rounded <?php 
                                                 echo $alert['severity'] === 'urgent' ? 'bg-red-500/10 border border-red-500/30' : 
                                                     ($alert['severity'] === 'critical' ? 'bg-orange-500/10 border border-orange-500/30' : 'bg-yellow-500/10 border border-yellow-500/30'); 
                                             ?>">
-                                                <div class="flex items-start space-x-2">
-                                                    <i class="fas <?php 
-                                                        echo $alert['type'] === 'sil_forfeiture_risk' ? 'fa-gavel' : 
-                                                            ($alert['type'] === 'year_end_urgent' ? 'fa-calendar-times' : 'fa-exclamation-triangle'); 
-                                                    ?> text-xs mt-0.5 <?php 
-                                                        echo $alert['severity'] === 'urgent' ? 'text-red-400' : 
-                                                            ($alert['severity'] === 'critical' ? 'text-orange-400' : 'text-yellow-400'); 
-                                                    ?>"></i>
-                                                    <div class="flex-1">
-                                                        <p class="text-xs font-medium <?php 
-                                                            echo $alert['severity'] === 'urgent' ? 'text-red-300' : 
-                                                                ($alert['severity'] === 'critical' ? 'text-orange-300' : 'text-yellow-300'); 
-                                                        ?>">
-                                                            <?php echo htmlspecialchars($alert['message']); ?>
-                                                        </p>
-                                                        <?php if (isset($alert['leave_name'])): ?>
-                                                        <p class="text-xs text-slate-400 mt-1">
-                                                            <?php echo $alert['leave_name']; ?> - <?php echo $alert['utilization']; ?>% used
-                                                        </p>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </div>
+                                                <p class="text-xs font-medium <?php 
+                                                    echo $alert['severity'] === 'urgent' ? 'text-red-300' : 
+                                                        ($alert['severity'] === 'critical' ? 'text-orange-300' : 'text-yellow-300'); 
+                                                ?>">
+                                                    <?php echo htmlspecialchars($alert['message']); ?>
+                                                </p>
+                                                <?php if (isset($alert['leave_name'])): ?>
+                                                <p class="text-xs text-slate-400 mt-0.5">
+                                                    <?php echo $alert['leave_name']; ?> - <?php echo $alert['utilization']; ?>% used
+                                                </p>
+                                                <?php endif; ?>
                                             </div>
                                             <?php endforeach; ?>
-                                            <?php if (count($employee['alerts']) > 3): ?>
+                                            <?php if (count($employee['alerts']) > 2): ?>
                                             <div class="text-center">
-                                                <span class="px-2 py-1 bg-slate-500/20 text-slate-400 text-xs rounded-full">
-                                                    +<?php echo count($employee['alerts']) - 3; ?> more alerts
+                                                <span class="px-2 py-0.5 bg-slate-500/20 text-slate-400 text-xs rounded-full">
+                                                    +<?php echo count($employee['alerts']) - 2; ?> more
                                                 </span>
                                             </div>
                                             <?php endif; ?>
@@ -608,10 +596,10 @@ foreach ($alertData as $employeeId => $data) {
                                         echo $employee['priority'] === 'urgent' ? 'bg-red-600 hover:bg-red-700' : 
                                             ($employee['priority'] === 'critical' ? 'bg-orange-600 hover:bg-orange-700' :
                                             ($employee['priority'] === 'moderate' ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-blue-600 hover:bg-blue-700')); 
-                                    ?> text-white px-4 py-3 rounded-xl transition-colors flex items-center justify-center font-semibold" 
+                                    ?> text-white px-3 py-2 rounded-lg transition-colors flex items-center justify-center font-medium text-sm" 
                                             onclick="openAlertModal(<?php echo $employee['id']; ?>, '<?php echo htmlspecialchars($employee['name']); ?>', '<?php echo $employee['priority']; ?>', <?php echo $employee['total_remaining']; ?>)">
                                         <i class="fas fa-bell mr-2"></i>
-                                        Send <?php echo ucfirst($employee['priority']); ?> Priority Alert
+                                        Send Alert
                 </button>
                             </div>
                         </div>
@@ -633,8 +621,8 @@ foreach ($alertData as $employeeId => $data) {
                             <i class="fas fa-bell text-white text-lg"></i>
                         </div>
                         <div>
-                            <h3 class="text-xl font-bold text-white">Enhanced Leave Alert System</h3>
-                            <p class="text-slate-400 text-xs">Send personalized alert with CSC compliance tracking</p>
+                            <h3 class="text-xl font-bold text-white">Send Leave Alert</h3>
+                            <p class="text-slate-400 text-xs">Send personalized leave reminder to employee</p>
                         </div>
                     </div>
                     <div class="flex items-center space-x-3">
@@ -684,17 +672,9 @@ foreach ($alertData as $employeeId => $data) {
                             <select name="alert_type" id="alert_type" required 
                                 class="w-full bg-slate-700/50 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200">
                             <option value="">Select Alert Type</option>
-                                <option value="urgent_year_end">🚨 Urgent Year-End Alert</option>
-                                <option value="csc_utilization_low">📊 CSC Utilization Low</option>
-                                <option value="critical_utilization">⚠️ Critical Low Utilization</option>
-                                <option value="csc_limit_exceeded">🚫 CSC Limit Exceeded</option>
-                                <option value="csc_limit_approaching">⚠️ CSC Limit Approaching</option>
-                                <option value="year_end_critical">🔥 Year-End Critical</option>
-                                <option value="year_end_warning">⚠️ Year-End Warning</option>
-                                <option value="moderate_reminder">📋 Moderate Reminder</option>
-                                <option value="planning_reminder">📅 Planning Reminder</option>
-                                <option value="csc_compliance">📜 CSC Compliance Notice</option>
-                                <option value="wellness_focus">💚 Wellness Focus</option>
+                                <option value="low_utilization">📊 Low Leave Utilization</option>
+                                <option value="year_end_warning">⏰ Year-End Forfeiture Warning</option>
+                                <option value="balance_reminder">📋 Leave Balance Reminder</option>
                                 <option value="custom">✏️ Custom Message</option>
                         </select>
                     </div>
@@ -723,8 +703,6 @@ foreach ($alertData as $employeeId => $data) {
                             class="w-full bg-slate-700/50 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200">
                                 <option value="utilization">📊 Leave Utilization</option>
                                 <option value="year_end">📅 Year-End Forfeiture</option>
-                                <option value="csc_compliance">🏛️ CSC Compliance</option>
-                                <option value="wellness">💚 Wellness Focus</option>
                                 <option value="custom">✏️ Custom Alert</option>
                         </select>
                     </div>
@@ -906,22 +884,22 @@ foreach ($alertData as $employeeId => $data) {
             if (alertTypeField && priorityField && categoryField) {
                 switch(priority) {
                     case 'urgent':
-                        alertTypeField.value = 'csc_utilization_low';
+                        alertTypeField.value = 'year_end_warning';
                         priorityField.value = 'urgent';
-                        categoryField.value = 'csc_compliance';
-                        break;
-                    case 'critical':
-                        alertTypeField.value = 'year_end_critical';
-                        priorityField.value = 'critical';
                         categoryField.value = 'year_end';
                         break;
+                    case 'critical':
+                        alertTypeField.value = 'low_utilization';
+                        priorityField.value = 'critical';
+                        categoryField.value = 'utilization';
+                        break;
                     case 'moderate':
-                        alertTypeField.value = 'moderate_reminder';
+                        alertTypeField.value = 'balance_reminder';
                         priorityField.value = 'moderate';
                         categoryField.value = 'utilization';
                         break;
                     default:
-                        alertTypeField.value = 'planning_reminder';
+                        alertTypeField.value = 'balance_reminder';
                         priorityField.value = 'low';
                         categoryField.value = 'utilization';
                 }
@@ -984,385 +962,23 @@ foreach ($alertData as $employeeId => $data) {
         // Get professional message based on alert type
         function getProfessionalMessage(alertType) {
             const messages = {
-                'urgent_year_end': `Dear Employee,
-
-We are writing to inform you that you have significant unused leave credits as we approach the end of the year. With only a few weeks remaining, we strongly encourage you to utilize your remaining leave days.
-
-This is important for:
-• Your personal well-being and work-life balance
-• Compliance with Civil Service Commission regulations
-• Proper leave credit utilization
-• Prevention of leave credit forfeiture
-
-Please coordinate with your immediate supervisor to schedule your remaining leave days as soon as possible.
-
-Best regards,
-Human Resources Department`,
-                'csc_utilization_low': `Dear Employee,
-
-IMPORTANT NOTICE: Your leave utilization is below the recommended Civil Service Commission (CSC) standards. This requires immediate attention to ensure compliance with CSC regulations.
-
-CSC Compliance Requirements:
-• Leave credits should be utilized efficiently throughout the year
-• Low utilization may indicate poor leave planning
-• CSC guidelines emphasize proper leave utilization
-• This affects your overall civil service compliance record
-
-Required Actions:
-• Review your current leave utilization status
-• Plan and schedule your remaining leave days
-• Coordinate with your supervisor for proper scheduling
-• Ensure compliance with CSC leave utilization guidelines
-
-Please contact HR if you need assistance with leave planning.
-
-Best regards,
-Human Resources Department`,
-                'critical_utilization': `Dear Employee,
-
-CRITICAL ALERT: Your leave utilization is significantly below the recommended threshold. This requires immediate attention to prevent forfeiture of valuable leave credits.
-
-Current Status:
-• Your leave utilization is critically low
-• Risk of forfeiting unused leave credits
-• Impact on your overall leave benefits
-
-Immediate Actions Required:
-• Review your leave balance immediately
-• Schedule your remaining leave days
-• Contact your supervisor for coordination
-• Consider emergency leave planning
-
-This is a critical matter that requires your immediate attention.
-
-Best regards,
-Human Resources Department`,
-                'moderate_reminder': `Dear Employee,
-
-We hope this message finds you well. We've noticed that you have several unused leave credits for this year. We encourage you to plan and utilize your remaining leave days.
-
-Benefits of taking leave:
-• Improved work-life balance
-• Enhanced productivity and focus
-• Compliance with CSC guidelines
-• Maximization of your leave benefits
-
-Please review your leave balance and coordinate with your supervisor to schedule your remaining days.
-
-Best regards,
-Human Resources Department`,
-                'planning_reminder': `Dear Employee,
-
-We wanted to remind you about your available leave credits for this year. Planning your leave in advance helps ensure you can utilize all your entitled days.
-
-Your leave benefits include:
-• Vacation leave for rest and recreation
-• Sick leave for health needs
-• Special leave privileges as applicable
-• Civil Service Commission (CSC) leave credits
-
-Please consider scheduling your remaining leave days to maximize your benefits.
-
-Best regards,
-Human Resources Department`,
-                'csc_compliance': `Dear Employee,
-
-This is a reminder regarding Civil Service Commission compliance for leave utilization. As a government employee, it's important to utilize your leave credits appropriately.
-
-CSC Guidelines:
-• Leave credits should be used within the year
-• Proper documentation is required
-• Supervisor approval is necessary
-• CSC compliance is mandatory
-
-Please ensure you utilize your remaining leave credits in compliance with CSC regulations.
-
-Best regards,
-Human Resources Department`,
-                'wellness_focus': `Dear Employee,
-
-Your well-being is important to us. We encourage you to take advantage of your available leave credits to rest, recharge, and maintain a healthy work-life balance.
-
-Wellness benefits of taking leave:
-• Reduced stress and burnout
-• Improved mental health
-• Better work performance
-• Quality time with family
-• Prevention of leave credit forfeiture
-
-Please consider using your remaining leave days for your personal wellness.
-
-Best regards,
-Human Resources Department`,
-                'csc_limit_exceeded': `Dear Employee,
-
-CRITICAL NOTICE: You have exceeded the Civil Service Commission (CSC) leave limits for this year. This is a serious compliance violation that requires immediate attention.
-
-CSC Violation Details:
-• You have exceeded the maximum allowable leave days
-• This violates CSC Memorandum Circular guidelines
-• Administrative sanctions may apply
-• Immediate corrective action is required
-
-Required Actions:
-• Contact HR immediately to discuss this violation
-• Review your leave records for accuracy
-• Coordinate with your supervisor for resolution
-• Ensure future compliance with CSC regulations
-
-This matter requires your immediate attention to maintain your civil service record.
-
-Best regards,
-Human Resources Department`,
-                'csc_limit_approaching': `Dear Employee,
-
-URGENT WARNING: You are approaching the Civil Service Commission (CSC) leave limits for this year. Please take immediate action to avoid compliance violations.
-
-CSC Compliance Status:
-• You are close to exceeding maximum allowable leave days
-• CSC regulations must be strictly followed
-• Preventive action is required immediately
-• This affects your civil service compliance record
-
-Immediate Actions Required:
-• Review your current leave usage
-• Plan remaining leave days carefully
-• Coordinate with your supervisor
-• Ensure compliance with CSC guidelines
-
-Please contact HR if you need assistance with leave planning.
-
-Best regards,
-Human Resources Department`,
-                'year_end_critical': `Dear Employee,
-
-CRITICAL ALERT: You have unused leave credits that will be forfeited in the next few days! Immediate action is required to prevent loss of valuable benefits.
-
-Forfeiture Risk Details:
-• Unused leave credits will be forfeited on December 31
-• This is a critical situation requiring immediate action
-• You will lose these benefits permanently
-• CSC regulations require proper leave utilization
-
-URGENT ACTIONS REQUIRED:
-• Schedule your remaining leave days immediately
-• Contact your supervisor for emergency approval
-• Coordinate with HR for expedited processing
-• Do not delay - time is running out!
-
-This is your final warning before forfeiture occurs.
-
-Best regards,
-Human Resources Department`,
-                'year_end_warning': `Dear Employee,
-
-IMPORTANT NOTICE: You have unused leave credits that will be forfeited at year-end. Please take action to utilize your remaining leave days.
-
-Forfeiture Warning:
-• Unused leave credits will be forfeited on December 31
-• You have limited time to use these benefits
-• CSC regulations require proper leave utilization
-• Don't let your earned benefits go to waste
-
-Recommended Actions:
-• Review your leave balance immediately
-• Schedule your remaining leave days
-• Coordinate with your supervisor
-• Plan your leave utilization carefully
-
-Please take action soon to avoid forfeiture of your leave credits.
-
-Best regards,
-Human Resources Department`
+                'low_utilization': `Low leave utilization detected. Please schedule your remaining leave days.`,
+                'year_end_warning': `URGENT: Leave credits will be forfeited on Dec 31. Schedule immediately!`,
+                'balance_reminder': `Friendly reminder: You have leave days available for use.`
             };
             
-            return messages[alertType] || messages['planning_reminder'];
+            return messages[alertType] || messages['balance_reminder'];
         }
 
         // Get friendly message based on alert type
         function getFriendlyMessage(alertType) {
             const messages = {
-                'urgent_year_end': `Hi there! 👋
-
-We wanted to reach out because we noticed you still have quite a few leave days left this year, and time is running out! 😅
-
-We really care about your well-being and want to make sure you get the rest and relaxation you deserve. Plus, it's important to use those leave credits before they expire.
-
-Could you please chat with your supervisor about scheduling your remaining days? We'd hate for you to miss out on this benefit!
-
-Take care! 💚
-Your HR Team`,
-                'csc_utilization_low': `Hey! 📊
-
-We noticed your leave utilization is below the recommended CSC standards. Don't worry, we're here to help you get back on track! 😊
-
-What's happening:
-📈 Your leave utilization is lower than recommended
-📋 CSC guidelines emphasize proper leave planning
-🤝 We want to help you maximize your benefits
-💡 Let's work together to improve your utilization
-
-What you can do:
-✨ Review your current leave usage
-📅 Plan your remaining days strategically
-🤝 Talk to your supervisor about scheduling
-📚 Make sure you understand CSC guidelines
-
-We're here to help you succeed! 💪
-
-Your supportive HR Team 💙`,
-                'critical_utilization': `Hi! ⚠️
-
-We need to talk - your leave utilization is really low and we're worried you might lose your leave credits! 😰
-
-This is super important because:
-🚨 You're at risk of forfeiting valuable leave days
-🚨 It affects your overall benefits
-🚨 We want to make sure you get what you deserve!
-
-Please, please, please:
-✨ Check your leave balance right away
-✨ Schedule your remaining days
-✨ Talk to your supervisor immediately
-
-We're here to help you through this! 💪
-
-Your concerned HR Team 💚`,
-                'moderate_reminder': `Hello! 😊
-
-Hope you're doing well! We just wanted to gently remind you that you have some leave days available this year.
-
-Taking time off is so important for:
-✨ Recharging your batteries
-✨ Spending quality time with loved ones
-✨ Coming back refreshed and ready to go!
-✨ Making sure you don't lose your benefits!
-
-When you get a chance, please check in with your supervisor about using your remaining leave days.
-
-Warm regards,
-Your HR Team 💙`,
-                'planning_reminder': `Hi! 🌟
-
-Just a friendly heads up that you have some leave credits available this year. We know how busy things can get, but we want to make sure you don't forget to treat yourself to some well-deserved time off!
-
-Planning ahead makes it easier to:
-📅 Coordinate with your team
-🏖️ Make the most of your time off
-😌 Reduce stress about scheduling
-💎 Maximize your leave benefits
-
-Feel free to reach out if you need any help planning your leave!
-
-Best wishes,
-Your HR Team 💫`,
-                'csc_compliance': `Hello! 📋
-
-We wanted to give you a heads up about CSC compliance regarding your leave credits. Don't worry, it's nothing serious - we just want to make sure you're all set!
-
-A quick reminder that:
-✅ Leave credits should be used within the year
-✅ CSC compliance is important for your record
-✅ We're here to help with any questions
-✅ Your supervisor can assist with scheduling
-
-If you have any questions about the guidelines, just let us know!
-
-Best regards,
-Your HR Team 📚`,
-                'wellness_focus': `Hey there! 💚
-
-We hope you're feeling great! We wanted to check in because we noticed you have some leave days available, and we really want you to take care of yourself.
-
-Your wellness matters to us because:
-💪 You're an amazing part of our team
-🧘 Taking breaks helps you perform even better
-❤️ We care about your happiness and health
-🌟 We want you to get the most out of your benefits
-
-Please don't hesitate to use your leave days - you've earned them! And if you need any support, we're here for you.
-
-Take care of yourself! 🌈
-Your HR Team 💕`,
-                'csc_limit_exceeded': `Hi! 🚨
-
-We need to talk about something important - it looks like you've exceeded the CSC leave limits for this year. Don't worry, we're here to help you sort this out! 😊
-
-What happened:
-📊 You've used more leave days than allowed by CSC rules
-📋 This is a compliance issue we need to address
-🤝 We're here to help you resolve this
-💡 Let's work together to fix this
-
-What we need to do:
-✨ Contact HR to discuss the situation
-📝 Review your leave records together
-🤝 Find a solution that works for everyone
-📚 Make sure we follow CSC guidelines going forward
-
-Don't stress - we'll get this sorted out together! 💪
-
-Your supportive HR Team 💙`,
-                'csc_limit_approaching': `Hey! ⚠️
-
-Just a friendly heads up - you're getting close to the CSC leave limits for this year. We want to make sure you stay compliant! 😊
-
-Current situation:
-📊 You're approaching the maximum leave days allowed
-📋 CSC rules are important to follow
-🤝 We're here to help you plan ahead
-💡 Let's make sure you stay within limits
-
-What you can do:
-✨ Review your current leave usage
-📅 Plan your remaining days carefully
-🤝 Talk to your supervisor about scheduling
-📚 Make sure you understand the CSC guidelines
-
-We're here to help you stay compliant! 💪
-
-Your helpful HR Team 💙`,
-                'year_end_critical': `Hey! 🔥
-
-This is super urgent - you have leave days that will be forfeited very soon! We don't want you to lose your hard-earned benefits! 😱
-
-The situation:
-⏰ Your leave credits will be forfeited in just a few days
-💔 We don't want you to lose these valuable benefits
-🚨 This is a critical situation that needs immediate action
-💪 We're here to help you save your leave days!
-
-What you need to do RIGHT NOW:
-✨ Schedule your remaining leave days immediately
-📞 Contact your supervisor for emergency approval
-🤝 Coordinate with HR for fast processing
-⚡ Don't wait - time is running out!
-
-We're here to help you save your benefits! 💪
-
-Your concerned HR Team 💚`,
-                'year_end_warning': `Hi there! ⚠️
-
-We wanted to give you a heads up - you have some leave days that will be forfeited at the end of the year. Let's make sure you don't lose them! 😊
-
-What's happening:
-📅 Your unused leave credits will be forfeited on December 31
-💔 We don't want you to lose these benefits
-⏰ You still have time to use them
-💪 We're here to help you plan
-
-What you can do:
-✨ Review your leave balance
-📅 Schedule your remaining days
-🤝 Talk to your supervisor about planning
-📚 Make sure you use all your benefits
-
-Don't let your earned benefits go to waste! 💪
-
-Your helpful HR Team 💙`
+                'low_utilization': `Hi! 👋 You have unused leave days. Time to take a break!`,
+                'year_end_warning': `Hey! ⏰ Leave credits expire Dec 31. Don't lose them!`,
+                'balance_reminder': `Hello! 😊 Just a friendly reminder about your leave balance.`
             };
             
-            return messages[alertType] || messages['planning_reminder'];
+            return messages[alertType] || messages['balance_reminder'];
         }
 
         // Preview message

@@ -236,7 +236,7 @@ class EnhancedLeaveAlertService {
                         'max_days' => $maxDays,
                         'excess_days' => $usedDays - $maxDays,
                         'severity' => 'critical',
-                        'message' => "CSC Violation: {$leaveType} leave exceeded by {$excessDays} days (Used: {$usedDays}/{$maxDays})"
+                        'message' => "CSC limit exceeded for {$leaveType}. Used: {$usedDays}/{$maxDays}. Contact HR immediately."
                     ];
                 } elseif ($remainingDays <= 2 && $remainingDays > 0) {
                     $violations[] = [
@@ -246,7 +246,7 @@ class EnhancedLeaveAlertService {
                         'max_days' => $maxDays,
                         'remaining_days' => $remainingDays,
                         'severity' => 'urgent',
-                        'message' => "CSC Warning: {$leaveType} leave approaching limit (Used: {$usedDays}/{$maxDays}, {$remainingDays} days remaining)"
+                        'message' => "CSC limit approaching for {$leaveType}. {$remainingDays} days remaining before limit."
                     ];
                 }
             }
@@ -291,7 +291,7 @@ class EnhancedLeaveAlertService {
                             'unused_days' => $unusedDays,
                             'days_until_forfeiture' => $daysUntilYearEnd,
                             'severity' => 'critical',
-                            'message' => "CRITICAL: {$unusedDays} {$leaveType} leave days will be forfeited in {$daysUntilYearEnd} days!"
+                            'message' => "CRITICAL: {$unusedDays} {$leaveType} days forfeited in {$daysUntilYearEnd} days!"
                         ];
                     } elseif ($daysUntilYearEnd <= self::LEAVE_FORFEITURE_WARNING_DAYS) {
                         $risks[] = [
@@ -300,7 +300,7 @@ class EnhancedLeaveAlertService {
                             'unused_days' => $unusedDays,
                             'days_until_forfeiture' => $daysUntilYearEnd,
                             'severity' => 'urgent',
-                            'message' => "WARNING: {$unusedDays} {$leaveType} leave days will be forfeited in {$daysUntilYearEnd} days"
+                            'message' => "WARNING: {$unusedDays} {$leaveType} days forfeited in {$daysUntilYearEnd} days"
                         ];
                     }
                 }
@@ -319,9 +319,9 @@ class EnhancedLeaveAlertService {
  */
 private function generateCSCUtilizationMessage($utilization, $remainingDays) {
     if ($utilization < self::LEAVE_UTILIZATION_CRITICAL) {
-        return "CRITICAL: Your leave utilization is critically low at {$utilization}%. You have {$remainingDays} unused leave days that may be forfeited. Immediate action required to comply with CSC regulations.";
+        return "Low utilization: {$utilization}%. Schedule your {$remainingDays} remaining days.";
     } else {
-        return "WARNING: Your leave utilization is below recommended levels at {$utilization}%. You have {$remainingDays} unused leave days. Please plan to use your remaining leave credits to comply with CSC guidelines.";
+        return "Utilization reminder: {$utilization}% used, {$remainingDays} days remaining.";
     }
 }
     
@@ -404,13 +404,10 @@ private function generateCSCUtilizationMessage($utilization, $remainingDays) {
      * Generate utilization message
      */
     private function generateUtilizationMessage($type, $name, $utilization, $remaining, $daysRemaining) {
-        $urgency = $daysRemaining <= self::URGENT_THRESHOLD_DAYS ? 'URGENT' : 
-                  ($daysRemaining <= self::MODERATE_THRESHOLD_DAYS ? 'MODERATE' : 'PLANNING');
-        
         if ($utilization < self::CRITICAL_UTILIZATION_THRESHOLD) {
-            return "🚨 CRITICAL: Only {$utilization}% of {$name} used ({$remaining} days remaining). {$urgency} action needed!";
+            return "Low leave utilization detected. Please schedule your remaining {$remaining} {$name} days.";
         } else {
-            return "⚠️ WARNING: Only {$utilization}% of {$name} used ({$remaining} days remaining). {$urgency} planning required.";
+            return "Friendly reminder: You have {$remaining} {$name} days available for use.";
         }
     }
     
@@ -418,17 +415,18 @@ private function generateCSCUtilizationMessage($utilization, $remainingDays) {
      * Generate year-end urgent message
      */
     private function generateYearEndMessage($type, $name, $remaining, $daysRemaining) {
-        return "🚨 URGENT: {$remaining} days of {$name} will be forfeited in {$daysRemaining} days! Immediate action required.";
+        return "URGENT: {$remaining} {$name} days will be forfeited on Dec 31. Schedule immediately!";
     }
     
     /**
      * Generate overall utilization message
      */
     private function generateOverallUtilizationMessage($utilization, $totalRemaining, $daysRemaining) {
-        $urgency = $daysRemaining <= self::URGENT_THRESHOLD_DAYS ? 'URGENT' : 
-                  ($daysRemaining <= self::MODERATE_THRESHOLD_DAYS ? 'MODERATE' : 'PLANNING');
-        
-        return "📊 OVERALL: Only {$utilization}% leave utilization ({$totalRemaining} days remaining). {$urgency} planning needed for leave maximization.";
+        if ($daysRemaining <= self::URGENT_THRESHOLD_DAYS) {
+            return "URGENT: {$totalRemaining} total leave days will be forfeited on Dec 31. Schedule now!";
+        } else {
+            return "Overall utilization: {$utilization}%. You have {$totalRemaining} total days remaining.";
+        }
     }
     
     

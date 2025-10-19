@@ -43,6 +43,11 @@ $leave_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <link rel="stylesheet" href="../../../../assets/css/style.css">
     <link rel="stylesheet" href="../../../../assets/css/dark-theme.css">
     
+    <!-- Force cache refresh -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
 </head>
 <body class="bg-slate-900 text-white">
     <?php include '../../../../includes/unified_navbar.php'; ?>
@@ -77,17 +82,15 @@ $leave_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 
                 <div class="space-y-1">
                     <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
-                    
-                    <a href="calendar.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-calendar w-5"></i>
+                    <a href="calendar.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors">
+                        <i class="fas fa-calendar-alt w-5"></i>
                         <span>Leave Chart</span>
                     </a>
                 </div>
                 
                 <div class="space-y-1">
                     <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Account</h3>
-                    
-                    <a href="profile.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                    <a href="profile.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors">
                         <i class="fas fa-user w-5"></i>
                         <span>Profile</span>
                     </a>
@@ -327,14 +330,42 @@ $leave_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     })}</p>
                                     
                                     <h6 class="text-slate-400 mb-2 font-semibold">End Date</h6>
-                                    <p class="mb-3 text-white">${new Date(leave.end_date).toLocaleDateString('en-US', { 
-                                        year: 'numeric', 
-                                        month: 'long', 
-                                        day: 'numeric' 
-                                    })}</p>
+                                    <p class="mb-3 text-white">${(() => {
+                                        // Use approved end date if available, otherwise original end date
+                                        if (leave.status === 'approved' && leave.approved_days && leave.approved_days !== leave.days_requested) {
+                                            const startDate = new Date(leave.start_date);
+                                            const approvedEndDate = new Date(startDate);
+                                            approvedEndDate.setDate(startDate.getDate() + (leave.approved_days - 1));
+                                            return approvedEndDate.toLocaleDateString('en-US', { 
+                                                year: 'numeric', 
+                                                month: 'long', 
+                                                day: 'numeric' 
+                                            });
+                                        } else {
+                                            return new Date(leave.end_date).toLocaleDateString('en-US', { 
+                                                year: 'numeric', 
+                                                month: 'long', 
+                                                day: 'numeric' 
+                                            });
+                                        }
+                                    })()}</p>
                                     
                                     <h6 class="text-slate-400 mb-2 font-semibold">Days Requested</h6>
-                                    <p class="mb-3 text-white">${leave.days || leave.days_requested || 'N/A'} day(s)</p>
+                                    <p class="mb-3 text-white">${leave.days_requested || leave.days || 'N/A'} day(s)</p>
+                                    
+                                    ${leave.approved_days && leave.approved_days > 0 ? `
+                                        <h6 class="text-slate-400 mb-2 font-semibold">Days Approved</h6>
+                                        <p class="mb-3 text-green-400 font-semibold">
+                                            ${leave.approved_days} day(s) 
+                                            ${leave.pay_status ? `<span class="text-xs">(${leave.pay_status.replace('_', ' ')})</span>` : ''}
+                                        </p>
+                                        ${leave.approved_days != leave.days_requested ? `
+                                            <div class="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-sm text-yellow-400">
+                                                <i class="fas fa-info-circle mr-2"></i>
+                                                Director approved ${leave.approved_days} days instead of ${leave.days_requested} requested days
+                                            </div>
+                                        ` : ''}
+                                    ` : ''}
                                 </div>
                                 <div>
                                     <h6 class="text-slate-400 mb-2 font-semibold">Status</h6>
@@ -364,6 +395,30 @@ $leave_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <h6 class="text-slate-400 mb-2 font-semibold">Leave Reason</h6>
                                 <p class="text-white bg-slate-700/50 p-4 rounded-lg">${leave.reason}</p>
                             </div>
+                            
+                            <!-- Location Details (for vacation leave) -->
+                            ${leave.location_type ? `
+                                <div class="mt-6">
+                                    <h6 class="text-slate-400 mb-2 font-semibold flex items-center">
+                                        <i class="fas fa-map-marker-alt text-blue-400 mr-2"></i>
+                                        Location Details
+                                    </h6>
+                                    <div class="bg-slate-700/30 border border-slate-600/50 rounded-lg p-4">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="text-sm font-medium text-slate-400">Location Type</label>
+                                                <p class="text-white">${leave.location_type ? leave.location_type.charAt(0).toUpperCase() + leave.location_type.slice(1).replace('_', ' ') : 'N/A'}</p>
+                                            </div>
+                                            ${leave.location_specify ? `
+                                            <div>
+                                                <label class="text-sm font-medium text-slate-400">Specific Location</label>
+                                                <p class="text-white">${leave.location_specify}</p>
+                                            </div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
                             
                             <!-- Late Justification (if applicable) -->
                             ${isLate ? `
@@ -438,12 +493,6 @@ $leave_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             
                             <!-- Action Buttons -->
                             <div class="mt-6 flex flex-wrap gap-3">
-                                ${leave.can_appeal ? `
-                                    <button onclick="appealLeave(${leave.id})" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
-                                        <i class="fas fa-gavel mr-2"></i>Appeal Decision
-                                    </button>
-                                ` : ''}
-                                
                                 ${leave.medical_certificate_path ? `
                                     <button onclick="viewMedicalCertificate('${leave.medical_certificate_path}')" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
                                         <i class="fas fa-file-medical mr-2"></i>View Medical Certificate
@@ -479,36 +528,11 @@ $leave_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
         // Action button functions
-        function appealLeave(leaveId) {
-            const reason = prompt('Please provide a reason for your appeal:');
-            if (reason && reason.trim() !== '') {
-                // Implement appeal functionality
-                fetch(`/ELMS/api/appeal_leave.php?id=${leaveId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ reason: reason.trim() })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Appeal submitted successfully');
-                        location.reload();
-                    } else {
-                        alert('Error submitting appeal: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error submitting appeal');
-                });
-            }
-        }
 
         function viewMedicalCertificate(certificatePath) {
-            // Open medical certificate in new window
-            window.open(`/ELMS/uploads/medical_certificates/${certificatePath}`, '_blank');
+            // Open medical certificate via secure API endpoint
+            const timestamp = new Date().getTime();
+            window.open(`/ELMS/app/modules/api/view_medical_certificate.php?file=${encodeURIComponent(certificatePath)}&v=${timestamp}`, '_blank');
         }
 
         // Helper functions for status display

@@ -44,6 +44,16 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <i class="fas fa-bell w-5"></i>
         <span>Leave Alerts</span>
     </a>
+    
+    <a href="cto_management.php" class="flex items-center space-x-3 px-4 py-3 <?php echo $current_page === 'cto_management.php' ? 'text-white bg-purple-500/20 rounded-lg border border-purple-500/30' : 'text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors'; ?>">
+        <i class="fas fa-clock w-5"></i>
+        <span>CTO Management</span>
+    </a>
+    
+    <a href="dtr_cto_processing.php" class="flex items-center space-x-3 px-4 py-3 <?php echo $current_page === 'dtr_cto_processing.php' ? 'text-white bg-blue-500/20 rounded-lg border border-blue-500/30' : 'text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors'; ?>">
+        <i class="fas fa-sync-alt w-5"></i>
+        <span>DTR Processing</span>
+    </a>
 </div>
 
 <div class="space-y-1">

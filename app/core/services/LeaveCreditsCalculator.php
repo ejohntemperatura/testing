@@ -28,6 +28,13 @@ class LeaveCreditsCalculator {
     const SPECIAL_PRIVILEGE_RATE = 0.25;   // 0.25 days per month
     const SERVICE_DAYS_FOR_CREDIT = 24;    // Every 24 days of service = 1 day credit
     
+    // CTO (Compensatory Time Off) constants
+    const CTO_OVERTIME_RATE = 1.0;         // 1:1 ratio for regular overtime
+    const CTO_HOLIDAY_RATE = 1.5;          // 1.5:1 ratio for holiday work
+    const CTO_WEEKEND_RATE = 1.0;          // 1:1 ratio for weekend work
+    const CTO_MAX_ACCUMULATION = 40;       // Maximum 40 hours CTO can be accumulated
+    const CTO_EXPIRATION_MONTHS = 6;       // CTO expires after 6 months
+    
     public function __construct($pdo) {
         $this->pdo = $pdo;
     }
@@ -58,7 +65,8 @@ class LeaveCreditsCalculator {
             'vawc' => $this->getVAWCLeave($employee, $currentYear),
             'rehabilitation' => $this->getRehabilitationLeave($employee, $currentYear),
             'study' => $this->getStudyLeave($employee, $currentYear),
-            'terminal' => $this->getTerminalLeave($employee, $currentYear)
+            'terminal' => $this->getTerminalLeave($employee, $currentYear),
+            'cto' => $this->getCTOBalance($employeeId)
         ];
     }
     
@@ -292,7 +300,8 @@ class LeaveCreditsCalculator {
             'solo_parent_leave_balance' => $balances['solo_parent'],
             'vawc_leave_balance' => $balances['vawc'],
             'rehabilitation_leave_balance' => $balances['rehabilitation'],
-            'terminal_leave_balance' => $balances['terminal']
+            'terminal_leave_balance' => $balances['terminal'],
+            'cto_balance' => $balances['cto']
         ];
         
         foreach ($fieldMappings as $field => $value) {
@@ -354,6 +363,250 @@ class LeaveCreditsCalculator {
         // This would need to be implemented based on your employee data structure
         // For now, return false as a default
         return isset($employee['is_solo_parent']) && $employee['is_solo_parent'] == 1;
+    }
+    
+    /**
+     * Get CTO balance for employee
+     */
+    private function getCTOBalance($employeeId) {
+        // Get current CTO balance from database
+        $stmt = $this->pdo->prepare("SELECT cto_balance FROM employees WHERE id = ?");
+        $stmt->execute([$employeeId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $result ? (float)$result['cto_balance'] : 0.0;
+    }
+    
+    /**
+     * Calculate CTO earned from work
+     */
+    public function calculateCTOEarned($hoursWorked, $workType = 'overtime') {
+        $rates = [
+            'overtime' => self::CTO_OVERTIME_RATE,
+            'holiday' => self::CTO_HOLIDAY_RATE,
+            'weekend' => self::CTO_WEEKEND_RATE,
+            'special_assignment' => self::CTO_OVERTIME_RATE
+        ];
+        
+        $rate = $rates[$workType] ?? self::CTO_OVERTIME_RATE;
+        return $hoursWorked * $rate;
+    }
+    
+    /**
+     * Add CTO earnings to employee balance
+     */
+    public function addCTOEarnings($employeeId, $hoursWorked, $workType, $description = null, $approvedBy = null) {
+        $ctoEarned = $this->calculateCTOEarned($hoursWorked, $workType);
+        $currentBalance = $this->getCTOBalance($employeeId);
+        $newBalance = $currentBalance + $ctoEarned;
+        
+        // Check maximum accumulation limit
+        if ($newBalance > self::CTO_MAX_ACCUMULATION) {
+            $ctoEarned = self::CTO_MAX_ACCUMULATION - $currentBalance;
+            $newBalance = self::CTO_MAX_ACCUMULATION;
+        }
+        
+        if ($ctoEarned <= 0) {
+            return false; // No CTO to add
+        }
+        
+        try {
+            // Start transaction
+            $this->pdo->beginTransaction();
+            
+            // Update employee CTO balance
+            $stmt = $this->pdo->prepare("UPDATE employees SET cto_balance = ? WHERE id = ?");
+            $stmt->execute([$newBalance, $employeeId]);
+            
+            // Record CTO earnings
+            $stmt = $this->pdo->prepare("
+                INSERT INTO cto_earnings 
+                (employee_id, earned_date, hours_worked, cto_earned, work_type, rate_applied, description, approved_by, status) 
+                VALUES (?, CURDATE(), ?, ?, ?, ?, ?, ?, ?)
+            ");
+            
+            $rate = $this->getCTORate($workType);
+            $status = $approvedBy ? 'approved' : 'pending';
+            
+            $stmt->execute([
+                $employeeId, 
+                $hoursWorked, 
+                $ctoEarned, 
+                $workType, 
+                $rate, 
+                $description, 
+                $approvedBy, 
+                $status
+            ]);
+            
+            $this->pdo->commit();
+            return $ctoEarned;
+            
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            return false;
+        }
+    }
+    
+    /**
+     * Use CTO for leave request
+     */
+    public function useCTO($employeeId, $hoursUsed, $leaveRequestId = null, $description = null) {
+        $currentBalance = $this->getCTOBalance($employeeId);
+        
+        if ($currentBalance < $hoursUsed) {
+            return false; // Insufficient CTO balance
+        }
+        
+        try {
+            // Start transaction
+            $this->pdo->beginTransaction();
+            
+            // Update employee CTO balance
+            $newBalance = $currentBalance - $hoursUsed;
+            $stmt = $this->pdo->prepare("UPDATE employees SET cto_balance = ? WHERE id = ?");
+            $stmt->execute([$newBalance, $employeeId]);
+            
+            // Record CTO usage
+            $stmt = $this->pdo->prepare("
+                INSERT INTO cto_usage 
+                (employee_id, leave_request_id, hours_used, used_date, description) 
+                VALUES (?, ?, ?, CURDATE(), ?)
+            ");
+            $stmt->execute([$employeeId, $leaveRequestId, $hoursUsed, $description]);
+            
+            $this->pdo->commit();
+            return true;
+            
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            return false;
+        }
+    }
+    
+    /**
+     * Process CTO expiration
+     */
+    public function processCTOExpiration() {
+        $expirationDate = date('Y-m-d', strtotime('-' . self::CTO_EXPIRATION_MONTHS . ' months'));
+        
+        // Get expired CTO earnings
+        $stmt = $this->pdo->prepare("
+            SELECT ce.*, e.cto_balance 
+            FROM cto_earnings ce
+            JOIN employees e ON ce.employee_id = e.id
+            WHERE ce.earned_date <= ? 
+            AND ce.status = 'approved'
+            AND ce.cto_earned > 0
+        ");
+        $stmt->execute([$expirationDate]);
+        $expiredEarnings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        foreach ($expiredEarnings as $earning) {
+            $this->expireCTO($earning);
+        }
+        
+        return count($expiredEarnings);
+    }
+    
+    /**
+     * Expire specific CTO earning
+     */
+    private function expireCTO($earning) {
+        try {
+            $this->pdo->beginTransaction();
+            
+            // Calculate how much CTO to expire (considering usage)
+            $usedHours = $this->getCTOUsedFromEarning($earning['id']);
+            $expirableHours = $earning['cto_earned'] - $usedHours;
+            
+            if ($expirableHours > 0) {
+                // Update employee balance
+                $newBalance = max(0, $earning['cto_balance'] - $expirableHours);
+                $stmt = $this->pdo->prepare("UPDATE employees SET cto_balance = ? WHERE id = ?");
+                $stmt->execute([$newBalance, $earning['employee_id']]);
+                
+                // Record expiration
+                $stmt = $this->pdo->prepare("
+                    INSERT INTO cto_expiration 
+                    (employee_id, cto_earnings_id, hours_expired, expiration_date) 
+                    VALUES (?, ?, ?, CURDATE())
+                ");
+                $stmt->execute([
+                    $earning['employee_id'], 
+                    $earning['id'], 
+                    $expirableHours
+                ]);
+                
+                // Mark earning as expired
+                $stmt = $this->pdo->prepare("UPDATE cto_earnings SET cto_earned = 0 WHERE id = ?");
+                $stmt->execute([$earning['id']]);
+            }
+            
+            $this->pdo->commit();
+            
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+        }
+    }
+    
+    /**
+     * Get CTO used from specific earning
+     */
+    private function getCTOUsedFromEarning($earningId) {
+        $stmt = $this->pdo->prepare("
+            SELECT COALESCE(SUM(hours_used), 0) 
+            FROM cto_usage 
+            WHERE cto_earnings_id = ?
+        ");
+        $stmt->execute([$earningId]);
+        return $stmt->fetchColumn();
+    }
+    
+    /**
+     * Get CTO rate for work type
+     */
+    private function getCTORate($workType) {
+        $rates = [
+            'overtime' => self::CTO_OVERTIME_RATE,
+            'holiday' => self::CTO_HOLIDAY_RATE,
+            'weekend' => self::CTO_WEEKEND_RATE,
+            'special_assignment' => self::CTO_OVERTIME_RATE
+        ];
+        
+        return $rates[$workType] ?? self::CTO_OVERTIME_RATE;
+    }
+    
+    /**
+     * Get CTO earnings history for employee
+     */
+    public function getCTOEarningsHistory($employeeId, $limit = 50) {
+        $stmt = $this->pdo->prepare("
+            SELECT ce.*, e.name as approved_by_name
+            FROM cto_earnings ce
+            LEFT JOIN employees e ON ce.approved_by = e.id
+            WHERE ce.employee_id = ?
+            ORDER BY ce.earned_date DESC, ce.created_at DESC
+            LIMIT ?
+        ");
+        $stmt->execute([$employeeId, $limit]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
+    /**
+     * Get CTO usage history for employee
+     */
+    public function getCTOUsageHistory($employeeId, $limit = 50) {
+        $stmt = $this->pdo->prepare("
+            SELECT cu.*, lr.start_date, lr.end_date, lr.leave_type
+            FROM cto_usage cu
+            LEFT JOIN leave_requests lr ON cu.leave_request_id = lr.id
+            WHERE cu.employee_id = ?
+            ORDER BY cu.used_date DESC, cu.created_at DESC
+            LIMIT ?
+        ");
+        $stmt->execute([$employeeId, $limit]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
     /**

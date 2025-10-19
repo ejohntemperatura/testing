@@ -14,11 +14,21 @@ if (!isset($_SESSION['user_id'])) {
 
 $role = $_SESSION['role'] ?? 'employee';
 
-// Get leave requests - simplified approach
+// Get APPROVED leave requests only - with proper approved days
     $stmt = $pdo->prepare("
-        SELECT lr.*, e.name as employee_name, e.position, e.department
+        SELECT 
+            lr.*, 
+            e.name as employee_name, 
+            e.position, 
+            e.department,
+            CASE 
+                WHEN lr.approved_days IS NOT NULL AND lr.approved_days > 0 
+                THEN lr.approved_days
+                ELSE DATEDIFF(lr.end_date, lr.start_date) + 1 
+            END as actual_days_approved
         FROM leave_requests lr 
         JOIN employees e ON lr.employee_id = e.id 
+        WHERE lr.status = 'approved'
         ORDER BY lr.start_date ASC
     ");
     $stmt->execute();
@@ -277,15 +287,34 @@ document.addEventListener('DOMContentLoaded', function() {
             <?php foreach ($leave_requests as $request): ?>
             {
                 id: '<?php echo $request['id']; ?>',
-                title: '<?php echo addslashes($request['employee_name']); ?> - <?php echo ucfirst(str_replace('_', ' ', $request['leave_type'])); ?>',
+                title: '<?php echo addslashes($request['employee_name']); ?> - <?php echo ucfirst(str_replace('_', ' ', $request['leave_type'])); ?> (<?php echo $request['actual_days_approved']; ?> day<?php echo $request['actual_days_approved'] != 1 ? 's' : ''; ?>)',
                 start: '<?php echo $request['start_date']; ?>',
-                end: '<?php echo date('Y-m-d', strtotime($request['end_date'] . ' +1 day')); ?>',
-                className: 'leave-<?php echo $request['leave_type']; ?>'
+                end: '<?php echo date('Y-m-d', strtotime($request['start_date'] . ' +' . $request['actual_days_approved'] . ' days')); ?>',
+                className: 'leave-<?php echo $request['leave_type']; ?>',
+                extendedProps: {
+                    leave_type: '<?php echo $request['leave_type']; ?>',
+                    employee_name: '<?php echo addslashes($request['employee_name']); ?>',
+                    department: '<?php echo addslashes($request['department']); ?>',
+                    position: '<?php echo addslashes($request['position']); ?>',
+                    days_approved: <?php echo $request['actual_days_approved']; ?>,
+                    pay_status: '<?php echo $request['pay_status'] ?? 'N/A'; ?>'
+                }
             },
             <?php endforeach; ?>
         ],
         eventClick: function(info) {
-            alert('Event clicked: ' + info.event.title);
+            const props = info.event.extendedProps;
+            const message = `
+Leave Details:
+Employee: ${props.employee_name}
+Department: ${props.department}
+Position: ${props.position}
+Leave Type: ${props.leave_type.replace('_', ' ')}
+Days Approved: ${props.days_approved}
+Pay Status: ${props.pay_status}
+Date: ${info.event.start.toLocaleDateString()}
+            `;
+            alert(message);
         }
     });
     

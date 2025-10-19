@@ -7,6 +7,7 @@ header('Content-Type: application/json');
 
 session_start();
 require_once '../../../../config/database.php';
+require_once '../../../../config/leave_types.php';
 
 // Check if user is logged in and is a director
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'director') {
@@ -59,7 +60,12 @@ try {
     $request['start_date'] = date('M d, Y', strtotime($request['start_date']));
     $request['end_date'] = date('M d, Y', strtotime($request['end_date']));
     $request['days_requested'] = $days_requested;
-    $request['leave_type'] = ucfirst(str_replace('_', ' ', $request['leave_type']));
+    
+    // Get leave types configuration
+    $leaveTypes = getLeaveTypes();
+    
+    // Format leave type display using helper function
+    $request['leave_type'] = getLeaveTypeDisplayName($request['leave_type'], $request['original_leave_type'] ?? null, $leaveTypes);
     
     // Format location type for display
     if ($request['location_type']) {

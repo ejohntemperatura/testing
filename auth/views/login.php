@@ -2,9 +2,49 @@
 session_start();
 require_once '../../config/database.php';
 
+// Check for remember me cookie (skip if user just logged out)
+if (isset($_COOKIE['remember_token']) && !isset($_SESSION['user_id']) && !isset($_GET['logged_out'])) {
+    $rememberToken = $_COOKIE['remember_token'];
+    $currentTime = date('Y-m-d H:i:s');
+    $stmt = $pdo->prepare("SELECT e.* FROM employees e WHERE e.remember_token = ? AND e.remember_token_expires > ?");
+    $stmt->execute([$rememberToken, $currentTime]);
+    $user = $stmt->fetch();
+    
+    if ($user) {
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['name'] = $user['name'];
+        $_SESSION['role'] = $user['role'];
+        $_SESSION['position'] = $user['position'];
+        $_SESSION['department'] = $user['department'];
+        $_SESSION['logged_in_this_session'] = true;
+        
+        // Redirect based on role
+        if ($user['role'] === 'employee') {
+            header('Location: ../../app/modules/user/views/dtr.php');
+            exit();
+        } elseif ($user['role'] === 'admin') {
+            header('Location: ../../app/modules/admin/views/dashboard.php');
+            exit();
+        } elseif ($user['role'] === 'manager') {
+            header('Location: ../../app/modules/department/views/dashboard.php');
+            exit();
+        } elseif ($user['role'] === 'director') {
+            header('Location: ../../app/modules/director/views/dashboard.php');
+            exit();
+        } else {
+            header('Location: ../../app/modules/user/views/dashboard.php');
+            exit();
+        }
+    } else {
+        // Invalid remember token, delete the cookie
+        setcookie('remember_token', '', time() - 3600, '/');
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = $_POST['email'];
     $password = $_POST['password'];
+    $remember = isset($_POST['remember']);
     
     $stmt = $pdo->prepare("SELECT * FROM employees WHERE email = ?");
     $stmt->execute([$email]);
@@ -17,6 +57,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['position'] = $user['position'];
         $_SESSION['department'] = $user['department'];
         $_SESSION['logged_in_this_session'] = true;
+        
+        // Handle Remember Me functionality
+        if ($remember) {
+            $rememberToken = bin2hex(random_bytes(32));
+            $rememberExpires = date('Y-m-d H:i:s', strtotime('+30 days'));
+            
+            $stmt = $pdo->prepare("UPDATE employees SET remember_token = ?, remember_token_expires = ? WHERE id = ?");
+            $stmt->execute([$rememberToken, $rememberExpires, $user['id']]);
+            
+            // Set secure cookie
+            setcookie('remember_token', $rememberToken, time() + (30 * 24 * 60 * 60), '/', '', true, true);
+        }
         
         // For employees, always redirect to DTR page first
         if ($user['role'] === 'employee') {
@@ -147,7 +199,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                    class="w-4 h-4 text-cyan-600 bg-slate-700 border-slate-600 rounded focus:ring-cyan-500 focus:ring-2">
                             <label for="remember" class="ml-2 text-sm text-slate-300">Remember me</label>
                         </div>
-                        <a href="#" class="text-sm text-cyan-400 hover:text-cyan-300 transition-colors">Forgot password?</a>
+                        <a href="forgot_password.php" class="text-sm text-cyan-400 hover:text-cyan-300 transition-colors">Forgot password?</a>
                     </div>
 
                     <button type="submit" 

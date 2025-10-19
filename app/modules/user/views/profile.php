@@ -133,16 +133,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 <div class="space-y-1">
                     <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
-                    
-                    <a href="calendar.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-calendar w-5"></i>
+                    <a href="calendar.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors">
+                        <i class="fas fa-calendar-alt w-5"></i>
                         <span>Leave Chart</span>
                     </a>
                 </div>
                 
                 <div class="space-y-1">
                     <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Account</h3>
-                    
                     <a href="profile.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
                         <i class="fas fa-user w-5"></i>
                         <span>Profile</span>

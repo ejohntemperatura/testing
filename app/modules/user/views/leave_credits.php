@@ -16,30 +16,47 @@ $creditsManager = new LeaveCreditsManager($pdo);
 // Use current year
 $selectedYear = date('Y');
 
-// Update leave credits for current year
-$calculator->updateEmployeeLeaveCredits($_SESSION['user_id']);
-
-// Get leave credit summary using the manager
+// Get leave credit summary using the manager (without automatic recalculation)
 $leaveSummary = $creditsManager->getLeaveCreditsSummary($_SESSION['user_id']);
 
-// Force recalculation if credits are missing or zero
+// Only recalculate if ALL credits are missing (not just some are zero)
 $needsRecalculation = false;
 $requiredFields = [
-    'vacation_leave_balance', 'sick_leave_balance', 'mandatory_leave_balance',
-    'special_privilege_leave_balance', 'maternity_leave_balance', 'paternity_leave_balance',
-    'solo_parent_leave_balance', 'vawc_leave_balance', 'rehabilitation_leave_balance',
-    'special_women_leave_balance', 'special_emergency_leave_balance', 'adoption_leave_balance'
+    'vacation_leave_balance', 'sick_leave_balance', 'special_privilege_leave_balance',
+    'maternity_leave_balance', 'paternity_leave_balance', 'solo_parent_leave_balance',
+    'vawc_leave_balance', 'rehabilitation_leave_balance', 'terminal_leave_balance'
 ];
 
+$allFieldsMissing = true;
 foreach ($requiredFields as $field) {
-    if (!isset($leaveSummary[$field]) || $leaveSummary[$field] == 0) {
-        $needsRecalculation = true;
+    if (isset($leaveSummary[$field]) && $leaveSummary[$field] > 0) {
+        $allFieldsMissing = false;
         break;
     }
 }
 
-if ($needsRecalculation) {
-    $calculator->updateEmployeeLeaveCredits($_SESSION['user_id']);
+// Only recalculate if ALL fields are missing or zero (indicating a completely new account)
+if ($allFieldsMissing) {
+    // Initialize with CSC standard credits for new employees
+    $stmt = $pdo->prepare("
+        UPDATE employees SET 
+            vacation_leave_balance = 15,
+            sick_leave_balance = 15,
+            special_leave_privilege_balance = 3,
+            maternity_leave_balance = 105,
+            paternity_leave_balance = 7,
+            solo_parent_leave_balance = 7,
+            vawc_leave_balance = 10,
+            last_leave_credit_update = CURDATE()
+        WHERE id = ? AND (
+            vacation_leave_balance = 0 AND 
+            sick_leave_balance = 0 AND 
+            special_leave_privilege_balance = 0
+        )
+    ");
+    $stmt->execute([$_SESSION['user_id']]);
+    
+    // Refresh the summary after initialization
     $leaveSummary = $creditsManager->getLeaveCreditsSummary($_SESSION['user_id']);
 }
 
@@ -54,8 +71,14 @@ $stmt = $pdo->prepare("
         leave_type,
         start_date,
         end_date,
-        DATEDIFF(end_date, start_date) + 1 as days_used,
+        CASE 
+            WHEN status = 'approved' AND approved_days IS NOT NULL AND approved_days > 0 
+            THEN approved_days
+            ELSE DATEDIFF(end_date, start_date) + 1 
+        END as days_used,
         COALESCE(days_requested, DATEDIFF(end_date, start_date) + 1) as days_requested,
+        approved_days,
+        pay_status,
         status,
         reason,
         is_late,
@@ -171,17 +194,15 @@ $leaveTypeMapping = [
                 
                 <div class="space-y-1">
                     <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
-                
-                <a href="calendar.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-calendar w-5"></i>
-                    <span>Leave Chart</span>
-                </a>
+                    <a href="calendar.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors">
+                        <i class="fas fa-calendar-alt w-5"></i>
+                        <span>Leave Chart</span>
+                    </a>
                 </div>
                 
                 <div class="space-y-1">
                     <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Account</h3>
-                    
-                    <a href="profile.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                    <a href="profile.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors">
                         <i class="fas fa-user w-5"></i>
                         <span>Profile</span>
                     </a>
@@ -220,6 +241,7 @@ $leaveTypeMapping = [
                                 <li>• <strong>Vacation Leave:</strong> 1.25 days per month (15 days annually)</li>
                                 <li>• <strong>Sick Leave:</strong> 1.25 days per month (15 days annually)</li>
                                 <li>• <strong>Special Privilege:</strong> 3 days annually</li>
+                                <li>• <strong>CTO:</strong> Earned through overtime work (1:1 ratio), holiday work (1.5:1 ratio)</li>
                                 <li>• <strong>Special Leaves:</strong> As per Civil Service rules and agency policies</li>
                             </ul>
                         </div>
@@ -264,29 +286,29 @@ $leaveTypeMapping = [
                             </div>
                             <div class="text-right">
                                 <div class="text-2xl font-bold text-white"><?php echo number_format($currentBalance, 1); ?></div>
-                                <div class="text-slate-400 text-sm">remaining</div>
+                                <div class="text-slate-400 text-sm"><?php echo $type === 'cto' ? 'hours remaining' : 'remaining'; ?></div>
                             </div>
                         </div>
                         
                         <div class="space-y-2">
                             <div class="flex justify-between text-sm">
                                 <span class="text-slate-400">Total Allocated:</span>
-                                <span class="text-white font-semibold"><?php echo number_format($totalAllocated, 1); ?> days</span>
+                                <span class="text-white font-semibold"><?php echo number_format($totalAllocated, 1); ?> <?php echo $type === 'cto' ? 'hours' : 'days'; ?></span>
                             </div>
                             <div class="flex justify-between text-sm">
                                 <span class="text-slate-400">Used (Approved):</span>
-                                <span class="text-white font-semibold"><?php echo $usage['approved_days']; ?> days</span>
+                                <span class="text-white font-semibold"><?php echo $usage['approved_days']; ?> <?php echo $type === 'cto' ? 'hours' : 'days'; ?></span>
                             </div>
                             <?php if ($usage['pending_days'] > 0): ?>
                             <div class="flex justify-between text-sm">
                                 <span class="text-slate-400">Pending:</span>
-                                <span class="text-yellow-400 font-semibold"><?php echo $usage['pending_days']; ?> days</span>
+                                <span class="text-yellow-400 font-semibold"><?php echo $usage['pending_days']; ?> <?php echo $type === 'cto' ? 'hours' : 'days'; ?></span>
                             </div>
                             <?php endif; ?>
                             <?php if ($usage['rejected_days'] > 0): ?>
                             <div class="flex justify-between text-sm">
                                 <span class="text-slate-400">Rejected:</span>
-                                <span class="text-red-400 font-semibold"><?php echo $usage['rejected_days']; ?> days</span>
+                                <span class="text-red-400 font-semibold"><?php echo $usage['rejected_days']; ?> <?php echo $type === 'cto' ? 'hours' : 'days'; ?></span>
                             </div>
                             <?php endif; ?>
                             <div class="w-full bg-slate-700 rounded-full h-2">

@@ -105,6 +105,7 @@ function getLeaveTypes() {
     ],
     'study' => [
         'name' => 'Study Leave',
+        'name_with_note' => 'Study Leave (Without Pay)',
         'icon' => 'fas fa-graduation-cap',
         'color' => 'bg-indigo-500',
         'requires_credits' => false,
@@ -126,7 +127,122 @@ function getLeaveTypes() {
         'cumulative' => true,
         'commutable' => true,
         'cash_convertible' => true
+    ],
+    'cto' => [
+        'name' => 'Compensatory Time Off (CTO)',
+        'icon' => 'fas fa-clock',
+        'color' => 'bg-purple-500',
+        'requires_credits' => true,
+        'credit_field' => 'cto_balance',
+        'description' => 'Time off earned for overtime work, holidays, or special assignments',
+        'annual_credits' => 0, // Earned through work, not annual allocation
+        'cumulative' => true,
+        'commutable' => true,
+        'earned_through_work' => true,
+        'expiration_months' => 6, // Must be used within 6 months
+        'overtime_rate' => 1.0, // 1:1 ratio for regular overtime
+        'holiday_rate' => 1.5, // 1.5:1 ratio for holiday work
+        'weekend_rate' => 1.0, // 1:1 ratio for weekend work
+        'max_accumulation' => 40, // Maximum 40 hours CTO can be accumulated
+        'requires_approval' => true,
+        'requires_supervisor_approval' => true
+    ],
+    'without_pay' => [
+        'name' => 'Without Pay Leave',
+        'name_with_note' => 'Without Pay Leave (No Salary)',
+        'icon' => 'fas fa-exclamation-triangle',
+        'color' => 'bg-gray-500',
+        'requires_credits' => false,
+        'credit_field' => null,
+        'description' => 'Leave without pay when employee has insufficient leave credits',
+        'annual_credits' => 0,
+        'cumulative' => false,
+        'commutable' => false,
+        'without_pay' => true,
+        'requires_approval' => true,
+        'requires_supervisor_approval' => true
     ]
     ];
+}
+
+/**
+ * Helper function to determine if a leave request should display as "without pay"
+ * @param string $leave_type The current leave type
+ * @param string $original_leave_type The original leave type (if converted)
+ * @param array $leaveTypes The leave types configuration
+ * @return bool True if the leave should show as without pay
+ */
+function isLeaveWithoutPay($leave_type, $original_leave_type = null, $leaveTypes = null) {
+    if (!$leaveTypes) {
+        $leaveTypes = getLeaveTypes();
+    }
+    
+    // If leave_type is explicitly 'without_pay', it's without pay
+    if ($leave_type === 'without_pay') {
+        return true;
+    }
+    
+    // If original_leave_type exists and current type is 'without_pay' or empty, it was converted to without pay
+    if (!empty($original_leave_type) && ($leave_type === 'without_pay' || empty($leave_type))) {
+        return true;
+    }
+    
+    // Check if the current leave type is inherently without pay
+    if (isset($leaveTypes[$leave_type]) && isset($leaveTypes[$leave_type]['without_pay']) && $leaveTypes[$leave_type]['without_pay']) {
+        return true;
+    }
+    
+    // Check if the original leave type was inherently without pay
+    if (!empty($original_leave_type) && isset($leaveTypes[$original_leave_type]) && isset($leaveTypes[$original_leave_type]['without_pay']) && $leaveTypes[$original_leave_type]['without_pay']) {
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Helper function to get the display name for a leave type with appropriate without pay indicator
+ * @param string $leave_type The current leave type
+ * @param string $original_leave_type The original leave type (if converted)
+ * @param array $leaveTypes The leave types configuration
+ * @return string The display name with or without pay indicator
+ */
+function getLeaveTypeDisplayName($leave_type, $original_leave_type = null, $leaveTypes = null) {
+    if (!$leaveTypes) {
+        $leaveTypes = getLeaveTypes();
+    }
+    
+    $isWithoutPay = isLeaveWithoutPay($leave_type, $original_leave_type, $leaveTypes);
+    
+    // Determine the base leave type to display
+    $baseType = null;
+    if (!empty($original_leave_type) && ($leave_type === 'without_pay' || empty($leave_type))) {
+        // Use original type if it was converted to without pay
+        $baseType = $original_leave_type;
+    } else {
+        // Use current type
+        $baseType = $leave_type;
+    }
+    
+    // Get the display name
+    if (isset($leaveTypes[$baseType])) {
+        $leaveTypeConfig = $leaveTypes[$baseType];
+        
+        if ($isWithoutPay) {
+            // Show name with without pay indicator
+            if (isset($leaveTypeConfig['name_with_note'])) {
+                return $leaveTypeConfig['name_with_note'];
+            } else {
+                return $leaveTypeConfig['name'] . ' (Without Pay)';
+            }
+        } else {
+            // Show regular name
+            return $leaveTypeConfig['name'];
+        }
+    } else {
+        // Fallback for unknown types
+        $displayName = ucfirst(str_replace('_', ' ', $baseType));
+        return $isWithoutPay ? $displayName . ' (Without Pay)' : $displayName;
+    }
 }
 ?>

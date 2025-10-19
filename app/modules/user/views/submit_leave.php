@@ -116,10 +116,68 @@ if ($start < $today) {
 $creditsManager = new LeaveCreditsManager($pdo);
 $creditCheck = $creditsManager->checkLeaveCredits($employee_id, $leave_type, $start_date, $end_date);
 
-if (!$creditCheck['sufficient']) {
-    $_SESSION['error'] = $creditCheck['message'];
+// Special case: Study leave should always show popup for without pay option
+if ($leave_type === 'study') {
+    $creditCheck['sufficient'] = false;
+    $creditCheck['message'] = 'Study leave is typically without pay. Would you like to proceed with without pay leave?';
+}
+
+// Check if user wants to proceed with without pay leave
+$proceed_without_pay = isset($_POST['proceed_without_pay']) && $_POST['proceed_without_pay'] === 'yes';
+
+// Prevent duplicate submissions
+$submission_key = $employee_id . '_' . $leave_type . '_' . $start_date . '_' . $end_date;
+if (isset($_SESSION['last_submission']) && $_SESSION['last_submission'] === $submission_key) {
+    $_SESSION['error'] = "Duplicate submission detected. Please wait a moment before submitting again.";
     header('Location: dashboard.php');
     exit();
+}
+
+if (!$creditCheck['sufficient'] && !$proceed_without_pay) {
+    // Store the form data and show popup for insufficient credits
+    $_SESSION['insufficient_credits_data'] = [
+        'leave_type' => $leave_type,
+        'start_date' => $start_date,
+        'end_date' => $end_date,
+        'reason' => $reason,
+        'location_type' => $location_type,
+        'location_specify' => $location_specify,
+        'medical_condition' => $medical_condition,
+        'illness_specify' => $illness_specify,
+        'special_women_condition' => $special_women_condition,
+        'study_type' => $study_type,
+        'medical_certificate_path' => $medical_certificate_path,
+        'days' => $days,
+        'credit_message' => $creditCheck['message']
+    ];
+    
+    // Store form data temporarily for auto-submission
+    $_SESSION['temp_insufficient_credits_data'] = [
+        'leave_type' => $leave_type,
+        'start_date' => $start_date,
+        'end_date' => $end_date,
+        'reason' => $reason,
+        'location_type' => $location_type,
+        'location_specify' => $location_specify,
+        'medical_condition' => $medical_condition,
+        'illness_specify' => $illness_specify,
+        'special_women_condition' => $special_women_condition,
+        'study_type' => $study_type,
+        'medical_certificate_path' => $medical_certificate_path,
+        'days' => $days,
+        'credit_message' => $creditCheck['message']
+    ];
+    
+    $_SESSION['show_insufficient_credits_popup'] = true;
+    header('Location: dashboard.php');
+    exit();
+}
+
+// If proceeding without pay, change leave type to without_pay and store original type
+$original_leave_type = null;
+if ($proceed_without_pay) {
+    $original_leave_type = $leave_type; // Store the original leave type
+    $leave_type = 'without_pay';
 }
 
 try {
@@ -127,14 +185,34 @@ try {
     $pdo->beginTransaction();
 
     // Insert leave request with conditional fields
-    $stmt = $pdo->prepare("INSERT INTO leave_requests (employee_id, leave_type, start_date, end_date, reason, status, days_requested, location_type, location_specify, medical_condition, illness_specify, special_women_condition, study_type, medical_certificate_path, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
-    $stmt->execute([$employee_id, $leave_type, $start_date, $end_date, $reason, $days, $location_type, $location_specify, $medical_condition, $illness_specify, $special_women_condition, $study_type, $medical_certificate_path]);
+    // Check if original_leave_type column exists
+    try {
+        $stmt = $pdo->prepare("INSERT INTO leave_requests (employee_id, leave_type, original_leave_type, start_date, end_date, reason, status, days_requested, location_type, location_specify, medical_condition, illness_specify, special_women_condition, study_type, medical_certificate_path, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+        $stmt->execute([$employee_id, $leave_type, $original_leave_type, $start_date, $end_date, $reason, $days, $location_type, $location_specify, $medical_condition, $illness_specify, $special_women_condition, $study_type, $medical_certificate_path]);
+    } catch (PDOException $e) {
+        // If original_leave_type column doesn't exist, use the old query
+        if (strpos($e->getMessage(), 'original_leave_type') !== false) {
+            $stmt = $pdo->prepare("INSERT INTO leave_requests (employee_id, leave_type, start_date, end_date, reason, status, days_requested, location_type, location_specify, medical_condition, illness_specify, special_women_condition, study_type, medical_certificate_path, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+            $stmt->execute([$employee_id, $leave_type, $start_date, $end_date, $reason, $days, $location_type, $location_specify, $medical_condition, $illness_specify, $special_women_condition, $study_type, $medical_certificate_path]);
+        } else {
+            throw $e; // Re-throw if it's a different error
+        }
+    }
 
-    // Deduct leave credits immediately when applying
-    $creditsManager->deductLeaveCredits($employee_id, $leave_type, $start_date, $end_date);
+    // Note: Leave credits will be deducted when the leave is approved by Director
+    // This ensures we deduct only the approved days, not the requested days
 
     $pdo->commit();
-    $_SESSION['success'] = "Leave request submitted successfully. Leave credits have been deducted.";
+    
+    // Track successful submission to prevent duplicates
+    $_SESSION['last_submission'] = $submission_key;
+    $_SESSION['last_submission_time'] = time();
+    
+    if ($leave_type === 'without_pay') {
+        $_SESSION['success'] = "Leave request submitted successfully as Without Pay Leave.";
+    } else {
+        $_SESSION['success'] = "Leave request submitted successfully. Credits will be deducted upon approval.";
+    }
 } catch (Exception $e) {
     $pdo->rollBack();
     $_SESSION['error'] = "Error submitting leave request: " . $e->getMessage();

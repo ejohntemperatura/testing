@@ -348,6 +348,163 @@ class LeaveCreditsManager {
     }
     
     /**
+     * Handle CTO-specific leave credit operations
+     */
+    public function handleCTOCredits($employee_id, $leave_type, $start_date, $end_date, $action = 'deduct') {
+        if ($leave_type !== 'cto') {
+            return false;
+        }
+        
+        $hours_requested = $this->calculateDays($start_date, $end_date) * 8; // Convert days to hours
+        
+        // Check if CTO balance column exists
+        $stmt = $this->pdo->query("DESCRIBE employees");
+        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        if (!in_array('cto_balance', $columns)) {
+            throw new Exception('CTO balance tracking not available');
+        }
+        
+        // Get current CTO balance
+        $stmt = $this->pdo->prepare("SELECT cto_balance FROM employees WHERE id = ?");
+        $stmt->execute([$employee_id]);
+        $current_balance = $stmt->fetchColumn() ?: 0;
+        
+        if ($action === 'deduct') {
+            if ($current_balance < $hours_requested) {
+                throw new Exception("Insufficient CTO balance. Available: {$current_balance} hours, Requested: {$hours_requested} hours");
+            }
+            
+            // Deduct CTO credits
+            $stmt = $this->pdo->prepare("UPDATE employees SET cto_balance = cto_balance - ? WHERE id = ?");
+            $result = $stmt->execute([$hours_requested, $employee_id]);
+            
+            if (!$result) {
+                throw new Exception('Failed to deduct CTO credits');
+            }
+            
+            // Record CTO usage
+            $this->recordCTOUsage($employee_id, $hours_requested, $start_date, $end_date);
+            
+        } elseif ($action === 'restore') {
+            // Restore CTO credits
+            $stmt = $this->pdo->prepare("UPDATE employees SET cto_balance = cto_balance + ? WHERE id = ?");
+            $result = $stmt->execute([$hours_requested, $employee_id]);
+            
+            if (!$result) {
+                throw new Exception('Failed to restore CTO credits');
+            }
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Record CTO usage for tracking
+     */
+    private function recordCTOUsage($employee_id, $hours_used, $start_date, $end_date) {
+        try {
+            $stmt = $this->pdo->prepare("
+                INSERT INTO cto_usage 
+                (employee_id, hours_used, used_date, description) 
+                VALUES (?, ?, ?, ?)
+            ");
+            
+            $description = "CTO used from {$start_date} to {$end_date}";
+            $stmt->execute([$employee_id, $hours_used, $start_date, $description]);
+            
+        } catch (Exception $e) {
+            // Log error but don't fail the main operation
+            error_log("Failed to record CTO usage: " . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Check CTO balance for employee
+     */
+    public function checkCTOBalance($employee_id) {
+        $stmt = $this->pdo->query("DESCRIBE employees");
+        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        if (!in_array('cto_balance', $columns)) {
+            return ['available' => 0, 'message' => 'CTO tracking not available'];
+        }
+        
+        $stmt = $this->pdo->prepare("SELECT cto_balance FROM employees WHERE id = ?");
+        $stmt->execute([$employee_id]);
+        $balance = $stmt->fetchColumn() ?: 0;
+        
+        return [
+            'available' => $balance,
+            'message' => "CTO Balance: {$balance} hours"
+        ];
+    }
+    
+    /**
+     * Get CTO earnings history for employee
+     */
+    public function getCTOEarningsHistory($employee_id, $limit = 20) {
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT ce.*, e.name as approved_by_name
+                FROM cto_earnings ce
+                LEFT JOIN employees e ON ce.approved_by = e.id
+                WHERE ce.employee_id = ?
+                ORDER BY ce.earned_date DESC, ce.created_at DESC
+                LIMIT ?
+            ");
+            $stmt->execute([$employee_id, $limit]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+    
+    /**
+     * Get CTO usage history for employee
+     */
+    public function getCTOUsageHistory($employee_id, $limit = 20) {
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT cu.*, lr.start_date, lr.end_date, lr.leave_type
+                FROM cto_usage cu
+                LEFT JOIN leave_requests lr ON cu.leave_request_id = lr.id
+                WHERE cu.employee_id = ?
+                ORDER BY cu.used_date DESC, cu.created_at DESC
+                LIMIT ?
+            ");
+            $stmt->execute([$employee_id, $limit]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+    
+    /**
+     * Enhanced deductLeaveCredits to handle CTO
+     */
+    public function deductLeaveCreditsEnhanced($employee_id, $leave_type, $start_date, $end_date) {
+        if ($leave_type === 'cto') {
+            return $this->handleCTOCredits($employee_id, $leave_type, $start_date, $end_date, 'deduct');
+        }
+        
+        // Use original logic for other leave types
+        return $this->deductLeaveCredits($employee_id, $leave_type, $start_date, $end_date);
+    }
+    
+    /**
+     * Enhanced restoreLeaveCredits to handle CTO
+     */
+    public function restoreLeaveCreditsEnhanced($employee_id, $leave_type, $start_date, $end_date) {
+        if ($leave_type === 'cto') {
+            return $this->handleCTOCredits($employee_id, $leave_type, $start_date, $end_date, 'restore');
+        }
+        
+        // Use original logic for other leave types
+        return $this->restoreLeaveCredits($employee_id, $leave_type, $start_date, $end_date);
+    }
+    
+    /**
      * Get leave credits summary for an employee (CSC Compliant)
      */
     public function getLeaveCreditsSummary($employee_id) {

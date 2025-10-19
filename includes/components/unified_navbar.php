@@ -123,17 +123,21 @@ switch($user_role) {
                                 <p class="text-xs text-slate-400"><?php echo ucfirst($user_role); ?></p>
                             </div>
                             
-                            <!-- Profile Link -->
-                            <a href="<?php echo ($user_role === 'admin') ? 'admin_dashboard.php' : 'profile.php'; ?>" class="flex items-center space-x-3 px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                            <?php if ($user_role === 'admin'): ?>
+                            <!-- Manage Users Link -->
+                            <a href="manage_user.php" class="flex items-center space-x-3 px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                                <i class="fas fa-users-cog w-4"></i>
+                                <span>Manage Users</span>
+                            </a>
+                            <?php elseif (in_array($user_role, ['department_head', 'manager', 'director'])): ?>
+                            <!-- No additional menu items for department heads and directors -->
+                            <?php else: ?>
+                            <!-- Profile Link for regular employees -->
+                            <a href="profile.php" class="flex items-center space-x-3 px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
                                 <i class="fas fa-user w-4"></i>
                                 <span>Profile</span>
                             </a>
-                            
-                            <!-- Settings Link -->
-                            <a href="<?php echo ($user_role === 'admin') ? 'admin_dashboard.php' : 'profile.php'; ?>" class="flex items-center space-x-3 px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                                <i class="fas fa-cog w-4"></i>
-                                <span>Settings</span>
-                            </a>
+                            <?php endif; ?>
                             
                             <!-- Divider -->
                             <div class="border-t border-slate-700 my-1"></div>
@@ -496,9 +500,10 @@ function updateNotificationDropdown(alertsOrCount) {
         const safeTitle = title.replace(/'/g, "\\'");
         
         alertsHTML += `
-            <div class="notification-item p-3 border-b border-slate-700/50 hover:bg-slate-700/30 transition-all duration-200 cursor-pointer group" 
-                 onclick="openNotificationModal(${alert.id}, '${safeAlertType}', '${safeMessage}', '${alert.created_at}', '${safeSentBy}')"
-                 data-alert-id="${alert.id}">
+            <div class="notification-item p-3 border-b border-slate-700/50 hover:bg-slate-700/30 hover:border-blue-500/30 transition-all duration-200 cursor-pointer group" 
+                 onclick="console.log('🖱️ Notification clicked!'); openNotificationModal(${alert.id}, '${safeAlertType}', '${safeMessage}', '${alert.created_at}', '${safeSentBy}')"
+                 data-alert-id="${alert.id}"
+                 title="Click to view full message">
                 <div class="flex items-center space-x-3">
                     <div class="w-8 h-8 ${iconClass.bg} rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
                         <i class="${iconClass.icon} text-xs"></i>
@@ -513,8 +518,8 @@ function updateNotificationDropdown(alertsOrCount) {
                             <span class="text-xs text-slate-500">
                                 ${safeSentBy}
                             </span>
-                            <span class="text-xs text-blue-400 group-hover:text-blue-300 transition-colors flex items-center">
-                                View <i class="fas fa-arrow-right ml-1 text-xs"></i>
+                            <span class="text-xs text-blue-400 group-hover:text-blue-300 transition-colors flex items-center font-medium">
+                                View <i class="fas fa-arrow-right ml-1 text-xs group-hover:translate-x-1 transition-transform"></i>
                             </span>
                         </div>
                     </div>
@@ -655,8 +660,9 @@ function markNotificationAsRead(alertId) {
 // Function to open notification modal
 window.openNotificationModal = function(alertId, alertType, message, createdAt, sentBy) {
     try {
-        console.log('Opening notification modal:', { alertId, alertType, message, createdAt, sentBy });
-        console.log('Current URL:', window.location.pathname);
+        console.log('🔔 Opening notification modal:', { alertId, alertType, message, createdAt, sentBy });
+        console.log('📍 Current URL:', window.location.pathname);
+        console.log('🎯 Function called successfully!');
         
         // Create modal overlay
         const modalOverlay = document.createElement('div');
@@ -667,7 +673,8 @@ window.openNotificationModal = function(alertId, alertType, message, createdAt, 
     
     // Create modal content
     const modalContent = document.createElement('div');
-    modalContent.className = 'bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto modal-shadow modal-float transform scale-95 opacity-0 transition-all duration-300 ease-out';
+    modalContent.className = 'bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto shadow-2xl transform scale-95 opacity-0 transition-all duration-300 ease-out';
+    modalContent.style.zIndex = '10000';
     
     const iconClass = getAlertIconClass(alertType);
     const title = getAlertTitle(alertType);
@@ -713,7 +720,7 @@ window.openNotificationModal = function(alertId, alertType, message, createdAt, 
                     Message Details
                 </h4>
                 <div class="bg-slate-700/30 border border-slate-600/50 rounded-xl p-5 max-h-64 overflow-y-auto shadow-inner">
-                    <p class="text-slate-200 leading-relaxed whitespace-pre-wrap text-sm">${safeMessage}</p>
+                    <p class="text-slate-200 leading-relaxed whitespace-pre-line text-sm">${safeMessage}</p>
                 </div>
             </div>
             
@@ -955,9 +962,13 @@ function displayNavbarAlerts(alerts) {
     }
 
     container.innerHTML = alerts.slice(0, 5).map(alert => `
-        <div class="notification-item p-3 border-b border-slate-700/50 hover:bg-slate-700/30 transition-all duration-200 cursor-pointer group" 
-             onclick="viewAlertMessage(${alert.id}, '${alert.alert_type}', '${alert.message.replace(/'/g, "\\'")}', '${alert.created_at}', '${(alert.sent_by_name || 'System').replace(/'/g, "\\'")}')"
-             data-alert-id="${alert.id}">
+        <div class="notification-item p-3 border-b border-slate-700/50 hover:bg-slate-700/30 hover:border-blue-500/30 transition-all duration-200 cursor-pointer group" 
+             data-alert-id="${alert.id}"
+             data-alert-type="${alert.alert_type}"
+             data-message="${alert.message.replace(/"/g, '&quot;')}"
+             data-created-at="${alert.created_at}"
+             data-sent-by="${(alert.sent_by_name || 'System').replace(/"/g, '&quot;')}"
+             title="Click to view full message">
             <div class="flex items-center space-x-3">
                 <div class="w-8 h-8 ${alert.alert_color.split(' ')[1]} rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
                     <i class="${alert.alert_icon} ${alert.alert_color.split(' ')[0]} text-xs"></i>
@@ -972,8 +983,8 @@ function displayNavbarAlerts(alerts) {
                     <p class="text-xs text-slate-400 truncate mb-1">${alert.message.length > 60 ? alert.message.substring(0, 60) + '...' : alert.message}</p>
                     <div class="flex items-center justify-between">
                         <span class="text-xs text-slate-500">${alert.sent_by_name || 'System'}</span>
-                        <span class="text-xs text-blue-400 group-hover:text-blue-300 transition-colors flex items-center">
-                            View <i class="fas fa-arrow-right ml-1 text-xs"></i>
+                        <span class="text-xs text-blue-400 group-hover:text-blue-300 transition-colors flex items-center font-medium">
+                            View <i class="fas fa-arrow-right ml-1 text-xs group-hover:translate-x-1 transition-transform"></i>
                         </span>
                     </div>
                 </div>
@@ -1221,7 +1232,7 @@ function viewAlertMessage(alertId, alertType, message, createdAt, sentBy) {
                     <!-- Message Content -->
                     <div class="bg-slate-700/30 rounded-xl p-4 border border-slate-600/30">
                         <h4 class="text-sm font-semibold text-white mb-2">Message:</h4>
-                        <div class="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">${message}</div>
+                        <div class="text-slate-300 text-sm leading-relaxed whitespace-pre-line">${message}</div>
                     </div>
                 </div>
             </div>
@@ -1339,10 +1350,35 @@ async function markAllNavbarAlertsRead() {
 
 
 
+
+// Event delegation for notification clicks
+document.addEventListener('click', function(event) {
+    const notificationItem = event.target.closest('.notification-item');
+    if (notificationItem) {
+        console.log('🖱️ Notification clicked via event delegation!');
+        
+        const alertId = notificationItem.getAttribute('data-alert-id');
+        const alertType = notificationItem.getAttribute('data-alert-type');
+        const message = notificationItem.getAttribute('data-message');
+        const createdAt = notificationItem.getAttribute('data-created-at');
+        const sentBy = notificationItem.getAttribute('data-sent-by');
+        
+        console.log('Alert data:', { alertId, alertType, message, createdAt, sentBy });
+        
+        if (typeof window.openNotificationModal === 'function') {
+            window.openNotificationModal(alertId, alertType, message, createdAt, sentBy);
+        } else {
+            console.error('❌ openNotificationModal function not available!');
+        }
+    }
+});
+
 // Initialize navbar alerts when page loads
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize for all users
     initNavbarAlerts();
+    console.log('🚀 Navbar initialized. Test notification modal with: testNotificationModal()');
+    console.log('🎯 Event delegation set up for notification clicks');
 });
 
 // Clean up navbar polling when page is hidden

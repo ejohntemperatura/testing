@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../../../../config/database.php';
+require_once '../../../../config/leave_types.php';
 
 // Auto-process emails when internet is available
 require_once '../../../../app/core/services/auto_email_processor.php';
@@ -124,6 +125,9 @@ $me = $stmt->fetch();
 							");
 							$stmt->execute();
 							$pending_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+							
+							// Get leave types configuration
+							$leaveTypes = getLeaveTypes();
 							?>
 							
 						<?php if (empty($pending_requests)): ?>
@@ -157,8 +161,8 @@ $me = $stmt->fetch();
 												</td>
 												<td class="px-6 py-4">
 													<div class="flex flex-col gap-2">
-														<span class="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide">
-															<?php echo ucfirst(str_replace('_', ' ', $request['leave_type'])); ?>
+														<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
+															<?php echo getLeaveTypeDisplayName($request['leave_type'], $request['original_leave_type'] ?? null, $leaveTypes); ?>
 														</span>
 														<?php if ($request['is_late'] == 1): ?>
 															<span class="bg-orange-500/20 text-orange-400 px-2 py-1 rounded-full text-xs font-semibold flex items-center">
@@ -230,6 +234,66 @@ $me = $stmt->fetch();
 	</div>
 
 	<script>
+		// Pass leave types data to JavaScript
+		window.leaveTypes = <?php echo json_encode($leaveTypes); ?>;
+		
+		// Helper function to get leave type display name in JavaScript
+		function getLeaveTypeDisplayNameJS(leaveType, originalLeaveType = null) {
+			const leaveTypes = window.leaveTypes;
+			if (!leaveTypes) return leaveType;
+			
+			// Check if leave is without pay
+			let isWithoutPay = false;
+			
+			// If leave_type is explicitly 'without_pay', it's without pay
+			if (leaveType === 'without_pay') {
+				isWithoutPay = true;
+			}
+			// If original_leave_type exists and current type is 'without_pay' or empty, it was converted to without pay
+			else if (originalLeaveType && (leaveType === 'without_pay' || !leaveType)) {
+				isWithoutPay = true;
+			}
+			// Check if the current leave type is inherently without pay
+			else if (leaveTypes[leaveType] && leaveTypes[leaveType].without_pay) {
+				isWithoutPay = true;
+			}
+			// Check if the original leave type was inherently without pay
+			else if (originalLeaveType && leaveTypes[originalLeaveType] && leaveTypes[originalLeaveType].without_pay) {
+				isWithoutPay = true;
+			}
+			
+			// Determine the base leave type to display
+			let baseType = null;
+			if (originalLeaveType && (leaveType === 'without_pay' || !leaveType)) {
+				// Use original type if it was converted to without pay
+				baseType = originalLeaveType;
+			} else {
+				// Use current type
+				baseType = leaveType;
+			}
+			
+			// Get the display name
+			if (leaveTypes[baseType]) {
+				const leaveTypeConfig = leaveTypes[baseType];
+				
+				if (isWithoutPay) {
+					// Show name with without pay indicator
+					if (leaveTypeConfig.name_with_note) {
+						return leaveTypeConfig.name_with_note;
+					} else {
+						return leaveTypeConfig.name + ' (Without Pay)';
+					}
+				} else {
+					// Show regular name
+					return leaveTypeConfig.name;
+				}
+			} else {
+				// Fallback for unknown types
+				const displayName = baseType.charAt(0).toUpperCase() + baseType.slice(1).replace(/_/g, ' ');
+				return isWithoutPay ? displayName + ' (Without Pay)' : displayName;
+			}
+		}
+		
 		// User dropdown toggle function
 		function toggleUserDropdown() {
 			const dropdown = document.getElementById('userDropdown');
@@ -329,16 +393,13 @@ $me = $stmt->fetch();
 
 		// Department Approval Modal Functions
 		function openDepartmentApprovalModal(requestId) {
-			console.log('Opening department modal for request:', requestId);
 			
 			// First, get the leave request details via AJAX
 			fetch(`../api/get_leave_request_details.php?id=${requestId}`)
 				.then(response => {
-					console.log('API Response status:', response.status);
 					return response.json();
 				})
 				.then(data => {
-					console.log('API Response data:', data);
 					if (data.success) {
 						const request = data.leave;
 						const modalHtml = `
@@ -413,7 +474,7 @@ $me = $stmt->fetch();
 												<div class="space-y-3">
 													<div>
 														<label class="block text-sm font-semibold text-slate-300 mb-1">Leave Type</label>
-														<p class="text-white font-medium">${request.leave_type}</p>
+														<p class="text-white font-medium">${getLeaveTypeDisplayNameJS(request.leave_type, request.original_leave_type)}</p>
 													</div>
 													<div>
 														<label class="block text-sm font-semibold text-slate-300 mb-1">Start Date</label>

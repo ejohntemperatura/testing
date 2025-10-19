@@ -98,8 +98,8 @@
                     <p class="text-slate-300 mb-6"><?php echo htmlspecialchars($error_message); ?></p>
                     
                     <div class="space-y-3">
-                        <a href="login.php" class="w-full bg-slate-600 hover:bg-slate-500 text-white font-semibold py-3 px-6 rounded-xl transition-colors inline-block">
-                            <i class="fas fa-arrow-left mr-2"></i>Back to Login
+                        <a href="verify_email.php?token=<?php echo htmlspecialchars($_GET['token'] ?? ''); ?>" class="w-full bg-slate-600 hover:bg-slate-500 text-white font-semibold py-3 px-6 rounded-xl transition-colors inline-block">
+                            <i class="fas fa-redo mr-2"></i>Create Again
                         </a>
                         <p class="text-slate-400 text-sm">
                             <i class="fas fa-info-circle mr-1"></i>

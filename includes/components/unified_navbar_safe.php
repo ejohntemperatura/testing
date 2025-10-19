@@ -143,7 +143,7 @@ function openNotificationModal(alertId, alertType, message, createdAt, sentBy) {
             <div class="mb-4">
                 <h4 class="text-sm font-semibold text-slate-300 mb-2">Message</h4>
                 <div class="bg-slate-700 rounded-lg p-4 max-h-32 overflow-y-auto">
-                    <p class="text-slate-200 text-sm">${message}</p>
+                    <p class="text-slate-200 text-sm whitespace-pre-line">${message}</p>
                 </div>
             </div>
             

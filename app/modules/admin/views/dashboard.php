@@ -45,6 +45,10 @@ $alertService = new EnhancedLeaveAlertService($pdo);
 $alertStats = $alertService->getAlertStatistics();
 $low_utilization_count = $alertStats['total_employees_with_alerts'];
 
+// Get leave types configuration for proper display names
+require_once '../../../../config/leave_types.php';
+$leaveTypes = getLeaveTypes();
+
 // Fetch recent leave requests
 $stmt = $pdo->prepare("
     SELECT lr.*, e.name as employee_name,
@@ -61,7 +65,7 @@ $stmt = $pdo->prepare("
 $stmt->execute();
 $recent_requests = $stmt->fetchAll();
 
-// Fetch all leave requests for calendar
+// Fetch APPROVED leave requests for calendar only
 $stmt = $pdo->prepare("
     SELECT lr.*, e.name as employee_name,
            CASE 
@@ -71,6 +75,7 @@ $stmt = $pdo->prepare("
            END as final_approval_status
     FROM leave_requests lr 
     JOIN employees e ON lr.employee_id = e.id 
+    WHERE lr.status = 'approved'
     ORDER BY lr.start_date ASC
 ");
 $stmt->execute();
@@ -303,10 +308,18 @@ $leave_requests = $stmt->fetchAll();
                                                 <!-- Mobile: Show additional info -->
                                                 <div class="sm:hidden mt-1">
                                                     <span class="bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full text-xs font-semibold uppercase tracking-wide">
-                                                        <?php echo ucfirst($request['leave_type']); ?>
+                                                        <?php echo getLeaveTypeDisplayName($request['leave_type'], $request['original_leave_type'] ?? null, $leaveTypes); ?>
                                                     </span>
                                                     <div class="text-slate-400 text-xs mt-1">
-                                                        <?php echo date('M d', strtotime($request['start_date'])); ?> - <?php echo date('M d', strtotime($request['end_date'])); ?>
+                                                        <?php 
+                                                        // Use approved end date if available and different from requested days, otherwise original end date
+                                                        if ($request['status'] === 'approved' && $request['approved_days'] && $request['approved_days'] != $request['days_requested']) {
+                                                            $approved_end_date = date('Y-m-d', strtotime($request['start_date'] . ' +' . ($request['approved_days'] - 1) . ' days'));
+                                                            echo date('M d', strtotime($request['start_date'])) . ' - ' . date('M d', strtotime($approved_end_date));
+                                                        } else {
+                                                            echo date('M d', strtotime($request['start_date'])) . ' - ' . date('M d', strtotime($request['end_date']));
+                                                        }
+                                                        ?>
                                                     </div>
                                                 </div>
                                             </div>
@@ -314,11 +327,21 @@ $leave_requests = $stmt->fetchAll();
                                     </td>
                                     <td class="px-3 md:px-6 py-4 hidden sm:table-cell">
                                         <span class="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide">
-                                            <?php echo ucfirst($request['leave_type']); ?>
+                                            <?php echo getLeaveTypeDisplayName($request['leave_type'], $request['original_leave_type'] ?? null, $leaveTypes); ?>
                                         </span>
                                     </td>
                                     <td class="px-3 md:px-6 py-4 text-slate-300 text-sm hidden md:table-cell"><?php echo date('M d, Y', strtotime($request['start_date'])); ?></td>
-                                    <td class="px-3 md:px-6 py-4 text-slate-300 text-sm hidden md:table-cell"><?php echo date('M d, Y', strtotime($request['end_date'])); ?></td>
+                                    <td class="px-3 md:px-6 py-4 text-slate-300 text-sm hidden md:table-cell">
+                                        <?php 
+                                        // Use approved end date if available and different from requested days, otherwise original end date
+                                        if ($request['status'] === 'approved' && $request['approved_days'] && $request['approved_days'] != $request['days_requested']) {
+                                            $approved_end_date = date('Y-m-d', strtotime($request['start_date'] . ' +' . ($request['approved_days'] - 1) . ' days'));
+                                            echo date('M d, Y', strtotime($approved_end_date));
+                                        } else {
+                                            echo date('M d, Y', strtotime($request['end_date']));
+                                        }
+                                        ?>
+                                    </td>
                                     <td class="px-3 md:px-6 py-4">
                                         <span class="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide <?php 
                                             $final_status = $request['final_approval_status'] ?? $request['status'];
@@ -393,6 +416,66 @@ $leave_requests = $stmt->fetchAll();
     </div>
 
     <script>
+        // Pass leave types data to JavaScript
+        window.leaveTypes = <?php echo json_encode($leaveTypes); ?>;
+        
+        // Helper function to get leave type display name in JavaScript
+        function getLeaveTypeDisplayNameJS(leaveType, originalLeaveType = null) {
+            const leaveTypes = window.leaveTypes;
+            if (!leaveTypes) return leaveType;
+            
+            // Check if leave is without pay
+            let isWithoutPay = false;
+            
+            // If leave_type is explicitly 'without_pay', it's without pay
+            if (leaveType === 'without_pay') {
+                isWithoutPay = true;
+            }
+            // If original_leave_type exists and current type is 'without_pay' or empty, it was converted to without pay
+            else if (originalLeaveType && (leaveType === 'without_pay' || !leaveType)) {
+                isWithoutPay = true;
+            }
+            // Check if the current leave type is inherently without pay
+            else if (leaveTypes[leaveType] && leaveTypes[leaveType].without_pay) {
+                isWithoutPay = true;
+            }
+            // Check if the original leave type was inherently without pay
+            else if (originalLeaveType && leaveTypes[originalLeaveType] && leaveTypes[originalLeaveType].without_pay) {
+                isWithoutPay = true;
+            }
+            
+            // Determine the base leave type to display
+            let baseType = null;
+            if (originalLeaveType && (leaveType === 'without_pay' || !leaveType)) {
+                // Use original type if it was converted to without pay
+                baseType = originalLeaveType;
+            } else {
+                // Use current type
+                baseType = leaveType;
+            }
+            
+            // Get the display name
+            if (leaveTypes[baseType]) {
+                const leaveTypeConfig = leaveTypes[baseType];
+                
+                if (isWithoutPay) {
+                    // Show name with without pay indicator
+                    if (leaveTypeConfig.name_with_note) {
+                        return leaveTypeConfig.name_with_note;
+                    } else {
+                        return leaveTypeConfig.name + ' (Without Pay)';
+                    }
+                } else {
+                    // Show regular name
+                    return leaveTypeConfig.name;
+                }
+            } else {
+                // Fallback for unknown types
+                const displayName = baseType.charAt(0).toUpperCase() + baseType.slice(1).replace(/_/g, ' ');
+                return isWithoutPay ? displayName + ' (Without Pay)' : displayName;
+            }
+        }
+        
         // Toggle functions for navigation
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
@@ -513,19 +596,38 @@ $leave_requests = $stmt->fetchAll();
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label class="text-sm font-medium text-slate-400">Leave Type</label>
-                                            <p class="text-white">${leave.leave_type ? leave.leave_type.charAt(0).toUpperCase() + leave.leave_type.slice(1) : 'N/A'}</p>
+                                            <p class="text-white">${getLeaveTypeDisplayNameJS(leave.leave_type, leave.original_leave_type)}</p>
                                         </div>
                                         <div>
-                                            <label class="text-sm font-medium text-slate-400">Duration</label>
+                                            <label class="text-sm font-medium text-slate-400">Days Requested</label>
                                             <p class="text-white">${leave.days_requested || 'N/A'} day${leave.days_requested != 1 ? 's' : ''}</p>
                                         </div>
+                                        ${leave.approved_days && leave.approved_days > 0 && leave.status === 'approved' ? `
+                                        <div>
+                                            <label class="text-sm font-medium text-slate-400">Days Approved</label>
+                                            <p class="text-green-400 font-semibold">
+                                                ${leave.approved_days} day${leave.approved_days != 1 ? 's' : ''}
+                                                ${leave.pay_status ? `<span class="text-xs ml-1">(${leave.pay_status.replace('_', ' ')})</span>` : ''}
+                                            </p>
+                                        </div>
+                                        ` : ''}
                                         <div>
                                             <label class="text-sm font-medium text-slate-400">Start Date</label>
                                             <p class="text-white">${leave.start_date ? new Date(leave.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}</p>
                                         </div>
                                         <div>
                                             <label class="text-sm font-medium text-slate-400">End Date</label>
-                                            <p class="text-white">${leave.end_date ? new Date(leave.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}</p>
+                                            <p class="text-white">${(() => {
+                                                // Use approved end date if available, otherwise original end date
+                                                if (leave.status === 'approved' && leave.approved_days && leave.approved_days !== leave.days_requested) {
+                                                    const startDate = new Date(leave.start_date);
+                                                    const approvedEndDate = new Date(startDate);
+                                                    approvedEndDate.setDate(startDate.getDate() + (leave.approved_days - 1));
+                                                    return approvedEndDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                                                } else {
+                                                    return leave.end_date ? new Date(leave.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+                                                }
+                                            })()}</p>
                                         </div>
                                         <div class="md:col-span-2">
                                             <label class="text-sm font-medium text-slate-400">Reason</label>

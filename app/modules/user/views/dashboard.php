@@ -4,6 +4,54 @@ require_once '../../../../config/database.php';
 require_once '../../../../config/leave_types.php';
 require_once '../../../../app/core/services/EnhancedLeaveAlertService.php';
 
+// Clear insufficient credits session variables if requested
+if (isset($_GET['clear_insufficient_credits']) && $_GET['clear_insufficient_credits'] == '1') {
+    unset($_SESSION['insufficient_credits_data']);
+    unset($_SESSION['show_insufficient_credits_popup']);
+    
+    // If user wants to proceed with without pay, submit the form
+    if (isset($_GET['proceed_without_pay']) && $_GET['proceed_without_pay'] == '1') {
+        // Restore the form data and submit it
+        if (isset($_SESSION['temp_insufficient_credits_data'])) {
+            $formData = $_SESSION['temp_insufficient_credits_data'];
+            
+            // Create a hidden form and submit it
+            echo '<form id="autoSubmitForm" method="POST" action="' . (isset($formData['is_late']) ? 'late_leave_application.php' : 'submit_leave.php') . '">';
+            echo '<input type="hidden" name="proceed_without_pay" value="yes">';
+            echo '<input type="hidden" name="leave_type" value="' . htmlspecialchars($formData['leave_type']) . '">';
+            echo '<input type="hidden" name="start_date" value="' . htmlspecialchars($formData['start_date']) . '">';
+            echo '<input type="hidden" name="end_date" value="' . htmlspecialchars($formData['end_date']) . '">';
+            echo '<input type="hidden" name="reason" value="' . htmlspecialchars($formData['reason']) . '">';
+            
+            // Add conditional fields if they exist
+            if (isset($formData['location_type'])) echo '<input type="hidden" name="location_type" value="' . htmlspecialchars($formData['location_type']) . '">';
+            if (isset($formData['location_specify'])) echo '<input type="hidden" name="location_specify" value="' . htmlspecialchars($formData['location_specify']) . '">';
+            if (isset($formData['medical_condition'])) echo '<input type="hidden" name="medical_condition" value="' . htmlspecialchars($formData['medical_condition']) . '">';
+            if (isset($formData['illness_specify'])) echo '<input type="hidden" name="illness_specify" value="' . htmlspecialchars($formData['illness_specify']) . '">';
+            if (isset($formData['special_women_condition'])) echo '<input type="hidden" name="special_women_condition" value="' . htmlspecialchars($formData['special_women_condition']) . '">';
+            if (isset($formData['study_type'])) echo '<input type="hidden" name="study_type" value="' . htmlspecialchars($formData['study_type']) . '">';
+            if (isset($formData['late_justification'])) echo '<input type="hidden" name="late_justification" value="' . htmlspecialchars($formData['late_justification']) . '">';
+            
+            echo '</form>';
+            echo '<script>document.getElementById("autoSubmitForm").submit();</script>';
+            
+            unset($_SESSION['temp_insufficient_credits_data']);
+            exit();
+        }
+    }
+    
+    // Redirect to remove the parameter from URL
+    header('Location: dashboard.php');
+    exit();
+}
+
+// Clear last submission tracking after 30 seconds to allow legitimate resubmissions
+if (isset($_SESSION['last_submission_time']) && (time() - $_SESSION['last_submission_time']) > 30) {
+    unset($_SESSION['last_submission']);
+    unset($_SESSION['last_submission_time']);
+}
+
+
 $leaveTypes = getLeaveTypes();
 $alertService = new EnhancedLeaveAlertService($pdo);
 
@@ -76,8 +124,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     exit();
 }
 
-// Fetch user's leave requests
-$stmt = $pdo->prepare("SELECT * FROM leave_requests WHERE employee_id = ? ORDER BY created_at DESC");
+// Fetch user's leave requests with approved days calculation
+$stmt = $pdo->prepare("
+    SELECT 
+        lr.*,
+        CASE 
+            WHEN lr.approved_days IS NOT NULL AND lr.approved_days > 0 
+            THEN lr.approved_days
+            ELSE DATEDIFF(lr.end_date, lr.start_date) + 1 
+        END as actual_days_approved
+    FROM leave_requests lr 
+    WHERE lr.employee_id = ? 
+    ORDER BY lr.created_at DESC
+");
 $stmt->execute([$_SESSION['user_id']]);
 $leave_requests = $stmt->fetchAll();
 
@@ -92,7 +151,7 @@ $leave_requests = $stmt->fetchAll();
     <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
     <link rel="stylesheet" href="../../../../assets/css/style.css">
     <link rel="stylesheet" href="../../../../assets/css/dark-theme.css">
-    <script src="../../../../assets/libs/chartjs/chart.umd.min.js"></script>
+    <link href='../../../../assets/libs/fullcalendar/css/main.min.css' rel='stylesheet' />
 </head>
 <body class="bg-slate-900 text-white min-h-screen" data-user-role="user">
     <?php include '../../../../includes/unified_navbar.php'; ?>
@@ -500,6 +559,48 @@ $leave_requests = $stmt->fetchAll();
         </div>
     </div>
 
+    <!-- Insufficient Credits Popup -->
+    <div id="insufficientCreditsModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 w-full max-w-md">
+            <div class="px-6 py-4 border-b border-slate-700/50 bg-slate-700/30">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-semibold text-white flex items-center">
+                        <i class="fas fa-exclamation-triangle mr-3 text-orange-500"></i>
+                        Insufficient Leave Credits
+                    </h3>
+                    <button onclick="closeInsufficientCreditsModal()" class="text-slate-400 hover:text-white transition-colors">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <div class="mb-6">
+                    <div class="bg-orange-500/20 border border-orange-500/30 rounded-lg p-4 mb-4">
+                        <div class="flex items-center">
+                            <i class="fas fa-exclamation-triangle text-orange-400 mr-3"></i>
+                            <span class="text-orange-400 font-medium">You don't have enough leave credits for this request.</span>
+                        </div>
+                    </div>
+                    <div id="creditMessage" class="text-slate-300 text-sm mb-4"></div>
+                    <div class="bg-blue-500/20 border border-blue-500/30 rounded-lg p-4">
+                        <div class="flex items-center">
+                            <i class="fas fa-info-circle text-blue-400 mr-3"></i>
+                            <span class="text-blue-400">This leave will be processed as <strong>Without Pay Leave</strong>.</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-4 justify-end">
+                    <button type="button" onclick="closeInsufficientCreditsModal()" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors">
+                        Cancel
+                    </button>
+                    <button type="button" onclick="proceedWithWithoutPay()" class="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl">
+                        <i class="fas fa-check mr-2"></i>Proceed Without Pay
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="flex">
         <!-- Left Sidebar -->
         <aside id="sidebar" class="fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40">
@@ -525,7 +626,7 @@ $leave_requests = $stmt->fetchAll();
                 <div class="space-y-1">
                     <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
                     <a href="calendar.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors">
-                    <i class="fas fa-calendar w-5"></i>
+                        <i class="fas fa-calendar-alt w-5"></i>
                         <span>Leave Chart</span>
                     </a>
                 </div>
@@ -676,13 +777,46 @@ $leave_requests = $stmt->fetchAll();
                                             </div>
                                             <div>
                                                 <h3 class="text-lg font-semibold text-white">
-                                                    <?php echo ucfirst(str_replace('_', ' ', $request['leave_type'])); ?>
+                                                    <?php 
+                                                    // Display original leave type if it was converted to without pay or if leave_type is empty
+                                                    if (isset($request['original_leave_type']) && !empty($request['original_leave_type']) && 
+                                                        ($request['leave_type'] === 'without_pay' || empty($request['leave_type']))) {
+                                                        $originalType = $leaveTypes[$request['original_leave_type']]['name'] ?? ucfirst(str_replace('_', ' ', $request['original_leave_type']));
+                                                        if ($request['leave_type'] === 'without_pay' || empty($request['leave_type'])) {
+                                                            echo $originalType . ' (Without Pay)';
+                                                        } else {
+                                                            echo $originalType;
+                                                        }
+                                                    } else {
+                                                        $currentType = $leaveTypes[$request['leave_type']]['name'] ?? ucfirst(str_replace('_', ' ', $request['leave_type']));
+                                                        echo $currentType;
+                                                    }
+                                                    ?>
                                                 </h3>
                                                 <p class="text-slate-400 text-sm">
                                                     <?php echo date('M j, Y', strtotime($request['start_date'])); ?> - 
-                                                    <?php echo date('M j, Y', strtotime($request['end_date'])); ?>
-                                                    (<?php echo $request['days_requested']; ?> days)
+                                                    <?php 
+                                                    // Use approved end date if available, otherwise original end date
+                                                    if ($request['status'] === 'approved' && $request['actual_days_approved'] != $request['days_requested']) {
+                                                        $approved_end_date = date('Y-m-d', strtotime($request['start_date'] . ' +' . ($request['actual_days_approved'] - 1) . ' days'));
+                                                        echo date('M j, Y', strtotime($approved_end_date));
+                                                    } else {
+                                                        echo date('M j, Y', strtotime($request['end_date']));
+                                                    }
+                                                    ?>
+                                                    (<?php echo $request['days_requested']; ?> days requested)
                                                 </p>
+                                                <?php if ($request['status'] === 'approved' && $request['actual_days_approved'] != $request['days_requested']): ?>
+                                                <p class="text-green-400 text-sm font-medium">
+                                                    <i class="fas fa-check-circle mr-1"></i>
+                                                    <?php echo $request['actual_days_approved']; ?> days approved
+                                                </p>
+                                                <?php elseif ($request['status'] === 'approved'): ?>
+                                                <p class="text-green-400 text-sm font-medium">
+                                                    <i class="fas fa-check-circle mr-1"></i>
+                                                    Full approval
+                                                </p>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
                                         <div class="text-right">
@@ -715,155 +849,6 @@ $leave_requests = $stmt->fetchAll();
                     <?php endif; ?>
                 </div>
 
-                <!-- CSC Compliance Alerts Section -->
-                <?php if (!empty($userAlerts['alerts'])): ?>
-                <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-8 mb-8">
-                    <div class="flex items-center justify-between mb-6">
-                        <div>
-                            <h2 class="text-2xl font-bold text-white flex items-center">
-                                <i class="fas fa-exclamation-triangle text-orange-500 mr-3"></i>
-                                CSC Compliance Alerts
-                            </h2>
-                            <p class="text-slate-400 text-sm mt-1">Important notices about your leave utilization and CSC compliance</p>
-                        </div>
-                        <div class="px-4 py-2 rounded-full text-sm font-medium <?php 
-                            echo $userAlerts['priority'] === 'urgent' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 
-                                ($userAlerts['priority'] === 'critical' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 
-                                ($userAlerts['priority'] === 'moderate' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30')); 
-                        ?>">
-                            <i class="fas fa-flag mr-2"></i>
-                            <?php echo strtoupper($userAlerts['priority']); ?> PRIORITY
-                        </div>
-                    </div>
-                    
-                    <div class="space-y-4">
-                        <?php foreach (array_slice($userAlerts['alerts'], 0, 3) as $alert): ?>
-                        <div class="p-6 rounded-xl <?php 
-                            echo $alert['severity'] === 'urgent' ? 'bg-red-500/10 border border-red-500/30' : 
-                                ($alert['severity'] === 'critical' ? 'bg-orange-500/10 border border-orange-500/30' : 'bg-yellow-500/10 border border-yellow-500/30'); 
-                        ?>">
-                            <div class="flex items-start space-x-4">
-                                <i class="fas <?php 
-                                    echo $alert['type'] === 'csc_utilization_low' ? 'fa-chart-line' : 
-                                        ($alert['type'] === 'year_end_urgent' ? 'fa-calendar-times' : 
-                                        ($alert['type'] === 'csc_limit_exceeded' ? 'fa-exclamation-triangle' : 'fa-exclamation-circle')); 
-                                ?> text-xl mt-1 <?php 
-                                    echo $alert['severity'] === 'urgent' ? 'text-red-400' : 
-                                        ($alert['severity'] === 'critical' ? 'text-orange-400' : 'text-yellow-400'); 
-                                ?>"></i>
-                                <div class="flex-1">
-                                    <h4 class="font-semibold text-lg <?php 
-                                        echo $alert['severity'] === 'urgent' ? 'text-red-300' : 
-                                            ($alert['severity'] === 'critical' ? 'text-orange-300' : 'text-yellow-300'); 
-                                    ?> mb-3">
-                                        <?php echo htmlspecialchars($alert['message']); ?>
-                                    </h4>
-                                    <?php if (isset($alert['leave_name'])): ?>
-                                    <p class="text-slate-300 mb-2">
-                                        <strong><?php echo $alert['leave_name']; ?>:</strong> 
-                                        <?php echo $alert['utilization']; ?>% utilized
-                                        <?php if (isset($alert['remaining'])): ?>
-                                        (<?php echo $alert['remaining']; ?> days remaining)
-                                        <?php endif; ?>
-                                    </p>
-                                    <?php endif; ?>
-                                    <?php if (isset($alert['days_remaining'])): ?>
-                                    <p class="text-slate-400 text-sm">
-                                        <i class="fas fa-clock mr-2"></i>
-                                        <?php echo $alert['days_remaining']; ?> days until year-end
-                                    </p>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        </div>
-                        <?php endforeach; ?>
-                        
-                        <?php if (count($userAlerts['alerts']) > 3): ?>
-                        <div class="text-center">
-                            <span class="px-4 py-2 bg-slate-500/20 text-slate-400 text-sm rounded-full">
-                                +<?php echo count($userAlerts['alerts']) - 3; ?> more alerts
-                            </span>
-                        </div>
-                        <?php endif; ?>
-                    </div>
-                    
-                    <div class="mt-8 text-center">
-                        <a href="leave_credits.php" class="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors">
-                            <i class="fas fa-eye mr-2"></i>
-                            View All Leave Details
-                        </a>
-                    </div>
-                </div>
-                <?php endif; ?>
-
-                <!-- Leave Chart Section -->
-                <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-8 mb-8">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-2xl font-bold text-white flex items-center">
-                            <i class="fas fa-chart-bar text-blue-500 mr-3"></i>
-                            Leave Overview
-                        </h2>
-                        <a href="calendar.php" class="text-blue-400 hover:text-blue-300 text-sm font-medium flex items-center">
-                            View Detailed Chart <i class="fas fa-arrow-right ml-1"></i>
-                        </a>
-                    </div>
-                    
-                    <!-- Simple Leave Statistics -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <?php
-                        // Calculate leave statistics
-                        $total_requests = count($leave_requests);
-                        $approved_requests = count(array_filter($leave_requests, function($req) { return $req['status'] === 'approved'; }));
-                        $pending_requests = count(array_filter($leave_requests, function($req) { return $req['status'] === 'pending'; }));
-                        $rejected_requests = count(array_filter($leave_requests, function($req) { return $req['status'] === 'rejected'; }));
-                        ?>
-                        
-                        <div class="bg-slate-700/30 rounded-xl p-6 border border-slate-600/50 text-center">
-                            <div class="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <i class="fas fa-calendar-alt text-blue-400 text-xl"></i>
-                            </div>
-                            <h3 class="text-2xl font-bold text-white mb-1"><?php echo $total_requests; ?></h3>
-                            <p class="text-slate-400 text-sm">Total Requests</p>
-                        </div>
-                        
-                        <div class="bg-slate-700/30 rounded-xl p-6 border border-slate-600/50 text-center">
-                            <div class="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <i class="fas fa-check-circle text-green-400 text-xl"></i>
-                            </div>
-                            <h3 class="text-2xl font-bold text-white mb-1"><?php echo $approved_requests; ?></h3>
-                            <p class="text-slate-400 text-sm">Approved</p>
-                        </div>
-                        
-                        <div class="bg-slate-700/30 rounded-xl p-6 border border-slate-600/50 text-center">
-                            <div class="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <i class="fas fa-clock text-yellow-400 text-xl"></i>
-                            </div>
-                            <h3 class="text-2xl font-bold text-white mb-1"><?php echo $pending_requests; ?></h3>
-                            <p class="text-slate-400 text-sm">Pending</p>
-                        </div>
-                        
-                        <div class="bg-slate-700/30 rounded-xl p-6 border border-slate-600/50 text-center">
-                            <div class="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <i class="fas fa-times-circle text-red-400 text-xl"></i>
-                            </div>
-                            <h3 class="text-2xl font-bold text-white mb-1"><?php echo $rejected_requests; ?></h3>
-                            <p class="text-slate-400 text-sm">Rejected</p>
-                        </div>
-                    </div>
-                    
-                    <!-- Chart Preview -->
-                    <div class="mt-6 p-4 bg-slate-700/20 rounded-xl border border-slate-600/30">
-                        <div class="text-center">
-                            <i class="fas fa-chart-pie text-4xl text-slate-500 mb-4"></i>
-                            <h3 class="text-lg font-semibold text-white mb-2">Leave Distribution</h3>
-                            <p class="text-slate-400 text-sm mb-4">View your detailed leave calendar and analytics</p>
-                            <a href="calendar.php" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
-                                <i class="fas fa-chart-bar mr-2"></i>
-                                Open Leave Chart
-                            </a>
-                        </div>
-                    </div>
-                </div>
 
             </div>
         </main>
@@ -875,13 +860,9 @@ $leave_requests = $stmt->fetchAll();
             const modal = document.getElementById('applyLeaveModal');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
-            // Focus on the reason textarea after a short delay
-            setTimeout(() => {
-                const reasonTextarea = document.getElementById('modal_reason');
-                if (reasonTextarea) {
-                    reasonTextarea.focus();
-                }
-            }, 100);
+            // Scroll modal to top to ensure it's visible
+            modal.scrollTop = 0;
+            // Don't auto-focus on any element to prevent scrolling
         }
 
         function closeApplyLeaveModal() {
@@ -1099,6 +1080,37 @@ $leave_requests = $stmt->fetchAll();
             clearModalLateConditionalFields();
         }
 
+        function openInsufficientCreditsModal() {
+            const modal = document.getElementById('insufficientCreditsModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+        }
+
+        function closeInsufficientCreditsModal() {
+            const modal = document.getElementById('insufficientCreditsModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            // Clear the stored data via AJAX or redirect
+            window.location.href = 'dashboard.php?clear_insufficient_credits=1';
+        }
+
+        function proceedWithWithoutPay() {
+            // Prevent multiple clicks
+            const proceedButton = event.target;
+            if (proceedButton.disabled) {
+                return; // Already processing
+            }
+            
+            // Disable the button to prevent multiple submissions
+            proceedButton.disabled = true;
+            proceedButton.textContent = 'Processing...';
+            
+            // Clear the popup session variables to prevent popup from showing again
+            window.location.href = 'dashboard.php?clear_insufficient_credits=1&proceed_without_pay=1';
+        }
+
         // Add event listeners
         document.getElementById('modal_start_date').addEventListener('change', calculateDays);
         document.getElementById('modal_end_date').addEventListener('change', calculateDays);
@@ -1109,14 +1121,15 @@ $leave_requests = $stmt->fetchAll();
         const reasonTextarea = document.getElementById('modal_reason');
         if (reasonTextarea) {
             reasonTextarea.addEventListener('input', function() {
-                console.log('Textarea input:', this.value);
+                // Handle textarea input
             });
             reasonTextarea.addEventListener('focus', function() {
-                console.log('Textarea focused');
+                // Handle textarea focus
             });
         }
 
 
+        
         // Auto-populate forms if there's stored data
         document.addEventListener('DOMContentLoaded', function() {
             <?php if (isset($_SESSION['late_application_data'])): ?>
@@ -1132,6 +1145,18 @@ $leave_requests = $stmt->fetchAll();
             setTimeout(function() {
                 openApplyLeaveModal();
                 populateRegularApplicationForm();
+            }, 1000); // Delay to ensure modal is ready
+            <?php endif; ?>
+            
+            <?php if (isset($_SESSION['show_insufficient_credits_popup']) && isset($_SESSION['insufficient_credits_data'])): ?>
+            // Auto-open insufficient credits popup
+            setTimeout(function() {
+                openInsufficientCreditsModal();
+                // Display the credit message
+                const creditMessage = document.getElementById('creditMessage');
+                if (creditMessage) {
+                    creditMessage.textContent = '<?php echo addslashes($_SESSION['insufficient_credits_data']['credit_message']); ?>';
+                }
             }, 1000); // Delay to ensure modal is ready
             <?php endif; ?>
             
@@ -1319,6 +1344,227 @@ $leave_requests = $stmt->fetchAll();
             <?php endif; ?>
         }
 
+    </script>
+    
+    <script src="../../../../assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src='../../../../assets/libs/fullcalendar/js/main.min.js'></script>
+    
+    <style>
+    /* FullCalendar Custom Styling */
+    .fc {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .fc-header-toolbar {
+        margin-bottom: 1.5rem !important;
+        padding: 1rem;
+        background: #1e293b !important;
+        border-radius: 8px;
+        border: 1px solid #334155 !important;
+    }
+
+    .fc-toolbar-title {
+        font-size: 1.5rem !important;
+        font-weight: 600 !important;
+        color: #f8fafc !important;
+    }
+
+    .fc-button {
+        background: #0891b2 !important;
+        border: 1px solid #0891b2 !important;
+        border-radius: 6px !important;
+        font-weight: 500 !important;
+        padding: 0.5rem 1rem !important;
+        color: white !important;
+    }
+
+    .fc-button:hover {
+        background: #0e7490 !important;
+        border-color: #0e7490 !important;
+    }
+
+    .fc-button:focus {
+        box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.3) !important;
+    }
+
+    .fc-button-primary:not(:disabled):active {
+        background: #0e7490 !important;
+        border-color: #0e7490 !important;
+    }
+
+    .fc-button-group {
+        background: #1e293b !important;
+    }
+
+    .fc-button-group .fc-button {
+        background: #334155 !important;
+        border-color: #475569 !important;
+        color: #f8fafc !important;
+    }
+
+    .fc-button-group .fc-button:hover {
+        background: #475569 !important;
+        border-color: #64748b !important;
+    }
+
+    .fc-button-group .fc-button:focus {
+        box-shadow: 0 0 0 3px rgba(71, 85, 105, 0.3) !important;
+    }
+
+    .fc-event {
+        border-radius: 4px !important;
+        border: none !important;
+        padding: 2px 6px !important;
+        font-size: 0.85rem !important;
+        font-weight: 500 !important;
+    }
+
+    .fc-event-title {
+        font-weight: 600 !important;
+    }
+
+    /* Leave Type Colors - Solid Colors (matching leave credits) */
+    .leave-vacation { background: #3b82f6 !important; color: white !important; }
+    .leave-sick { background: #ef4444 !important; color: white !important; }
+    .leave-mandatory { background: #6b7280 !important; color: white !important; }
+    .leave-special_privilege { background: #eab308 !important; color: white !important; }
+    .leave-maternity { background: #ec4899 !important; color: white !important; }
+    .leave-paternity { background: #06b6d4 !important; color: white !important; }
+    .leave-solo_parent { background: #f97316 !important; color: white !important; }
+    .leave-vawc { background: #dc2626 !important; color: white !important; }
+    .leave-rehabilitation { background: #22c55e !important; color: white !important; }
+    .leave-special_women { background: #a855f7 !important; color: white !important; }
+    .leave-special_emergency { background: #ea580c !important; color: white !important; }
+    .leave-adoption { background: #10b981 !important; color: white !important; }
+    .leave-study { background: #6366f1 !important; color: white !important; }
+    .leave-without_pay { background: #6b7280 !important; color: white !important; }
+
+    /* FullCalendar Dark Theme */
+    .fc {
+        background: #1e293b !important;
+        color: #f8fafc !important;
+    }
+
+    .fc-theme-standard td, .fc-theme-standard th {
+        border-color: #334155 !important;
+    }
+
+    .fc-theme-standard .fc-scrollgrid {
+        border-color: #334155 !important;
+    }
+
+    .fc-daygrid-day {
+        background: #1e293b !important;
+    }
+
+    .fc-daygrid-day:hover {
+        background: #334155 !important;
+    }
+
+    .fc-daygrid-day-number {
+        color: #f8fafc !important;
+    }
+
+    .fc-daygrid-day.fc-day-today {
+        background: #0f172a !important;
+    }
+
+    .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+        color: #06b6d4 !important;
+        font-weight: 600 !important;
+    }
+
+    .fc-col-header-cell {
+        background: #334155 !important;
+        color: #f8fafc !important;
+        font-weight: 600 !important;
+    }
+
+    .fc-daygrid-day-events {
+        margin-top: 2px !important;
+    }
+
+    .fc-daygrid-event {
+        margin: 1px 2px !important;
+    }
+    </style>
+    
+    <script>
+        // Initialize FullCalendar
+        document.addEventListener('DOMContentLoaded', function() {
+            var calendarEl = document.getElementById('calendar');
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,listWeek'
+                },
+                height: 'auto',
+                events: [
+                    <?php 
+                    // Get user's leave requests for calendar (exclude rejected leaves)
+                    $stmt = $pdo->prepare("
+                        SELECT 
+                            lr.*,
+                            CASE 
+                                WHEN lr.approved_days IS NOT NULL AND lr.approved_days > 0 
+                                THEN lr.approved_days
+                                ELSE DATEDIFF(lr.end_date, lr.start_date) + 1 
+                            END as actual_days_approved
+                        FROM leave_requests lr 
+                        WHERE lr.employee_id = ? 
+                        AND lr.status != 'rejected'
+                        ORDER BY lr.start_date ASC
+                    ");
+                    $stmt->execute([$_SESSION['user_id']]);
+                    $user_leave_requests = $stmt->fetchAll();
+                    
+                    foreach ($user_leave_requests as $request): 
+                        // Process leave type display name
+                        if (isset($request['original_leave_type']) && !empty($request['original_leave_type']) && 
+                            ($request['leave_type'] === 'without_pay' || empty($request['leave_type']))) {
+                            $leaveDisplayName = $leaveTypes[$request['original_leave_type']]['name'] ?? ucfirst(str_replace('_', ' ', $request['original_leave_type']));
+                            if ($request['leave_type'] === 'without_pay' || empty($request['leave_type'])) {
+                                $leaveDisplayName .= ' (Without Pay)';
+                            }
+                        } else {
+                            $leaveDisplayName = $leaveTypes[$request['leave_type']]['name'] ?? ucfirst(str_replace('_', ' ', $request['leave_type']));
+                        }
+                    ?>
+                    {
+                        id: '<?php echo $request['id']; ?>',
+                        title: '<?php echo addslashes($leaveDisplayName); ?> (<?php echo $request['actual_days_approved']; ?> days)',
+                        start: '<?php echo $request['start_date']; ?>',
+                        end: '<?php echo date('Y-m-d', strtotime($request['start_date'] . ' +' . $request['actual_days_approved'] . ' days')); ?>',
+                        className: 'leave-<?php echo $request['leave_type']; ?>',
+                        extendedProps: {
+                            leave_type: '<?php echo $request['leave_type']; ?>',
+                            status: '<?php echo $request['status']; ?>',
+                            days_approved: <?php echo $request['actual_days_approved']; ?>,
+                            days_requested: <?php echo $request['days_requested']; ?>,
+                            reason: '<?php echo addslashes($request['reason']); ?>'
+                        }
+                    },
+                    <?php endforeach; ?>
+                ],
+                eventClick: function(info) {
+                    const props = info.event.extendedProps;
+                    const message = `
+Leave Details:
+Type: ${props.leave_type.replace('_', ' ')}
+Status: ${props.status}
+Days Approved: ${props.days_approved}
+Days Requested: ${props.days_requested}
+Reason: ${props.reason}
+Date: ${info.event.start.toLocaleDateString()}
+                    `;
+                    alert(message);
+                }
+            });
+            
+            calendar.render();
+        });
     </script>
 </body>
 </html>

@@ -43,20 +43,40 @@ try {
     }
     
     // Update director approval status and final status with pay status
-    $stmt = $pdo->prepare("UPDATE leave_requests SET director_approval = 'approved', director_approved_by = ?, director_approved_at = NOW(), status = 'approved', approved_days = ?, pay_status = ? WHERE id = ?");
-    $stmt->execute([$_SESSION['user_id'], $approved_days, $pay_status, $request_id]);
+    // Set approved_days and specific pay status fields
+    if ($pay_status === 'with_pay') {
+        $stmt = $pdo->prepare("UPDATE leave_requests SET director_approval = 'approved', director_approved_by = ?, director_approved_at = NOW(), status = 'approved', approved_days = ?, approved_days_with_pay = ?, approved_days_without_pay = 0, pay_status = ? WHERE id = ?");
+        $stmt->execute([$_SESSION['user_id'], $approved_days, $approved_days, $pay_status, $request_id]);
+    } else {
+        $stmt = $pdo->prepare("UPDATE leave_requests SET director_approval = 'approved', director_approved_by = ?, director_approved_at = NOW(), status = 'approved', approved_days = ?, approved_days_with_pay = 0, approved_days_without_pay = ?, pay_status = ? WHERE id = ?");
+        $stmt->execute([$_SESSION['user_id'], $approved_days, $approved_days, $pay_status, $request_id]);
+    }
     
-    // Deduct leave credits only if approved with pay
+    // Deduct leave credits based on approved days (only for with pay)
     if ($pay_status === 'with_pay') {
         $leave_type = strtolower(trim($request['leave_type']));
         $balance_field = $leave_type . '_leave_balance';
         
-        // Check if balance field exists and has sufficient balance
-        if (isset($request[$balance_field]) && $request[$balance_field] >= $approved_days) {
-            // Deduct leave balance
-            $stmt = $pdo->prepare("UPDATE employees SET $balance_field = $balance_field - ? WHERE id = ?");
-            $stmt->execute([$approved_days, $request['emp_id']]);
-        }
+        // Map leave types to correct balance fields
+        $leave_type_mapping = [
+            'annual' => 'vacation_leave_balance',
+            'sick' => 'sick_leave_balance',
+            'vacation' => 'vacation_leave_balance',
+            'special_privilege' => 'special_privilege_leave_balance',
+            'solo_parent' => 'solo_parent_leave_balance',
+            'vawc' => 'vawc_leave_balance',
+            'rehabilitation' => 'rehabilitation_leave_balance',
+            'terminal' => 'terminal_leave_balance',
+            'maternity' => 'maternity_leave_balance',
+            'paternity' => 'paternity_leave_balance',
+            'study' => 'study_leave_balance'
+        ];
+        
+        $balance_field = $leave_type_mapping[$leave_type] ?? $balance_field;
+        
+        // Deduct the approved days from leave balance (not the requested days)
+        $stmt = $pdo->prepare("UPDATE employees SET $balance_field = $balance_field - ? WHERE id = ?");
+        $stmt->execute([$approved_days, $request['emp_id']]);
     }
     
     $pdo->commit();

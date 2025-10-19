@@ -206,6 +206,22 @@ class RobustEmail {
     }
     
     /**
+     * Send password reset email
+     */
+    public function sendPasswordResetEmail($userEmail, $userName, $resetLink) {
+        try {
+            $subject = 'Password Reset Request - ELMS System';
+            $body = $this->getPasswordResetEmailTemplate($userName, $resetLink);
+            
+            return $this->sendEmail($userEmail, $subject, $body, true);
+            
+        } catch (Exception $e) {
+            error_log("Password reset email error: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
      * Send leave status notification
      */
     public function sendLeaveStatusNotification($leaveRequestId, $action, $approverName, $approverRole, $message = '') {
@@ -617,6 +633,65 @@ class RobustEmail {
         }
         
         return '';
+    }
+    
+    /**
+     * Get password reset email template
+     */
+    private function getPasswordResetEmailTemplate($userName, $resetLink) {
+        return "
+        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+            <div style='background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;'>
+                <h1>🔑 Password Reset Request</h1>
+                <p>ELMS System - Employee Leave Management</p>
+            </div>
+            
+            <div style='background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);'>
+                <h2 style='color: #374151; margin-bottom: 20px;'>Hello {$userName}!</h2>
+                
+                <p style='color: #6b7280; line-height: 1.6; margin-bottom: 25px;'>
+                    We received a request to reset your password for your ELMS account. If you made this request, 
+                    please click the button below to reset your password:
+                </p>
+                
+                <div style='text-align: center; margin: 30px 0;'>
+                    <a href='{$resetLink}' 
+                       style='display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
+                              color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; 
+                              font-weight: bold; font-size: 16px; transition: all 0.3s ease;'>
+                        🔐 Reset My Password
+                    </a>
+                </div>
+                
+                <div style='background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 6px; margin: 25px 0;'>
+                    <h4 style='color: #92400e; margin: 0 0 10px 0; font-size: 16px;'>
+                        <i class='fas fa-clock' style='margin-right: 8px;'></i>Important Security Information
+                    </h4>
+                    <ul style='color: #92400e; margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.5;'>
+                        <li>This reset link will expire in 1 hour for security reasons</li>
+                        <li>If you didn't request this reset, please ignore this email</li>
+                        <li>Your password will remain unchanged until you click the link above</li>
+                        <li>For security, never share this link with anyone</li>
+                    </ul>
+                </div>
+                
+                <p style='color: #6b7280; line-height: 1.6; margin-bottom: 15px;'>
+                    If the button above doesn't work, you can copy and paste this link into your browser:
+                </p>
+                
+                <p style='color: #f59e0b; word-break: break-all; background: #fef3c7; padding: 10px; border-radius: 4px; font-size: 12px;'>
+                    {$resetLink}
+                </p>
+                
+                <hr style='border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;'>
+                
+                <p style='color: #9ca3af; font-size: 12px; line-height: 1.5; text-align: center;'>
+                    This is an automated message from the ELMS System. Please do not reply to this email.<br>
+                    If you have any questions or concerns, please contact your system administrator.
+                </p>
+            </div>
+        </div>
+        ";
     }
 }
 ?>

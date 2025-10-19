@@ -12,7 +12,6 @@ ELMS/
 │   ├── manage_user.php
 │   ├── manager_user.php
 │   ├── leave_management.php
-│   ├── test_admin.php
 │   └── view_chart.php
 │
 ├── user/                   # User/Employee files
