@@ -55,7 +55,6 @@ try {
     // Deduct leave credits based on approved days (only for with pay)
     if ($pay_status === 'with_pay') {
         $leave_type = strtolower(trim($request['leave_type']));
-        $balance_field = $leave_type . '_leave_balance';
         
         // Map leave types to correct balance fields
         $leave_type_mapping = [
@@ -69,14 +68,18 @@ try {
             'terminal' => 'terminal_leave_balance',
             'maternity' => 'maternity_leave_balance',
             'paternity' => 'paternity_leave_balance',
-            'study' => 'study_leave_balance'
+            'study' => 'study_leave_balance',
+            'without_pay' => null  // without_pay doesn't have a balance field
         ];
         
-        $balance_field = $leave_type_mapping[$leave_type] ?? $balance_field;
+        $balance_field = $leave_type_mapping[$leave_type] ?? null;
         
-        // Deduct the approved days from leave balance (not the requested days)
-        $stmt = $pdo->prepare("UPDATE employees SET $balance_field = $balance_field - ? WHERE id = ?");
-        $stmt->execute([$approved_days, $request['emp_id']]);
+        // Only deduct if we have a valid balance field and it's not without_pay
+        if ($balance_field && $leave_type !== 'without_pay') {
+            // Deduct the approved days from leave balance (not the requested days)
+            $stmt = $pdo->prepare("UPDATE employees SET $balance_field = $balance_field - ? WHERE id = ?");
+            $stmt->execute([$approved_days, $request['emp_id']]);
+        }
     }
     
     $pdo->commit();
@@ -105,7 +108,8 @@ try {
             $request['leave_type'],
             $director['name'] ?? 'Director',
             'director',
-            $approved_days
+            $approved_days,
+            $request['original_leave_type'] ?? null
         );
     } catch (Exception $e) {
         error_log("Email notification failed: " . $e->getMessage());

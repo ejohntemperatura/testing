@@ -14,24 +14,44 @@ if (!isset($_SESSION['user_id'])) {
 
 $role = $_SESSION['role'] ?? 'employee';
 
+// Get department for filtering (for managers/department heads)
+$user_department = null;
+if (in_array($role, ['manager'])) {
+    $stmt = $pdo->prepare("SELECT department FROM employees WHERE id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $user_data = $stmt->fetch(PDO::FETCH_ASSOC);
+    $user_department = $user_data['department'] ?? null;
+}
+
 // Get APPROVED leave requests only - with proper approved days
-    $stmt = $pdo->prepare("
-        SELECT 
-            lr.*, 
-            e.name as employee_name, 
-            e.position, 
-            e.department,
-            CASE 
-                WHEN lr.approved_days IS NOT NULL AND lr.approved_days > 0 
-                THEN lr.approved_days
-                ELSE DATEDIFF(lr.end_date, lr.start_date) + 1 
-            END as actual_days_approved
-        FROM leave_requests lr 
-        JOIN employees e ON lr.employee_id = e.id 
-        WHERE lr.status = 'approved'
-        ORDER BY lr.start_date ASC
-    ");
-    $stmt->execute();
+$sql = "
+    SELECT 
+        lr.*, 
+        e.name as employee_name, 
+        e.position, 
+        e.department,
+        CASE 
+            WHEN lr.approved_days IS NOT NULL AND lr.approved_days > 0 
+            THEN lr.approved_days
+            ELSE DATEDIFF(lr.end_date, lr.start_date) + 1 
+        END as actual_days_approved
+    FROM leave_requests lr 
+    JOIN employees e ON lr.employee_id = e.id 
+    WHERE lr.status = 'approved'
+";
+
+$params = [];
+
+// Add department filtering for managers
+if ($role === 'manager' && $user_department) {
+    $sql .= " AND e.department = ?";
+    $params[] = $user_department;
+}
+
+$sql .= " ORDER BY lr.start_date ASC";
+
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
 
 $leave_requests = $stmt->fetchAll();
 ?>

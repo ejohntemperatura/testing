@@ -88,6 +88,11 @@ try {
         $leave_request['days_requested'] = $days;
     }
     
+    // Get leave types configuration and format leave type display
+    require_once __DIR__ . '/../../../../config/leave_types.php';
+    $leaveTypes = getLeaveTypes();
+    $leave_request['leave_type'] = getLeaveTypeDisplayName($leave_request['leave_type'], $leave_request['original_leave_type'] ?? null, $leaveTypes);
+    
     // Format location type for display
     if ($leave_request['location_type']) {
         switch ($leave_request['location_type']) {

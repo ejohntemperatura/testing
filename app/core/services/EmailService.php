@@ -119,14 +119,15 @@ class EmailService {
         ?string $leaveType = null,
         ?string $approverName = null,
         ?string $approverRole = null,
-        ?int $approvedDays = null
+        ?int $approvedDays = null,
+        ?string $originalLeaveType = null
     ): bool {
         try {
             $this->mailer->clearAllRecipients();
             $this->mailer->addAddress($userEmail, $userName);
             
             // Determine email content based on status
-            $emailContent = $this->generateEmailContent($status, $userName, $startDate, $endDate, $leaveType, $approverName, $approverRole, $approvedDays);
+            $emailContent = $this->generateEmailContent($status, $userName, $startDate, $endDate, $leaveType, $approverName, $approverRole, $approvedDays, $originalLeaveType);
             
             $this->mailer->Subject = $emailContent['subject'];
             $this->mailer->Body = $emailContent['html'];
@@ -152,13 +153,14 @@ class EmailService {
         ?string $leaveType,
         ?string $approverName,
         ?string $approverRole,
-        ?int $approvedDays = null
+        ?int $approvedDays = null,
+        ?string $originalLeaveType = null
     ): array {
         $statusColor = $this->getStatusColor($status);
         $statusText = $this->getStatusText($status);
         $approverInfo = $this->getApproverInfo($approverName, $approverRole);
         
-        $typeText = $leaveType ? "<p><strong>Leave Type:</strong> " . ucfirst(str_replace('_', ' ', $leaveType)) . "</p>" : '';
+        $typeText = $leaveType ? "<p><strong>Leave Type:</strong> " . $this->getLeaveTypeDisplayName($leaveType, $originalLeaveType) . "</p>" : '';
         $approverText = $approverInfo ? "<p><strong>Approved by:</strong> {$approverInfo}</p>" : '';
         $daysText = $approvedDays ? "<p><strong>Days Approved:</strong> {$approvedDays} day(s)</p>" : '';
         
@@ -317,7 +319,7 @@ class EmailService {
             . "Dear {$userName},\n\n"
             . "Your leave request has been {$statusText}.\n\n"
             . "LEAVE REQUEST DETAILS:\n"
-            . ($leaveType ? "Leave Type: " . ucfirst(str_replace('_', ' ', $leaveType)) . "\n" : '')
+            . ($leaveType ? "Leave Type: " . $this->getLeaveTypeDisplayName($leaveType, $originalLeaveType) . "\n" : '')
             . "Start Date: {$startDate}\n"
             . "End Date: {$endDate}\n"
             . ($approvedDays ? "Days Approved: {$approvedDays} day(s)\n" : '')
@@ -505,6 +507,14 @@ class EmailService {
         
         return sprintf('#%02x%02x%02x', $r, $g, $b);
     }
+    
+    /**
+     * Get leave type display name using the proper formatting
+     */
+    private function getLeaveTypeDisplayName($leave_type, $original_leave_type = null) {
+        require_once __DIR__ . '/../../../config/leave_types.php';
+        return getLeaveTypeDisplayName($leave_type, $original_leave_type);
+    }
 
     private function logDeliver(string $type, string $to, string $subject, bool $ok, ?string $err = null): void {
         try {
@@ -677,6 +687,32 @@ If you have any questions or need assistance, please contact your system adminis
 This is an automated message from the ELMS System. Please do not reply to this email.";
     }
     
+    /**
+     * Send custom email with HTML and plain text content
+     */
+    public function sendCustomEmail($userEmail, $userName, $subject, $htmlBody, $plainBody) {
+        try {
+            $this->mailer->clearAllRecipients();
+            $this->mailer->addAddress($userEmail, $userName);
+            
+            $this->mailer->Subject = $subject;
+            $this->mailer->Body = $htmlBody;
+            $this->mailer->AltBody = $plainBody;
+
+            $this->mailer->send();
+            $this->mailer->clearAllRecipients();
+            
+            // Log success
+            $this->logDeliver("custom_notification", $userEmail, $subject, true);
+            return true;
+            
+        } catch (Exception $e) {
+            error_log('Custom email failed: ' . $e->getMessage());
+            $this->logDeliver("custom_notification", $userEmail, $subject, false, $e->getMessage());
+            return false;
+        }
+    }
+
     /**
      * Test email configuration
      */

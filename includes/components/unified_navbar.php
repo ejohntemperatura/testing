@@ -28,7 +28,7 @@ switch($user_role) {
     case 'director':
         $user_name = $_SESSION['name'] ?? 'Director';
         $user_initials = strtoupper(substr($user_name, 0, 2));
-        $panel_title = 'ELMS Director';
+        $panel_title = 'ELMS Director Head';
         $logo_icon = 'fas fa-crown';
         $logo_color = 'from-slate-700 to-slate-800';
         break;
@@ -120,7 +120,10 @@ switch($user_role) {
                             <!-- User Info -->
                             <div class="px-3 py-2 text-sm text-slate-400 border-b border-slate-700">
                                 <p class="font-medium text-white"><?php echo htmlspecialchars($user_name); ?></p>
-                                <p class="text-xs text-slate-400"><?php echo ucfirst($user_role); ?></p>
+                                <p class="text-xs text-slate-400"><?php 
+                                    echo $user_role === 'manager' ? 'Department Head' : 
+                                        ($user_role === 'director' ? 'Director Head' : ucfirst($user_role)); 
+                                ?></p>
                             </div>
                             
                             <?php if ($user_role === 'admin'): ?>

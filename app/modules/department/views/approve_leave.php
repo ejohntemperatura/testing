@@ -8,6 +8,12 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'manager') {
     exit();
 }
 
+// Get department head's department for verification
+$stmt = $pdo->prepare("SELECT department FROM employees WHERE id = ?");
+$stmt->execute([$_SESSION['user_id']]);
+$dept_head = $stmt->fetch(PDO::FETCH_ASSOC);
+$dept_head_department = $dept_head['department'] ?? null;
+
 // Get request ID from GET or POST
 $request_id = $_GET['id'] ?? $_POST['request_id'] ?? '';
 $action = $_POST['action'] ?? 'approve';
@@ -21,13 +27,18 @@ if (empty($request_id)) {
 try {
     $pdo->beginTransaction();
     
-    // Get leave request details
-    $stmt = $pdo->prepare("SELECT lr.*, e.id as emp_id, e.name, e.email FROM leave_requests lr JOIN employees e ON lr.employee_id = e.id WHERE lr.id = ?");
-    $stmt->execute([$request_id]);
+    // Get leave request details with department verification
+    $stmt = $pdo->prepare("
+        SELECT lr.*, e.id as emp_id, e.name, e.email, e.department 
+        FROM leave_requests lr 
+        JOIN employees e ON lr.employee_id = e.id 
+        WHERE lr.id = ? AND e.department = ?
+    ");
+    $stmt->execute([$request_id, $dept_head_department]);
     $request = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$request) {
-        throw new Exception('Leave request not found');
+        throw new Exception('Leave request not found or you do not have permission to approve requests from this department');
     }
     
     // Handle approval or rejection based on action
@@ -64,10 +75,22 @@ try {
                 $request['end_date'],
                 $request['leave_type'],
                 $dept_head['name'] ?? 'Department Head',
-                'manager'
+                'manager',
+                null,
+                $request['original_leave_type'] ?? null
             );
         } catch (Exception $e) {
             error_log("Email notification failed: " . $e->getMessage());
+        }
+        
+        // Send notification to director
+        try {
+            require_once '../../../../app/core/services/NotificationHelper.php';
+            $notificationHelper = new NotificationHelper($pdo);
+            $notificationHelper->notifyDirectorDepartmentAction($request_id, 'approved');
+        } catch (Exception $e) {
+            error_log("Director notification failed: " . $e->getMessage());
+            // Don't fail the approval if notification fails
         }
         
     } else {
@@ -98,7 +121,9 @@ try {
                 $request['end_date'],
                 $request['leave_type'],
                 $dept_head['name'] ?? 'Department Head',
-                'manager'
+                'manager',
+                null,
+                $request['original_leave_type'] ?? null
             );
         } catch (Exception $e) {
             error_log("Email notification failed: " . $e->getMessage());

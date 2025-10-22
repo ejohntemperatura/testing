@@ -357,9 +357,13 @@ $users = $stmt->fetchAll();
                             </div>
                             <span class="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide <?php 
                                 echo $user['role'] === 'admin' ? 'bg-red-500/20 text-red-400' : 
-                                    ($user['role'] === 'manager' ? 'bg-orange-500/20 text-orange-400' : 'bg-green-500/20 text-green-400'); 
+                                    ($user['role'] === 'manager' ? 'bg-orange-500/20 text-orange-400' : 
+                                    ($user['role'] === 'director' ? 'bg-purple-500/20 text-purple-400' : 'bg-green-500/20 text-green-400')); 
                             ?>">
-                                <?php echo ucfirst($user['role']); ?>
+                                <?php 
+                                    echo $user['role'] === 'manager' ? 'Department Head' : 
+                                        ($user['role'] === 'director' ? 'Director Head' : ucfirst($user['role'])); 
+                                ?>
                             </span>
                         </div>
                         
@@ -451,7 +455,8 @@ $users = $stmt->fetchAll();
                         <label for="addRole" class="block text-sm font-semibold text-slate-300 mb-2">Role</label>
                         <select id="addRole" name="role" required class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
                             <option value="employee">Employee</option>
-                            <option value="manager">Manager</option>
+                            <option value="manager">Department Head</option>
+                            <option value="director">Director Head</option>
                             <option value="admin">Admin</option>
                         </select>
                     </div>
@@ -516,7 +521,8 @@ $users = $stmt->fetchAll();
                         <label for="editRole" class="block text-sm font-semibold text-slate-300 mb-2">Role</label>
                         <select id="editRole" name="role" required class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
                             <option value="employee">Employee</option>
-                            <option value="manager">Manager</option>
+                            <option value="manager">Department Head</option>
+                            <option value="director">Director Head</option>
                             <option value="admin">Admin</option>
                         </select>
                     </div>

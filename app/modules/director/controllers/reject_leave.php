@@ -54,7 +54,9 @@ try {
             $request['end_date'],
             $request['leave_type'],
             $director['name'] ?? 'Director',
-            'director'
+            'director',
+            null,
+            $request['original_leave_type'] ?? null
         );
     } catch (Exception $e) {
         error_log("Email notification failed: " . $e->getMessage());

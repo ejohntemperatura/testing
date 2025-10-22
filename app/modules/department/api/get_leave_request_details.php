@@ -22,6 +22,15 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'mana
     exit();
 }
 
+// Get department head's department for filtering (only for managers, admins can see all)
+$dept_head_department = null;
+if ($_SESSION['role'] === 'manager') {
+    $stmt = $pdo->prepare("SELECT department FROM employees WHERE id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $dept_head = $stmt->fetch(PDO::FETCH_ASSOC);
+    $dept_head_department = $dept_head['department'] ?? null;
+}
+
 // Check if request ID is provided
 if (!isset($_GET['id']) || empty($_GET['id'])) {
     http_response_code(400);
@@ -33,7 +42,7 @@ $requestId = intval($_GET['id']);
 
 try {
     // Get leave request details with employee information and conditional fields
-    $stmt = $pdo->prepare("
+    $sql = "
         SELECT 
             lr.*,
             e.name as employee_name,
@@ -45,9 +54,18 @@ try {
         WHERE lr.id = ?
         AND (lr.dept_head_approval IS NULL OR lr.dept_head_approval = 'pending')
         AND lr.status != 'rejected'
-    ");
+    ";
     
-    $stmt->execute([$requestId]);
+    $params = [$requestId];
+    
+    // Add department filtering for managers (admins can see all)
+    if ($_SESSION['role'] === 'manager' && $dept_head_department) {
+        $sql .= " AND e.department = ?";
+        $params[] = $dept_head_department;
+    }
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
     $leaveRequest = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$leaveRequest) {

@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS employees (
 CREATE TABLE IF NOT EXISTS leave_requests (
     id INT PRIMARY KEY AUTO_INCREMENT,
     employee_id INT NOT NULL,
-    leave_type ENUM('annual', 'sick', 'maternity', 'paternity', 'bereavement', 'study', 'unpaid') NOT NULL,
+    leave_type ENUM('vacation', 'sick', 'special_privilege', 'maternity', 'paternity', 'solo_parent', 'vawc', 'rehabilitation', 'study', 'terminal', 'cto', 'without_pay') NOT NULL,
+    original_leave_type VARCHAR(50) NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     reason TEXT NOT NULL,

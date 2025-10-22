@@ -87,7 +87,11 @@ if (false) { // Disabled bulk actions
                         $action,
                         $request['start_date'],
                         $request['end_date'],
-                        $request['leave_type'] ?? null
+                        $request['leave_type'] ?? null,
+                        null,
+                        null,
+                        null,
+                        $request['original_leave_type'] ?? null
                     );
                 }
                 
@@ -188,6 +192,27 @@ if (isset($_GET['leave_type']) && $_GET['leave_type'] !== '') {
 $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
 
 // Fetch leave requests with filters
+$initial_limit = 10; // Show only 10 initially
+
+// Get total count of leave requests
+try {
+    $count_query = "
+        SELECT COUNT(*) as total
+        FROM leave_requests lr 
+        JOIN employees e ON lr.employee_id = e.id 
+        LEFT JOIN employees dept_approver ON lr.dept_head_approved_by = dept_approver.id
+        LEFT JOIN employees director_approver ON lr.director_approved_by = director_approver.id
+        LEFT JOIN employees admin_approver ON lr.admin_approved_by = admin_approver.id
+        $where_clause
+    ";
+    $stmt = $pdo->prepare($count_query);
+    $stmt->execute($params);
+    $total_requests = $stmt->fetch()['total'];
+} catch(PDOException $e) {
+    $total_requests = 0;
+}
+
+// Fetch initial leave requests (limited)
 try {
     $query = "
         SELECT lr.*, e.name as employee_name, e.email as employee_email, e.department,
@@ -204,6 +229,7 @@ try {
         LEFT JOIN employees admin_approver ON lr.admin_approved_by = admin_approver.id
         $where_clause
         ORDER BY lr.created_at DESC
+        LIMIT " . intval($initial_limit) . "
     ";
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
@@ -551,6 +577,19 @@ $employees = $stmt->fetchAll(PDO::FETCH_COLUMN);
                                     </tbody>
                                 </table>
                             </div>
+                            
+                            <?php if ($total_requests > $initial_limit): ?>
+                                <div class="text-center mt-6 px-6 pb-6">
+                                    <button type="button" id="loadMoreBtn" onclick="handleViewMoreClick()" class="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 font-semibold py-3 px-6 rounded-xl transition-colors">
+                                        <i class="fas fa-plus mr-2"></i>View More (<?php echo $total_requests - $initial_limit; ?> more)
+                                    </button>
+                                    <button type="button" id="showLessBtn" onclick="handleShowLessClick()" class="hidden bg-slate-600/20 hover:bg-slate-600/30 text-slate-400 border border-slate-600/30 font-semibold py-3 px-6 rounded-xl transition-colors ml-4">
+                                        <i class="fas fa-minus mr-2"></i>Show Less
+                                    </button>
+                                </div>
+                                <!-- Hidden container for additional requests -->
+                                <div id="additionalRequests" class="hidden mt-6"></div>
+                            <?php endif; ?>
                         </form>
                     </div>
                 </div>
@@ -889,7 +928,7 @@ $employees = $stmt->fetchAll(PDO::FETCH_COLUMN);
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                             <label class="text-sm font-medium text-slate-400">Leave Type</label>
-                                            <p class="text-white">${getLeaveTypeDisplayNameJS(leaveRequest.leave_type, leaveRequest.original_leave_type)}</p>
+                                            <p class="text-white">${leaveRequest.leave_type}</p>
                             </div>
                             <div>
                                 <label class="text-sm font-medium text-slate-400">Duration</label>
@@ -1199,6 +1238,203 @@ $employees = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
         // Update pending leave count every 30 seconds
         setInterval(fetchPendingLeaveCount, 30000);
+
+        // View More button handler - loads actual data
+        async function handleViewMoreClick() {
+            const loadMoreBtn = document.getElementById('loadMoreBtn');
+            const tableBody = document.querySelector('tbody');
+            
+            if (!loadMoreBtn || !tableBody) {
+                console.error('Missing elements:', { loadMoreBtn, tableBody });
+                return;
+            }
+            
+            console.log('View More clicked, starting load...');
+            loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
+            loadMoreBtn.disabled = true;
+            
+            try {
+                // Get current offset (number of rows currently displayed)
+                const currentRows = tableBody.querySelectorAll('tr').length;
+                console.log('Current rows:', currentRows);
+                
+                // Build query parameters for filters
+                const urlParams = new URLSearchParams(window.location.search);
+                const status = urlParams.get('status') || '';
+                const employee = urlParams.get('employee') || '';
+                const leave_type = urlParams.get('leave_type') || '';
+                
+                // Call API to get more requests
+                const apiUrl = `../api/get_more_requests.php?offset=${currentRows}&status=${status}&employee=${employee}&leave_type=${leave_type}`;
+                console.log('API URL:', apiUrl);
+                
+                const response = await fetch(apiUrl);
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (data.success && data.html) {
+                    // Append new rows to the table
+                    tableBody.insertAdjacentHTML('beforeend', data.html);
+                    
+                    // Show Show Less button
+                    const showLessBtn = document.getElementById('showLessBtn');
+                    if (showLessBtn) {
+                        showLessBtn.classList.remove('hidden');
+                    }
+                    
+                    // Update button text or hide if no more data
+                    if (!data.hasMore || data.count < 15) {
+                        loadMoreBtn.style.display = 'none';
+                    } else {
+                        loadMoreBtn.innerHTML = '<i class="fas fa-plus mr-2"></i>View More (more available)';
+                        loadMoreBtn.disabled = false;
+                    }
+                    
+                    console.log('Successfully loaded', data.count, 'more requests');
+                } else {
+                    console.error('API returned error:', data);
+                    loadMoreBtn.innerHTML = '<i class="fas fa-plus mr-2"></i>View More (API Error)';
+                    loadMoreBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error loading more requests:', error);
+                loadMoreBtn.innerHTML = '<i class="fas fa-plus mr-2"></i>View More (Error)';
+                loadMoreBtn.disabled = false;
+            }
+        }
+
+        // Show Less button handler
+        function handleShowLessClick() {
+            const tableBody = document.querySelector('tbody');
+            const loadMoreBtn = document.getElementById('loadMoreBtn');
+            const showLessBtn = document.getElementById('showLessBtn');
+            
+            if (!tableBody) return;
+            
+            // Get all rows
+            const allRows = tableBody.querySelectorAll('tr');
+            const initialLimit = 10; // Show only first 10 rows
+            
+            // Remove rows beyond the initial limit
+            for (let i = allRows.length - 1; i >= initialLimit; i--) {
+                if (allRows[i]) {
+                    allRows[i].remove();
+                }
+            }
+            
+            // Show View More button and hide Show Less button
+            if (loadMoreBtn) {
+                loadMoreBtn.style.display = 'inline-flex';
+                loadMoreBtn.innerHTML = '<i class="fas fa-plus mr-2"></i>View More (<?php echo $total_requests - $initial_limit; ?> more)';
+                loadMoreBtn.disabled = false;
+            }
+            
+            if (showLessBtn) {
+                showLessBtn.classList.add('hidden');
+            }
+        }
+
+        // View More and Show Less functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const loadMoreBtn = document.getElementById('loadMoreBtn');
+            const showLessBtn = document.getElementById('showLessBtn');
+            const tableBody = document.querySelector('tbody');
+            
+            if (loadMoreBtn && showLessBtn && tableBody) {
+                let currentOffset = 10;
+                let isLoading = false;
+                let totalAdditionalRows = 0;
+                
+                // View More functionality
+                loadMoreBtn.addEventListener('click', async function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    if (isLoading) return;
+                    
+                    isLoading = true;
+                    loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
+                    loadMoreBtn.disabled = true;
+                    
+                    try {
+                        // Build query parameters for filters
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const status = urlParams.get('status') || '';
+                        const employee = urlParams.get('employee') || '';
+                        const leave_type = urlParams.get('leave_type') || '';
+                        
+                        const apiUrl = `../api/get_more_requests.php?offset=${currentOffset}&status=${status}&employee=${employee}&leave_type=${leave_type}`;
+                        const response = await fetch(apiUrl);
+                        const data = await response.json();
+                        
+                        if (data.success && data.html) {
+                            // Append new rows to the existing table
+                            tableBody.insertAdjacentHTML('beforeend', data.html);
+                            
+                            // Store the count of additional rows added
+                            totalAdditionalRows += data.count;
+                            
+                            // Update offset for next request
+                            currentOffset += data.count;
+                            
+                            // Show the Show Less button
+                            showLessBtn.classList.remove('hidden');
+                            
+                            // Hide the View More button if no more requests
+                            if (!data.hasMore || data.count < 15) {
+                                loadMoreBtn.style.display = 'none';
+                            } else {
+                                // Update button text with remaining count
+                                const remainingCount = data.hasMore ? 'more' : '0';
+                                loadMoreBtn.innerHTML = `<i class="fas fa-plus mr-2"></i>View More (${remainingCount} more)`;
+                                loadMoreBtn.disabled = false;
+                            }
+                        } else {
+                            console.error('Failed to load more requests:', data.message);
+                            loadMoreBtn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Error loading requests';
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        loadMoreBtn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Error loading requests';
+                    }
+                    
+                    isLoading = false;
+                });
+                
+                showLessBtn.addEventListener('click', function() {
+                    // Remove all additional rows by removing the last N rows
+                    const allRows = tableBody.querySelectorAll('tr');
+                    const rowsToRemove = totalAdditionalRows;
+                    
+                    // Remove rows from the end
+                    for (let i = allRows.length - 1; i >= allRows.length - rowsToRemove; i--) {
+                        if (allRows[i]) {
+                            allRows[i].remove();
+                        }
+                    }
+                    
+                    // Reset the counter
+                    totalAdditionalRows = 0;
+                    
+                    // Reset offset
+                    currentOffset = 10;
+                    
+                    // Hide Show Less button
+                    showLessBtn.classList.add('hidden');
+                    
+                    // Show View More button again
+                    loadMoreBtn.style.display = 'inline-flex';
+                    loadMoreBtn.innerHTML = '<i class="fas fa-plus mr-2"></i>View More (<?php echo $total_requests - $initial_limit; ?> more)';
+                    loadMoreBtn.disabled = false;
+                });
+            }
+        });
 
     </script>
 </body>

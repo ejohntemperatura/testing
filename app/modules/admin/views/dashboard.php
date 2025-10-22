@@ -596,7 +596,7 @@ $leave_requests = $stmt->fetchAll();
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label class="text-sm font-medium text-slate-400">Leave Type</label>
-                                            <p class="text-white">${getLeaveTypeDisplayNameJS(leave.leave_type, leave.original_leave_type)}</p>
+                                            <p class="text-white">${leave.leave_type}</p>
                                         </div>
                                         <div>
                                             <label class="text-sm font-medium text-slate-400">Days Requested</label>

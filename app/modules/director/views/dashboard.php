@@ -28,6 +28,21 @@ $stmt = $pdo->query("
 $approved_this_month = $stmt->fetch()['approved'];
 
 // Get pending leave requests for stats
+$initial_limit = 5; // Show only 5 initially
+
+// Get total count of pending requests
+$stmt = $pdo->prepare("
+    SELECT COUNT(*) as total 
+    FROM leave_requests lr 
+    JOIN employees e ON lr.employee_id = e.id 
+    WHERE lr.dept_head_approval = 'approved'
+    AND (lr.director_approval IS NULL OR lr.director_approval = 'pending')
+    AND lr.status != 'rejected'
+");
+$stmt->execute();
+$total_pending = $stmt->fetch()['total'];
+
+// Get initial pending requests (limited)
 $stmt = $pdo->prepare("
     SELECT lr.*, e.name as employee_name, e.position, e.department 
     FROM leave_requests lr 
@@ -36,8 +51,8 @@ $stmt = $pdo->prepare("
     AND (lr.director_approval IS NULL OR lr.director_approval = 'pending')
     AND lr.status != 'rejected'
     ORDER BY lr.is_late DESC, lr.created_at DESC 
-    LIMIT 10
-");
+    LIMIT " . intval($initial_limit)
+);
 $stmt->execute();
 $pending_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -240,11 +255,18 @@ $leaveTypes = getLeaveTypes();
 										</tbody>
 									</table>
 								</div>
-								<div class="text-center mt-6">
-									<a href="calendar.php" class="inline-flex items-center px-4 py-2 bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 rounded-xl transition-colors">
-										<i class="fas fa-eye mr-2"></i>View All Requests
-									</a>
-								</div>
+								<?php if ($total_pending > $initial_limit): ?>
+									<div class="text-center mt-6">
+										<button id="loadMoreBtn" class="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 font-semibold py-3 px-6 rounded-xl transition-colors">
+											<i class="fas fa-plus mr-2"></i>View More (<?php echo $total_pending - $initial_limit; ?> more)
+										</button>
+										<button id="showLessBtn" class="hidden bg-slate-600/20 hover:bg-slate-600/30 text-slate-400 border border-slate-600/30 font-semibold py-3 px-6 rounded-xl transition-colors ml-4">
+											<i class="fas fa-minus mr-2"></i>Show Less
+										</button>
+									</div>
+									<!-- Hidden container for additional requests -->
+									<div id="additionalRequests" class="hidden mt-6"></div>
+								<?php endif; ?>
 							<?php endif; ?>
 					</div>
 				</div>
@@ -506,7 +528,7 @@ $leaveTypes = getLeaveTypes();
 												<div class="space-y-3">
 													<div>
 														<label class="block text-sm font-semibold text-slate-300 mb-1">Leave Type</label>
-														<p class="text-white font-medium">${getLeaveTypeDisplayNameJS(request.leave_type, request.original_leave_type)}</p>
+														<p class="text-white font-medium">${request.leave_type}</p>
 													</div>
 													<div>
 														<label class="block text-sm font-semibold text-slate-300 mb-1">Start Date</label>
@@ -779,14 +801,51 @@ $leaveTypes = getLeaveTypes();
 			const confirmMessage = `Are you sure you want to approve ${approvedDays} day(s) ${payStatus}?\n\nThis will be the final approval for this leave request.`;
 			
 			if (confirm(confirmMessage)) {
-				const url = `../controllers/approve_leave.php?id=${requestId}&days=${approvedDays}&pay_status=${approvalType}`;
+				// Disable the button to prevent multiple clicks
+				const approveButton = event.target;
+				approveButton.disabled = true;
+				approveButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
 				
-				// Show loading state
-				event.target.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
-				event.target.disabled = true;
+				// Create and show processing modal
+				const processingModalHtml = `
+					<div id="processingModal" class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+						<div class="bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-w-md w-full mx-4">
+							<div class="p-6 text-center">
+								<div class="mb-4">
+									<div class="inline-flex items-center justify-center w-16 h-16 bg-slate-700 rounded-full mb-4">
+										<i class="fas fa-spinner fa-spin text-blue-400 text-2xl"></i>
+									</div>
+									<h3 class="text-lg font-semibold text-white mb-2">Processing Your Approval</h3>
+									<p class="text-slate-300 mb-4">Please wait while we process the final leave request approval...</p>
+								</div>
+								<div class="flex items-center justify-center space-x-2 text-sm text-slate-400">
+									<div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+									<div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+									<div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+								</div>
+							</div>
+						</div>
+					</div>
+				`;
 				
-				// Redirect to action URL
-				window.location.href = url;
+				// Remove existing processing modal if any
+				const existingProcessingModal = document.getElementById('processingModal');
+				if (existingProcessingModal) {
+					existingProcessingModal.remove();
+				}
+				
+				// Add processing modal to body
+				document.body.insertAdjacentHTML('beforeend', processingModalHtml);
+				
+				// Add rendering delay: keep approval modal visible for 1.5 seconds
+				setTimeout(() => {
+					// Hide the approval modal
+					closeDirectorApprovalModal();
+					
+					// Redirect to action URL after delay
+					const url = `../controllers/approve_leave.php?id=${requestId}&days=${approvedDays}&pay_status=${approvalType}`;
+					window.location.href = url;
+				}, 1500); // Keep approval modal visible for 1.5 seconds
 			}
 		}
 		
@@ -803,21 +862,62 @@ $leaveTypes = getLeaveTypes();
 			const confirmMessage = `Are you sure you want to reject this leave request?\n\nReason: ${rejectionReason}`;
 			
 			if (confirm(confirmMessage)) {
-				const url = `../controllers/reject_leave.php?id=${requestId}`;
+				// Disable the button to prevent multiple clicks
+				const rejectButton = event.target;
+				rejectButton.disabled = true;
+				rejectButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
 				
-				// Create form to submit rejection reason
-				const form = document.createElement('form');
-				form.method = 'POST';
-				form.action = url;
+				// Create and show processing modal
+				const processingModalHtml = `
+					<div id="processingModal" class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+						<div class="bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-w-md w-full mx-4">
+							<div class="p-6 text-center">
+								<div class="mb-4">
+									<div class="inline-flex items-center justify-center w-16 h-16 bg-slate-700 rounded-full mb-4">
+										<i class="fas fa-spinner fa-spin text-blue-400 text-2xl"></i>
+									</div>
+									<h3 class="text-lg font-semibold text-white mb-2">Processing Your Rejection</h3>
+									<p class="text-slate-300 mb-4">Please wait while we process the leave request rejection...</p>
+								</div>
+								<div class="flex items-center justify-center space-x-2 text-sm text-slate-400">
+									<div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+									<div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+									<div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+								</div>
+							</div>
+						</div>
+					</div>
+				`;
 				
-				const reasonInput = document.createElement('input');
-				reasonInput.type = 'hidden';
-				reasonInput.name = 'reason';
-				reasonInput.value = rejectionReason;
+				// Remove existing processing modal if any
+				const existingProcessingModal = document.getElementById('processingModal');
+				if (existingProcessingModal) {
+					existingProcessingModal.remove();
+				}
 				
-				form.appendChild(reasonInput);
-				document.body.appendChild(form);
-				form.submit();
+				// Add processing modal to body
+				document.body.insertAdjacentHTML('beforeend', processingModalHtml);
+				
+				// Add rendering delay: keep approval modal visible for 1.5 seconds
+				setTimeout(() => {
+					// Hide the approval modal
+					closeDirectorApprovalModal();
+					
+					// Submit the form after delay
+					const url = `../controllers/reject_leave.php?id=${requestId}`;
+					const form = document.createElement('form');
+					form.method = 'POST';
+					form.action = url;
+					
+					const reasonInput = document.createElement('input');
+					reasonInput.type = 'hidden';
+					reasonInput.name = 'reason';
+					reasonInput.value = rejectionReason;
+					
+					form.appendChild(reasonInput);
+					document.body.appendChild(form);
+					form.submit();
+				}, 1500); // Keep approval modal visible for 1.5 seconds
 			}
 		}
 		
@@ -895,6 +995,92 @@ $leaveTypes = getLeaveTypes();
 				conditionalSection.style.display = hasRelevantDetails ? 'block' : 'none';
 			}
 		}
+
+		// View More and Show Less functionality
+		document.addEventListener('DOMContentLoaded', function() {
+			const loadMoreBtn = document.getElementById('loadMoreBtn');
+			const showLessBtn = document.getElementById('showLessBtn');
+			const additionalRequestsContainer = document.getElementById('additionalRequests');
+			const tableBody = document.querySelector('tbody');
+			
+			if (loadMoreBtn && showLessBtn && additionalRequestsContainer && tableBody) {
+				let currentOffset = 5; // Start from offset 5 (since we initially show 5)
+				let isLoading = false;
+				let totalAdditionalRows = 0; // Store count of additional rows for show less functionality
+				
+				loadMoreBtn.addEventListener('click', async function() {
+					if (isLoading) return;
+					
+					isLoading = true;
+					loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
+					loadMoreBtn.disabled = true;
+					
+					try {
+						const response = await fetch(`../api/get_more_requests.php?offset=${currentOffset}`);
+						const data = await response.json();
+						
+						if (data.success && data.html) {
+							// Append new rows to the existing table
+							tableBody.insertAdjacentHTML('beforeend', data.html);
+							
+							// Store the count of additional rows added
+							totalAdditionalRows += data.count;
+							
+							// Update offset for next request
+							currentOffset += data.count;
+							
+							// Show the Show Less button
+							showLessBtn.classList.remove('hidden');
+							
+							// Hide the View More button if no more requests
+							if (!data.hasMore || data.count < 10) {
+								loadMoreBtn.style.display = 'none';
+							} else {
+								// Update button text with remaining count
+								const remainingCount = data.hasMore ? 'more' : '0';
+								loadMoreBtn.innerHTML = `<i class="fas fa-plus mr-2"></i>View More (${remainingCount} more)`;
+								loadMoreBtn.disabled = false;
+							}
+						} else {
+							console.error('Failed to load more requests:', data.message);
+							loadMoreBtn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Error loading requests';
+						}
+					} catch (error) {
+						console.error('Error:', error);
+						loadMoreBtn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Error loading requests';
+					}
+					
+					isLoading = false;
+				});
+				
+				showLessBtn.addEventListener('click', function() {
+					// Remove all additional rows by removing the last N rows
+					const allRows = tableBody.querySelectorAll('tr');
+					const rowsToRemove = totalAdditionalRows;
+					
+					// Remove rows from the end
+					for (let i = allRows.length - 1; i >= allRows.length - rowsToRemove; i--) {
+						if (allRows[i]) {
+							allRows[i].remove();
+						}
+					}
+					
+					// Reset the counter
+					totalAdditionalRows = 0;
+					
+					// Reset offset
+					currentOffset = 5;
+					
+					// Hide Show Less button
+					showLessBtn.classList.add('hidden');
+					
+					// Show View More button again
+					loadMoreBtn.style.display = 'inline-flex';
+					loadMoreBtn.innerHTML = '<i class="fas fa-plus mr-2"></i>View More (<?php echo $total_pending - $initial_limit; ?> more)';
+					loadMoreBtn.disabled = false;
+				});
+			}
+		});
 	</script>
 </body>
 </html>

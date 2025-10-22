@@ -1,9 +1,12 @@
 <?php
+// Start output buffering to prevent any rendering
+ob_start();
 session_start();
 require_once '../../../../config/database.php';
 require_once '../../../../app/core/services/LeaveCreditsManager.php';
 
 if (!isset($_SESSION['user_id']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+    ob_end_clean(); // Clear any output
     header('Location: ../../../auth/views/login.php');
     exit();
 }
@@ -180,7 +183,8 @@ if (!$creditCheck['sufficient'] && !$proceed_without_pay) {
 // If proceeding without pay, change leave type to without_pay and store original type
 $original_leave_type = null;
 if ($proceed_without_pay) {
-    $original_leave_type = $leave_type; // Store the original leave type
+    // Use the original_leave_type from form if provided, otherwise use current leave_type
+    $original_leave_type = isset($_POST['original_leave_type']) ? $_POST['original_leave_type'] : $leave_type;
     $leave_type = 'without_pay';
 }
 
@@ -206,22 +210,41 @@ try {
     // Note: Leave credits will be deducted when the leave is approved by Director
     // This ensures we deduct only the approved days, not the requested days
 
+    // Get the insert ID before committing the transaction
+    $leaveRequestId = $pdo->lastInsertId();
+    
     $pdo->commit();
+    
+    // Send notification to department head
+    try {
+        require_once '../../../../app/core/services/NotificationHelper.php';
+        $notificationHelper = new NotificationHelper($pdo);
+        $notificationHelper->notifyDepartmentHeadNewLeave($leaveRequestId);
+    } catch (Exception $e) {
+        error_log("Department head notification failed: " . $e->getMessage());
+        // Don't fail the submission if notification fails
+    }
     
     // Track successful submission to prevent duplicates
     $_SESSION['last_submission'] = $submission_key;
     $_SESSION['last_submission_time'] = time();
     
-    if ($leave_type === 'without_pay') {
-        $_SESSION['success'] = "Late leave application submitted successfully as Without Pay Leave. Please note that late applications may require additional justification.";
-    } else {
-        $_SESSION['success'] = "Late leave application submitted successfully. Credits will be deducted upon approval. Please note that late applications may require additional justification.";
-    }
+    // Set flags to show success modal only (no redundant banner message)
+    $_SESSION['show_success_modal'] = true;
+    $_SESSION['success_leave_type'] = $original_leave_type ?: $leave_type;
+    $_SESSION['is_late_application'] = true;
+    
+    // Clear insufficient credits modal session variables to prevent re-display
+    unset($_SESSION['show_insufficient_credits_popup']);
+    unset($_SESSION['insufficient_credits_data']);
+    unset($_SESSION['temp_insufficient_credits_data']);
 } catch (Exception $e) {
     $pdo->rollBack();
     $_SESSION['error'] = "Error submitting late leave application: " . $e->getMessage();
 }
 
+// Clear any output and redirect
+ob_end_clean();
 header('Location: dashboard.php');
 exit();
 ?>

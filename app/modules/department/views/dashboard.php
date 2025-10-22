@@ -16,6 +16,9 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin','manag
 $stmt = $pdo->prepare("SELECT * FROM employees WHERE id = ?");
 $stmt->execute([$_SESSION['user_id']]);
 $me = $stmt->fetch();
+
+// Get department head's department for filtering
+$dept_head_department = $me['department'] ?? null;
 ?>
 
 <!DOCTYPE html>
@@ -113,17 +116,32 @@ $me = $stmt->fetch();
 					</div>
 					<div class="p-6">
 							<?php
+							// Get total count of pending leave requests for this department only
+							$stmt = $pdo->prepare("
+								SELECT COUNT(*) as total_count
+								FROM leave_requests lr 
+								JOIN employees e ON lr.employee_id = e.id 
+								WHERE (lr.dept_head_approval IS NULL OR lr.dept_head_approval = 'pending')
+								AND lr.status != 'rejected'
+								AND e.department = ?
+							");
+							$stmt->execute([$dept_head_department]);
+							$total_pending = $stmt->fetch(PDO::FETCH_ASSOC)['total_count'];
+							
 							// Get pending leave requests (only those not yet decided by department head)
+							// Initially show only 5 requests - filtered by department
+							$initial_limit = 5;
 							$stmt = $pdo->prepare("
 								SELECT lr.*, e.name as employee_name, e.position, e.department 
 								FROM leave_requests lr 
 								JOIN employees e ON lr.employee_id = e.id 
 								WHERE (lr.dept_head_approval IS NULL OR lr.dept_head_approval = 'pending')
 								AND lr.status != 'rejected'
+								AND e.department = ?
 								ORDER BY lr.is_late DESC, lr.created_at DESC 
-								LIMIT 10
-							");
-							$stmt->execute();
+								LIMIT " . intval($initial_limit)
+							);
+							$stmt->execute([$dept_head_department]);
 							$pending_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 							
 							// Get leave types configuration
@@ -205,11 +223,18 @@ $me = $stmt->fetch();
 									</tbody>
 								</table>
 							</div>
-							<div class="text-center mt-6">
-								<a href="calendar.php" class="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 font-semibold py-3 px-6 rounded-xl transition-colors">
-									View All Requests
-								</a>
-							</div>
+							<?php if ($total_pending > $initial_limit): ?>
+								<div class="text-center mt-6">
+									<button id="loadMoreBtn" class="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 font-semibold py-3 px-6 rounded-xl transition-colors">
+										<i class="fas fa-plus mr-2"></i>View More (<?php echo $total_pending - $initial_limit; ?> more)
+									</button>
+									<button id="showLessBtn" class="hidden bg-slate-600/20 hover:bg-slate-600/30 text-slate-400 border border-slate-600/30 font-semibold py-3 px-6 rounded-xl transition-colors ml-4">
+										<i class="fas fa-minus mr-2"></i>Show Less
+									</button>
+								</div>
+								<!-- Hidden container for additional requests -->
+								<div id="additionalRequests" class="hidden mt-6"></div>
+							<?php endif; ?>
 						<?php endif; ?>
 					</div>
 				</div>
@@ -474,7 +499,7 @@ $me = $stmt->fetch();
 												<div class="space-y-3">
 													<div>
 														<label class="block text-sm font-semibold text-slate-300 mb-1">Leave Type</label>
-														<p class="text-white font-medium">${getLeaveTypeDisplayNameJS(request.leave_type, request.original_leave_type)}</p>
+														<p class="text-white font-medium">${request.leave_type}</p>
 													</div>
 													<div>
 														<label class="block text-sm font-semibold text-slate-300 mb-1">Start Date</label>
@@ -667,25 +692,67 @@ $me = $stmt->fetch();
 
 		function approveRequest(requestId) {
 			if (confirm('Are you sure you want to approve this leave request?')) {
-				// Submit approval form
-				const form = document.createElement('form');
-				form.method = 'POST';
-				form.action = 'approve_leave.php';
+				// Disable the button to prevent multiple clicks
+				const approveButton = event.target;
+				approveButton.disabled = true;
+				approveButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
 				
-				const requestIdInput = document.createElement('input');
-				requestIdInput.type = 'hidden';
-				requestIdInput.name = 'request_id';
-				requestIdInput.value = requestId;
+				// Create and show processing modal
+				const processingModalHtml = `
+					<div id="processingModal" class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+						<div class="bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-w-md w-full mx-4">
+							<div class="p-6 text-center">
+								<div class="mb-4">
+									<div class="inline-flex items-center justify-center w-16 h-16 bg-slate-700 rounded-full mb-4">
+										<i class="fas fa-spinner fa-spin text-blue-400 text-2xl"></i>
+									</div>
+									<h3 class="text-lg font-semibold text-white mb-2">Processing Your Approval</h3>
+									<p class="text-slate-300 mb-4">Please wait while we process the leave request approval...</p>
+								</div>
+								<div class="flex items-center justify-center space-x-2 text-sm text-slate-400">
+									<div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+									<div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+									<div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+								</div>
+							</div>
+						</div>
+					</div>
+				`;
 				
-				const actionInput = document.createElement('input');
-				actionInput.type = 'hidden';
-				actionInput.name = 'action';
-				actionInput.value = 'approve';
+				// Remove existing processing modal if any
+				const existingProcessingModal = document.getElementById('processingModal');
+				if (existingProcessingModal) {
+					existingProcessingModal.remove();
+				}
 				
-				form.appendChild(requestIdInput);
-				form.appendChild(actionInput);
-				document.body.appendChild(form);
-				form.submit();
+				// Add processing modal to body
+				document.body.insertAdjacentHTML('beforeend', processingModalHtml);
+				
+				// Add rendering delay: keep approval modal visible for 1.5 seconds
+				setTimeout(() => {
+					// Hide the approval modal
+					closeDepartmentApprovalModal();
+					
+					// Submit the form after delay
+					const form = document.createElement('form');
+					form.method = 'POST';
+					form.action = 'approve_leave.php';
+					
+					const requestIdInput = document.createElement('input');
+					requestIdInput.type = 'hidden';
+					requestIdInput.name = 'request_id';
+					requestIdInput.value = requestId;
+					
+					const actionInput = document.createElement('input');
+					actionInput.type = 'hidden';
+					actionInput.name = 'action';
+					actionInput.value = 'approve';
+					
+					form.appendChild(requestIdInput);
+					form.appendChild(actionInput);
+					document.body.appendChild(form);
+					form.submit();
+				}, 1500); // Keep approval modal visible for 1.5 seconds
 			}
 		}
 
@@ -697,31 +764,73 @@ $me = $stmt->fetch();
 			}
 			
 			if (confirm('Are you sure you want to reject this leave request?')) {
-				// Submit rejection form
-				const form = document.createElement('form');
-				form.method = 'POST';
-				form.action = 'approve_leave.php';
+				// Disable the button to prevent multiple clicks
+				const rejectButton = event.target;
+				rejectButton.disabled = true;
+				rejectButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
 				
-				const requestIdInput = document.createElement('input');
-				requestIdInput.type = 'hidden';
-				requestIdInput.name = 'request_id';
-				requestIdInput.value = requestId;
+				// Create and show processing modal
+				const processingModalHtml = `
+					<div id="processingModal" class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+						<div class="bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-w-md w-full mx-4">
+							<div class="p-6 text-center">
+								<div class="mb-4">
+									<div class="inline-flex items-center justify-center w-16 h-16 bg-slate-700 rounded-full mb-4">
+										<i class="fas fa-spinner fa-spin text-blue-400 text-2xl"></i>
+									</div>
+									<h3 class="text-lg font-semibold text-white mb-2">Processing Your Rejection</h3>
+									<p class="text-slate-300 mb-4">Please wait while we process the leave request rejection...</p>
+								</div>
+								<div class="flex items-center justify-center space-x-2 text-sm text-slate-400">
+									<div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+									<div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+									<div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+								</div>
+							</div>
+						</div>
+					</div>
+				`;
 				
-				const actionInput = document.createElement('input');
-				actionInput.type = 'hidden';
-				actionInput.name = 'action';
-				actionInput.value = 'reject';
+				// Remove existing processing modal if any
+				const existingProcessingModal = document.getElementById('processingModal');
+				if (existingProcessingModal) {
+					existingProcessingModal.remove();
+				}
 				
-				const reasonInput = document.createElement('input');
-				reasonInput.type = 'hidden';
-				reasonInput.name = 'reason';
-				reasonInput.value = reason;
+				// Add processing modal to body
+				document.body.insertAdjacentHTML('beforeend', processingModalHtml);
 				
-				form.appendChild(requestIdInput);
-				form.appendChild(actionInput);
-				form.appendChild(reasonInput);
-				document.body.appendChild(form);
-				form.submit();
+				// Add rendering delay: keep approval modal visible for 1.5 seconds
+				setTimeout(() => {
+					// Hide the approval modal
+					closeDepartmentApprovalModal();
+					
+					// Submit the form after delay
+					const form = document.createElement('form');
+					form.method = 'POST';
+					form.action = 'approve_leave.php';
+					
+					const requestIdInput = document.createElement('input');
+					requestIdInput.type = 'hidden';
+					requestIdInput.name = 'request_id';
+					requestIdInput.value = requestId;
+					
+					const actionInput = document.createElement('input');
+					actionInput.type = 'hidden';
+					actionInput.name = 'action';
+					actionInput.value = 'reject';
+					
+					const reasonInput = document.createElement('input');
+					reasonInput.type = 'hidden';
+					reasonInput.name = 'reason';
+					reasonInput.value = reason;
+					
+					form.appendChild(requestIdInput);
+					form.appendChild(actionInput);
+					form.appendChild(reasonInput);
+					document.body.appendChild(form);
+					form.submit();
+				}, 1500); // Keep approval modal visible for 1.5 seconds
 			}
 		}
 		
@@ -759,6 +868,92 @@ $me = $stmt->fetch();
 				conditionalSection.style.display = hasRelevantDetails ? 'block' : 'none';
 			}
 		}
+
+		// View More and Show Less functionality
+		document.addEventListener('DOMContentLoaded', function() {
+			const loadMoreBtn = document.getElementById('loadMoreBtn');
+			const showLessBtn = document.getElementById('showLessBtn');
+			const additionalRequestsContainer = document.getElementById('additionalRequests');
+			const tableBody = document.querySelector('tbody');
+			
+			if (loadMoreBtn && showLessBtn && additionalRequestsContainer && tableBody) {
+				let currentOffset = 5; // Start from offset 5 (since we initially show 5)
+				let isLoading = false;
+				let totalAdditionalRows = 0; // Store count of additional rows for show less functionality
+				
+				loadMoreBtn.addEventListener('click', async function() {
+					if (isLoading) return;
+					
+					isLoading = true;
+					loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
+					loadMoreBtn.disabled = true;
+					
+					try {
+						const response = await fetch(`../api/get_more_requests.php?offset=${currentOffset}`);
+						const data = await response.json();
+						
+						if (data.success && data.html) {
+							// Append new rows to the existing table
+							tableBody.insertAdjacentHTML('beforeend', data.html);
+							
+							// Store the count of additional rows added
+							totalAdditionalRows += data.count;
+							
+							// Update offset for next request
+							currentOffset += data.count;
+							
+							// Show the Show Less button
+							showLessBtn.classList.remove('hidden');
+							
+							// Hide the View More button if no more requests
+							if (!data.hasMore || data.count < 10) {
+								loadMoreBtn.style.display = 'none';
+							} else {
+								// Update button text with remaining count
+								const remainingCount = data.hasMore ? 'more' : '0';
+								loadMoreBtn.innerHTML = `<i class="fas fa-plus mr-2"></i>View More (${remainingCount} more)`;
+								loadMoreBtn.disabled = false;
+							}
+						} else {
+							console.error('Failed to load more requests:', data.message);
+							loadMoreBtn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Error loading requests';
+						}
+					} catch (error) {
+						console.error('Error:', error);
+						loadMoreBtn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Error loading requests';
+					}
+					
+					isLoading = false;
+				});
+				
+				showLessBtn.addEventListener('click', function() {
+					// Remove all additional rows by removing the last N rows
+					const allRows = tableBody.querySelectorAll('tr');
+					const rowsToRemove = totalAdditionalRows;
+					
+					// Remove rows from the end
+					for (let i = allRows.length - 1; i >= allRows.length - rowsToRemove; i--) {
+						if (allRows[i]) {
+							allRows[i].remove();
+						}
+					}
+					
+					// Reset the counter
+					totalAdditionalRows = 0;
+					
+					// Reset offset
+					currentOffset = 5;
+					
+					// Hide Show Less button
+					showLessBtn.classList.add('hidden');
+					
+					// Show View More button again
+					loadMoreBtn.style.display = 'inline-flex';
+					loadMoreBtn.innerHTML = '<i class="fas fa-plus mr-2"></i>View More (<?php echo $total_pending - $initial_limit; ?> more)';
+					loadMoreBtn.disabled = false;
+				});
+			}
+		});
 	</script>
 </body>
 </html>

@@ -15,27 +15,19 @@ if (isset($_GET['clear_insufficient_credits']) && $_GET['clear_insufficient_cred
         if (isset($_SESSION['temp_insufficient_credits_data'])) {
             $formData = $_SESSION['temp_insufficient_credits_data'];
             
-            // Create a hidden form and submit it
-            echo '<form id="autoSubmitForm" method="POST" action="' . (isset($formData['is_late']) ? 'late_leave_application.php' : 'submit_leave.php') . '">';
-            echo '<input type="hidden" name="proceed_without_pay" value="yes">';
-            echo '<input type="hidden" name="leave_type" value="' . htmlspecialchars($formData['leave_type']) . '">';
-            echo '<input type="hidden" name="start_date" value="' . htmlspecialchars($formData['start_date']) . '">';
-            echo '<input type="hidden" name="end_date" value="' . htmlspecialchars($formData['end_date']) . '">';
-            echo '<input type="hidden" name="reason" value="' . htmlspecialchars($formData['reason']) . '">';
+            // Debug: Log what we're processing
+            error_log("Processing without pay request with data: " . json_encode($formData));
             
-            // Add conditional fields if they exist
-            if (isset($formData['location_type'])) echo '<input type="hidden" name="location_type" value="' . htmlspecialchars($formData['location_type']) . '">';
-            if (isset($formData['location_specify'])) echo '<input type="hidden" name="location_specify" value="' . htmlspecialchars($formData['location_specify']) . '">';
-            if (isset($formData['medical_condition'])) echo '<input type="hidden" name="medical_condition" value="' . htmlspecialchars($formData['medical_condition']) . '">';
-            if (isset($formData['illness_specify'])) echo '<input type="hidden" name="illness_specify" value="' . htmlspecialchars($formData['illness_specify']) . '">';
-            if (isset($formData['special_women_condition'])) echo '<input type="hidden" name="special_women_condition" value="' . htmlspecialchars($formData['special_women_condition']) . '">';
-            if (isset($formData['study_type'])) echo '<input type="hidden" name="study_type" value="' . htmlspecialchars($formData['study_type']) . '">';
-            if (isset($formData['late_justification'])) echo '<input type="hidden" name="late_justification" value="' . htmlspecialchars($formData['late_justification']) . '">';
-            
-            echo '</form>';
-            echo '<script>document.getElementById("autoSubmitForm").submit();</script>';
-            
-            unset($_SESSION['temp_insufficient_credits_data']);
+            // Redirect to dashboard with processing flag to show popup
+            $_SESSION['show_processing_popup'] = true;
+            $_SESSION['temp_insufficient_credits_data'] = $formData; // Keep the data for processing
+            header('Location: dashboard.php');
+            exit();
+        } else {
+            // If no form data found, redirect to dashboard with error
+            error_log("No temp_insufficient_credits_data found in session");
+            $_SESSION['error'] = "Unable to process without pay request. Please try submitting again.";
+            header('Location: dashboard.php');
             exit();
         }
     }
@@ -140,6 +132,9 @@ $stmt = $pdo->prepare("
 $stmt->execute([$_SESSION['user_id']]);
 $leave_requests = $stmt->fetchAll();
 
+// Debug: Log leave requests fetch
+error_log("Dashboard - Fetched " . count($leave_requests) . " leave requests for user " . $_SESSION['user_id']);
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -171,7 +166,7 @@ $leave_requests = $stmt->fetchAll();
                 </div>
             </div>
             <div class="p-6">
-                <form id="applyLeaveForm" method="POST" action="submit_leave.php" enctype="multipart/form-data" class="space-y-6">
+                <form id="applyLeaveForm" method="POST" action="submit_leave.php" enctype="multipart/form-data" class="space-y-6" onsubmit="showProcessingModal(event)">
                     <!-- Employee Information -->
                     <div class="bg-slate-700/30 rounded-xl p-6 border border-slate-600/50">
                         <h4 class="text-lg font-semibold text-white mb-4 flex items-center">
@@ -644,6 +639,17 @@ $leave_requests = $stmt->fetchAll();
         <!-- Main Content -->
         <main class="flex-1 ml-64 pt-24 px-6 pb-6">
             <div class="max-w-7xl mx-auto">
+                <!-- Error Messages Only (Success messages are shown in modal) -->
+                <?php if (isset($_SESSION['error'])): ?>
+                    <div class="bg-red-500/20 border border-red-500/30 text-red-400 p-4 rounded-xl mb-6 flex items-center">
+                        <i class="fas fa-exclamation-circle mr-3"></i>
+                        <?php 
+                        echo $_SESSION['error'];
+                        unset($_SESSION['error']);
+                        ?>
+                    </div>
+                <?php endif; ?>
+
                 <!-- Welcome Section -->
                 <div class="mb-10 mt-16">
                     <div class="flex items-start justify-between">
@@ -778,19 +784,8 @@ $leave_requests = $stmt->fetchAll();
                                             <div>
                                                 <h3 class="text-lg font-semibold text-white">
                                                     <?php 
-                                                    // Display original leave type if it was converted to without pay or if leave_type is empty
-                                                    if (isset($request['original_leave_type']) && !empty($request['original_leave_type']) && 
-                                                        ($request['leave_type'] === 'without_pay' || empty($request['leave_type']))) {
-                                                        $originalType = $leaveTypes[$request['original_leave_type']]['name'] ?? ucfirst(str_replace('_', ' ', $request['original_leave_type']));
-                                                        if ($request['leave_type'] === 'without_pay' || empty($request['leave_type'])) {
-                                                            echo $originalType . ' (Without Pay)';
-                                                        } else {
-                                                            echo $originalType;
-                                                        }
-                                                    } else {
-                                                        $currentType = $leaveTypes[$request['leave_type']]['name'] ?? ucfirst(str_replace('_', ' ', $request['leave_type']));
-                                                        echo $currentType;
-                                                    }
+                                                    // Use the getLeaveTypeDisplayName function for consistent display
+                                                    echo getLeaveTypeDisplayName($request['leave_type'], $request['original_leave_type'] ?? null, $leaveTypes);
                                                     ?>
                                                 </h3>
                                                 <p class="text-slate-400 text-sm">
@@ -1097,18 +1092,58 @@ $leave_requests = $stmt->fetchAll();
         }
 
         function proceedWithWithoutPay() {
-            // Prevent multiple clicks
-            const proceedButton = event.target;
-            if (proceedButton.disabled) {
-                return; // Already processing
+            // Clear any previous success modal state for new submission
+            sessionStorage.removeItem('successModalShown');
+            
+            // Get the stored form data
+            const formData = <?php echo json_encode($_SESSION['temp_insufficient_credits_data'] ?? []); ?>;
+            
+            if (formData && Object.keys(formData).length > 0) {
+                // Create a form and submit it directly like regular leave applications
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = formData.is_late ? 'late_leave_application.php' : 'submit_leave.php';
+                
+                // Add all form data as hidden inputs
+                Object.keys(formData).forEach(key => {
+                    if (key !== 'is_late' && key !== 'credit_message') {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = key;
+                        input.value = formData[key] || '';
+                        form.appendChild(input);
+                    }
+                });
+                
+                // Add proceed_without_pay flag
+                const proceedInput = document.createElement('input');
+                proceedInput.type = 'hidden';
+                proceedInput.name = 'proceed_without_pay';
+                proceedInput.value = 'yes';
+                form.appendChild(proceedInput);
+                
+                // Add original_leave_type to preserve the original leave type
+                if (formData.leave_type) {
+                    const originalInput = document.createElement('input');
+                    originalInput.type = 'hidden';
+                    originalInput.name = 'original_leave_type';
+                    originalInput.value = formData.leave_type;
+                    form.appendChild(originalInput);
+                }
+                
+                // Hide the insufficient credits modal
+                const insufficientModal = document.getElementById('insufficientCreditsModal');
+                if (insufficientModal) {
+                    insufficientModal.classList.add('hidden');
+                }
+                
+                // Submit the form
+                document.body.appendChild(form);
+                form.submit();
+            } else {
+                alert('Unable to process request. Please try again.');
+                window.location.href = 'dashboard.php';
             }
-            
-            // Disable the button to prevent multiple submissions
-            proceedButton.disabled = true;
-            proceedButton.textContent = 'Processing...';
-            
-            // Clear the popup session variables to prevent popup from showing again
-            window.location.href = 'dashboard.php?clear_insufficient_credits=1&proceed_without_pay=1';
         }
 
         // Add event listeners
@@ -1148,8 +1183,8 @@ $leave_requests = $stmt->fetchAll();
             }, 1000); // Delay to ensure modal is ready
             <?php endif; ?>
             
-            <?php if (isset($_SESSION['show_insufficient_credits_popup']) && isset($_SESSION['insufficient_credits_data'])): ?>
-            // Auto-open insufficient credits popup
+            <?php if (isset($_SESSION['show_insufficient_credits_popup']) && isset($_SESSION['insufficient_credits_data']) && !isset($_SESSION['show_success_modal'])): ?>
+            // Auto-open insufficient credits popup (only if not showing success modal)
             setTimeout(function() {
                 openInsufficientCreditsModal();
                 // Display the credit message
@@ -1521,16 +1556,8 @@ $leave_requests = $stmt->fetchAll();
                     $user_leave_requests = $stmt->fetchAll();
                     
                     foreach ($user_leave_requests as $request): 
-                        // Process leave type display name
-                        if (isset($request['original_leave_type']) && !empty($request['original_leave_type']) && 
-                            ($request['leave_type'] === 'without_pay' || empty($request['leave_type']))) {
-                            $leaveDisplayName = $leaveTypes[$request['original_leave_type']]['name'] ?? ucfirst(str_replace('_', ' ', $request['original_leave_type']));
-                            if ($request['leave_type'] === 'without_pay' || empty($request['leave_type'])) {
-                                $leaveDisplayName .= ' (Without Pay)';
-                            }
-                        } else {
-                            $leaveDisplayName = $leaveTypes[$request['leave_type']]['name'] ?? ucfirst(str_replace('_', ' ', $request['leave_type']));
-                        }
+                        // Use the getLeaveTypeDisplayName function for consistent display
+                        $leaveDisplayName = getLeaveTypeDisplayName($request['leave_type'], $request['original_leave_type'] ?? null, $leaveTypes);
                     ?>
                     {
                         id: '<?php echo $request['id']; ?>',
@@ -1565,6 +1592,138 @@ Date: ${info.event.start.toLocaleDateString()}
             
             calendar.render();
         });
+    </script>
+
+    <!-- Processing Popup Modal -->
+    <div id="processingModal" class="hidden fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+        <div class="bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="p-6 text-center">
+                <div class="mb-4">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-slate-700 rounded-full mb-4">
+                        <i class="fas fa-spinner fa-spin text-blue-400 text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-white mb-2">Processing Your Request</h3>
+                    <p class="text-slate-300 mb-4">
+                        <?php 
+                        $processingLeaveType = $_SESSION['processing_leave_type'] ?? 'leave';
+                        $processingIsLate = $_SESSION['is_late_application'] ?? false;
+                        $processingTypeDisplay = ucfirst(str_replace('_', ' ', $processingLeaveType));
+                        
+                        if ($processingIsLate) {
+                            echo "Please wait while we submit your late {$processingTypeDisplay} leave request...";
+                        } else {
+                            echo "Please wait while we submit your {$processingTypeDisplay} leave request...";
+                        }
+                        ?>
+                    </p>
+                </div>
+                
+                <div class="flex items-center justify-center space-x-2 text-sm text-slate-400">
+                    <div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+                    <div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                    <div class="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Popup Modal -->
+    <div id="successModal" class="hidden fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+        <div class="bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="p-6 text-center">
+                <div class="mb-4">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-green-600 rounded-full mb-4">
+                        <i class="fas fa-check text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-white mb-2">Request Submitted Successfully!</h3>
+                    <p class="text-slate-300 mb-4">
+                        <?php 
+                        $leaveType = $_SESSION['success_leave_type'] ?? 'leave';
+                        $isLate = $_SESSION['is_late_application'] ?? false;
+                        
+                        // Use the leave types configuration for proper display
+                        $leaveTypes = getLeaveTypes();
+                        $leaveTypeDisplay = isset($leaveTypes[$leaveType]) ? $leaveTypes[$leaveType]['name'] : ucfirst(str_replace('_', ' ', $leaveType));
+                        
+                        if ($isLate) {
+                            echo "Your late {$leaveTypeDisplay} leave request has been submitted and is now pending approval. Please note that late applications may require additional justification.";
+                        } else {
+                            echo "Your {$leaveTypeDisplay} leave request has been submitted and is now pending approval.";
+                        }
+                        ?>
+                    </p>
+                </div>
+                
+                <button onclick="closeSuccessModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                    Continue
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // Show processing popup if needed
+        document.addEventListener('DOMContentLoaded', function() {
+            <?php if (isset($_SESSION['show_success_modal']) && $_SESSION['show_success_modal']): ?>
+                // Check if modal has already been shown in this session
+                if (!sessionStorage.getItem('successModalShown')) {
+                    // Show success modal only once
+                    document.getElementById('successModal').classList.remove('hidden');
+                    
+                    // Mark as shown in session storage
+                    sessionStorage.setItem('successModalShown', 'true');
+                }
+                
+                // Clear session variables immediately
+                <?php 
+                unset($_SESSION['show_success_modal']);
+                unset($_SESSION['success_leave_type']);
+                unset($_SESSION['is_late_application']);
+                ?>
+            <?php endif; ?>
+        });
+        
+        // Function to show processing modal immediately on form submission
+        function showProcessingModal(event) {
+            // Clear any previous success modal state for new submission
+            sessionStorage.removeItem('successModalShown');
+            
+            // Get the leave type from the form
+            const leaveTypeSelect = document.querySelector('select[name="leave_type"]');
+            const leaveType = leaveTypeSelect ? leaveTypeSelect.value : 'leave';
+            
+            // Format leave type for display
+            const leaveTypeDisplay = leaveType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            
+            // Update processing modal message
+            const processingMessage = document.querySelector('#processingModal p.text-slate-300');
+            if (processingMessage) {
+                processingMessage.textContent = `Please wait while we submit your ${leaveTypeDisplay} leave request...`;
+            }
+            
+            // Hide the leave application modal
+            const applyLeaveModal = document.getElementById('applyLeaveModal');
+            if (applyLeaveModal) {
+                applyLeaveModal.classList.add('hidden');
+            }
+            
+            // Show processing modal immediately
+            const processingModal = document.getElementById('processingModal');
+            if (processingModal) {
+                processingModal.classList.remove('hidden');
+            }
+            
+            // Allow form to continue submitting
+            return true;
+        }
+        
+        // Function to close success modal
+        function closeSuccessModal() {
+            document.getElementById('successModal').classList.add('hidden');
+            // Mark that the modal has been closed to prevent re-display
+            sessionStorage.setItem('successModalShown', 'true');
+        }
     </script>
 </body>
 </html>

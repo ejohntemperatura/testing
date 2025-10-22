@@ -69,6 +69,7 @@ $employee = $stmt->fetch();
 $stmt = $pdo->prepare("
     SELECT 
         leave_type,
+        original_leave_type,
         start_date,
         end_date,
         CASE 
@@ -97,10 +98,12 @@ $leaveHistory = $stmt->fetchAll();
 // Calculate total leave days used this year
 $totalUsed = array_sum(array_column($leaveHistory, 'days_used'));
 
-// Calculate leave usage by type
+// Calculate leave usage by type (use original_leave_type if available, otherwise leave_type)
 $leaveUsageByType = [];
 foreach ($leaveHistory as $leave) {
-    $type = $leave['leave_type'];
+    // Use original_leave_type if available (for proceed without pay), otherwise use leave_type
+    $type = !empty($leave['original_leave_type']) ? $leave['original_leave_type'] : $leave['leave_type'];
+    
     if (!isset($leaveUsageByType[$type])) {
         $leaveUsageByType[$type] = [
             'total_days' => 0,
@@ -351,10 +354,15 @@ $leaveTypeMapping = [
                                             <td class="py-3 px-4 text-white font-semibold">
                                                 <div class="flex items-center gap-2">
                                                     <?php 
-                                                    $typeInfo = $leaveTypes[$leave['leave_type']] ?? ['name' => ucwords(str_replace('_', ' ', $leave['leave_type'])), 'icon' => 'fas fa-calendar', 'color' => 'from-gray-500 to-slate-500'];
+                                                    // Use original_leave_type for display if available (for proceed without pay)
+                                                    $displayType = !empty($leave['original_leave_type']) ? $leave['original_leave_type'] : $leave['leave_type'];
+                                                    $typeInfo = $leaveTypes[$displayType] ?? ['name' => ucwords(str_replace('_', ' ', $displayType)), 'icon' => 'fas fa-calendar', 'color' => 'from-gray-500 to-slate-500'];
                                                     ?>
                                                     <i class="<?php echo $typeInfo['icon']; ?> text-primary"></i>
                                                     <?php echo $typeInfo['name']; ?>
+                                                    <?php if ($leave['leave_type'] === 'without_pay' && !empty($leave['original_leave_type'])): ?>
+                                                        <span class="px-2 py-1 bg-orange-500/20 text-orange-400 text-xs rounded-full">Without Pay</span>
+                                                    <?php endif; ?>
                                                     <?php if ($leave['is_late']): ?>
                                                         <span class="px-2 py-1 bg-orange-500/20 text-orange-400 text-xs rounded-full">Late</span>
                                                     <?php endif; ?>
