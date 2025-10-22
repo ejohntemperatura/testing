@@ -288,6 +288,10 @@ error_log("Dashboard - Fetched " . count($leave_requests) . " leave requests for
                                         <i class="fas fa-info-circle mr-1"></i>
                                         Supported formats: PDF, JPG, JPEG, PNG, DOC, DOCX (Max 10MB)
                                     </p>
+                                    <p class="text-xs text-slate-400 mt-1">
+                                        <i class="fas fa-info-circle mr-1"></i>
+                                        Note: If 3 days or more should required medical certificate
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -492,6 +496,10 @@ error_log("Dashboard - Fetched " . count($leave_requests) . " leave requests for
                                     <p class="text-xs text-slate-400 mt-1">
                                         <i class="fas fa-info-circle mr-1"></i>
                                         Supported formats: PDF, JPG, JPEG, PNG, DOC, DOCX (Max 10MB)
+                                    </p>
+                                    <p class="text-xs text-slate-400 mt-1">
+                                        <i class="fas fa-info-circle mr-1"></i>
+                                        Note: If 3 days or more should required medical certificate
                                     </p>
                                 </div>
                             </div>
@@ -1027,6 +1035,7 @@ error_log("Dashboard - Fetched " . count($leave_requests) . " leave requests for
             }
         }
 
+
         // Clear conditional fields when modal is closed
         function clearModalConditionalFields() {
             const conditionalFields = document.getElementById('modalConditionalFields');
@@ -1099,36 +1108,18 @@ error_log("Dashboard - Fetched " . count($leave_requests) . " leave requests for
             const formData = <?php echo json_encode($_SESSION['temp_insufficient_credits_data'] ?? []); ?>;
             
             if (formData && Object.keys(formData).length > 0) {
-                // Create a form and submit it directly like regular leave applications
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = formData.is_late ? 'late_leave_application.php' : 'submit_leave.php';
-                
-                // Add all form data as hidden inputs
-                Object.keys(formData).forEach(key => {
-                    if (key !== 'is_late' && key !== 'credit_message') {
-                        const input = document.createElement('input');
-                        input.type = 'hidden';
-                        input.name = key;
-                        input.value = formData[key] || '';
-                        form.appendChild(input);
+                // Show processing modal first
+                const processingModal = document.getElementById('processingModal');
+                if (processingModal) {
+                    // Update processing message for without pay
+                    const processingMessage = document.querySelector('#processingModal p.text-slate-300');
+                    if (processingMessage) {
+                        const leaveTypeDisplay = formData.leave_type ? formData.leave_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'leave';
+                        processingMessage.textContent = `Please wait while we submit your ${leaveTypeDisplay} leave request (Without Pay)...`;
                     }
-                });
-                
-                // Add proceed_without_pay flag
-                const proceedInput = document.createElement('input');
-                proceedInput.type = 'hidden';
-                proceedInput.name = 'proceed_without_pay';
-                proceedInput.value = 'yes';
-                form.appendChild(proceedInput);
-                
-                // Add original_leave_type to preserve the original leave type
-                if (formData.leave_type) {
-                    const originalInput = document.createElement('input');
-                    originalInput.type = 'hidden';
-                    originalInput.name = 'original_leave_type';
-                    originalInput.value = formData.leave_type;
-                    form.appendChild(originalInput);
+                    
+                    // Show processing modal
+                    processingModal.classList.remove('hidden');
                 }
                 
                 // Hide the insufficient credits modal
@@ -1137,9 +1128,43 @@ error_log("Dashboard - Fetched " . count($leave_requests) . " leave requests for
                     insufficientModal.classList.add('hidden');
                 }
                 
-                // Submit the form
-                document.body.appendChild(form);
-                form.submit();
+                // Create a form and submit it after a short delay to show processing
+                setTimeout(() => {
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = formData.is_late ? 'late_leave_application.php' : 'submit_leave.php';
+                    
+                    // Add all form data as hidden inputs
+                    Object.keys(formData).forEach(key => {
+                        if (key !== 'is_late' && key !== 'credit_message') {
+                            const input = document.createElement('input');
+                            input.type = 'hidden';
+                            input.name = key;
+                            input.value = formData[key] || '';
+                            form.appendChild(input);
+                        }
+                    });
+                    
+                    // Add proceed_without_pay flag
+                    const proceedInput = document.createElement('input');
+                    proceedInput.type = 'hidden';
+                    proceedInput.name = 'proceed_without_pay';
+                    proceedInput.value = 'yes';
+                    form.appendChild(proceedInput);
+                    
+                    // Add original_leave_type to preserve the original leave type
+                    if (formData.leave_type) {
+                        const originalInput = document.createElement('input');
+                        originalInput.type = 'hidden';
+                        originalInput.name = 'original_leave_type';
+                        originalInput.value = formData.leave_type;
+                        form.appendChild(originalInput);
+                    }
+                    
+                    // Submit the form
+                    document.body.appendChild(form);
+                    form.submit();
+                }, 1500); // 1.5 second delay to show processing modal
             } else {
                 alert('Unable to process request. Please try again.');
                 window.location.href = 'dashboard.php';
@@ -1666,14 +1691,11 @@ Date: ${info.event.start.toLocaleDateString()}
         // Show processing popup if needed
         document.addEventListener('DOMContentLoaded', function() {
             <?php if (isset($_SESSION['show_success_modal']) && $_SESSION['show_success_modal']): ?>
-                // Check if modal has already been shown in this session
-                if (!sessionStorage.getItem('successModalShown')) {
-                    // Show success modal only once
-                    document.getElementById('successModal').classList.remove('hidden');
-                    
-                    // Mark as shown in session storage
-                    sessionStorage.setItem('successModalShown', 'true');
-                }
+                // Show success modal (for proceed without pay, sessionStorage is cleared before submission)
+                document.getElementById('successModal').classList.remove('hidden');
+                
+                // Mark as shown in session storage
+                sessionStorage.setItem('successModalShown', 'true');
                 
                 // Clear session variables immediately
                 <?php 

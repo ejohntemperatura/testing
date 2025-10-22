@@ -769,13 +769,32 @@ $users = $stmt->fetchAll();
                     })
                     .then(response => response.text())
                     .then(data => {
-                        showNotification('User added successfully!', 'success');
-                        closeAddUserModal();
-                        this.reset();
+                        console.log('Response data:', data); // Debug log
                         
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1500);
+                        // Check if the response contains an error message
+                        if (data.includes('Email already exists!') || data.includes('error_message') || data.includes('Error') || data.includes('Email already exists')) {
+                            // Try to extract the specific error message
+                            let errorMsg = 'Error adding user. Please try again.';
+                            
+                            if (data.includes('Email already exists!')) {
+                                errorMsg = 'Email already exists!';
+                            } else {
+                                const errorMatch = data.match(/error_message.*?['"](.*?)['"]/);
+                                if (errorMatch) {
+                                    errorMsg = errorMatch[1];
+                                }
+                            }
+                            
+                            showNotification(errorMsg, 'error');
+                        } else {
+                            showNotification('User added successfully!', 'success');
+                            closeAddUserModal();
+                            this.reset();
+                            
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1500);
+                        }
                     })
                     .catch(error => {
                         showNotification('Error adding user: ' + error.message, 'error');
@@ -799,12 +818,31 @@ $users = $stmt->fetchAll();
                     })
                     .then(response => response.text())
                     .then(data => {
-                        showNotification('User updated successfully!', 'success');
-                        closeEditUserModal();
+                        console.log('Edit response data:', data); // Debug log
                         
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1500);
+                        // Check if the response contains an error message
+                        if (data.includes('Email already exists for another user!') || data.includes('error_message') || data.includes('Error') || data.includes('Email already exists')) {
+                            // Try to extract the specific error message
+                            let errorMsg = 'Error updating user. Please try again.';
+                            
+                            if (data.includes('Email already exists for another user!')) {
+                                errorMsg = 'Email already exists for another user!';
+                            } else {
+                                const errorMatch = data.match(/error_message.*?['"](.*?)['"]/);
+                                if (errorMatch) {
+                                    errorMsg = errorMatch[1];
+                                }
+                            }
+                            
+                            showNotification(errorMsg, 'error');
+                        } else {
+                            showNotification('User updated successfully!', 'success');
+                            closeEditUserModal();
+                            
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1500);
+                        }
                     })
                     .catch(error => {
                         showNotification('Error updating user: ' + error.message, 'error');
