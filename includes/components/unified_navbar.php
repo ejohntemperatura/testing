@@ -14,7 +14,7 @@ switch($user_role) {
     case 'admin':
         $user_name = $_SESSION['name'] ?? 'Administrator';
         $user_initials = strtoupper(substr($user_name, 0, 2));
-        $panel_title = 'ELMS Admin';
+        $panel_title = 'ELMS HR';
         $logo_icon = 'fas fa-user-shield';
         $logo_color = 'from-slate-600 to-slate-700';
         break;

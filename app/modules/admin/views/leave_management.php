@@ -185,6 +185,11 @@ if (isset($_GET['leave_type']) && $_GET['leave_type'] !== '') {
     $params[] = $_GET['leave_type'];
 }
 
+if (isset($_GET['department']) && $_GET['department'] !== '') {
+    $where_conditions[] = "e.department = ?";
+    $params[] = $_GET['department'];
+}
+
 // Remove the base conditions to show all requests
 // $where_conditions[] = "(lr.dept_head_approval IS NOT NULL AND lr.dept_head_approval != 'pending')";
 // $where_conditions[] = "(lr.director_approval IS NOT NULL AND lr.director_approval != 'pending')";
@@ -245,6 +250,10 @@ $leave_types = array_keys($leaveTypes);
 // Get all employees for filter
 $stmt = $pdo->query("SELECT name FROM employees ORDER BY name");
 $employees = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+// Get all departments for filter (excluding Executive and Operations)
+$stmt = $pdo->query("SELECT DISTINCT department FROM employees WHERE department IS NOT NULL AND department != '' AND department NOT IN ('Executive', 'Operations') ORDER BY department");
+$departments = $stmt->fetchAll(PDO::FETCH_COLUMN);
 ?>
 
 <!DOCTYPE html>
@@ -357,7 +366,7 @@ $employees = $stmt->fetchAll(PDO::FETCH_COLUMN);
                         </h3>
                         </div>
                     <div class="p-6">
-                        <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
                             <div>
                                 <label for="status" class="block text-sm font-semibold text-slate-300 mb-2">Status</label>
                                 <select name="status" id="status" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
@@ -386,11 +395,23 @@ $employees = $stmt->fetchAll(PDO::FETCH_COLUMN);
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
-                            <div class="flex items-end">
+                            <div>
+                                <label for="department" class="block text-sm font-semibold text-slate-300 mb-2">Department</label>
+                                <select name="department" id="department" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                        <option value="">All Departments</option>
+                                        <?php foreach ($departments as $dept): ?>
+                                            <option value="<?php echo htmlspecialchars($dept); ?>" 
+                                                    <?php echo (isset($_GET['department']) && $_GET['department'] == $dept) ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($dept); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            <div class="flex items-end sm:col-span-2 lg:col-span-1">
                                 <button type="submit" class="w-full bg-primary hover:bg-primary/80 text-white px-4 py-3 rounded-xl transition-colors flex items-center justify-center">
                                     <i class="fas fa-search mr-2"></i>Filter
-                                        </button>
-                                </div>
+                                </button>
+                            </div>
                             </form>
                 </div>
             </div>

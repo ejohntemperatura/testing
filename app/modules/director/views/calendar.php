@@ -40,7 +40,7 @@ $me = $stmt->fetch();
                 <div class="space-y-1">
                     <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Management</h3>
                     <a href="view_chart.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
-                        <i class="fas fa-chart-line w-5"></i>
+                        <i class="fas fa-calendar w-5"></i>
                         <span>Leave Chart</span>
                     </a>
                 </div>
@@ -59,7 +59,7 @@ $me = $stmt->fetch();
                 <div class="mb-8">
                     <div class="flex items-center gap-4">
                         <div class="w-16 h-16 bg-gradient-to-r from-primary to-accent rounded-2xl flex items-center justify-center">
-                            <i class="fas fa-chart-line text-2xl text-white"></i>
+                            <i class="fas fa-calendar text-2xl text-white"></i>
                         </div>
                         <div>
                             <h1 class="text-3xl font-bold text-white mb-2">Director Leave Chart</h1>

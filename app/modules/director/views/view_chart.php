@@ -52,7 +52,7 @@ $me = $stmt->fetch();
                 <div class="mb-8">
                     <div class="flex items-center gap-4">
                         <div class="w-16 h-16 bg-gradient-to-r from-primary to-accent rounded-2xl flex items-center justify-center">
-                            <i class="fas fa-chart-line text-2xl text-white"></i>
+                            <i class="fas fa-calendar text-2xl text-white"></i>
                         </div>
                         <div>
                             <h1 class="text-3xl font-bold text-white mb-2">Director Leave Chart</h1>

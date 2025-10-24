@@ -345,8 +345,8 @@ $leave_requests = $stmt->fetchAll();
                                     <td class="px-3 md:px-6 py-4">
                                         <span class="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide <?php 
                                             $final_status = $request['final_approval_status'] ?? $request['status'];
-                                            echo $final_status == 'approved' ? 'bg-slate-600/20 text-slate-300' : 
-                                                ($final_status == 'pending' ? 'bg-slate-500/20 text-slate-300' : 'bg-slate-700/20 text-slate-400'); 
+                                            echo $final_status == 'approved' ? 'bg-green-500/20 text-green-400' : 
+                                                ($final_status == 'pending' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'); 
                                         ?>">
                                             <?php echo ucfirst($final_status); ?>
                                         </span>
@@ -891,8 +891,8 @@ $leave_requests = $stmt->fetchAll();
                             </h6>
                             <div class="space-y-2 text-slate-300">
                                 <p><strong class="text-white">Meaning:</strong> Leave request is waiting for approval</p>
-                                <p><strong class="text-white">What you can do:</strong> Go to Leave Management to approve/reject</p>
-                                <p><strong class="text-white">Next step:</strong> Use the settings button to access management</p>
+                                <p><strong class="text-white">What you can do:</strong> Monitor and track request progress</p>
+                                <p><strong class="text-white">Next step:</strong> Department Head and Director will review</p>
                             </div>
                         </div>
                         <div>
@@ -926,7 +926,7 @@ $leave_requests = $stmt->fetchAll();
                             </h6>
                             <div class="space-y-2 text-slate-300">
                                 <p><strong class="text-white">Purpose:</strong> Access full leave management system</p>
-                                <p><strong class="text-white">Includes:</strong> Approve, reject, and manage all requests</p>
+                                <p><strong class="text-white">Includes:</strong> View, monitor, and track all requests</p>
                                 <p><strong class="text-white">Action:</strong> Click the settings button</p>
                             </div>
                         </div>
@@ -937,9 +937,9 @@ $leave_requests = $stmt->fetchAll();
                             <i class="fas fa-exclamation-triangle mr-2"></i>Important Notes
                         </h6>
                         <ul class="text-slate-300 space-y-1">
-                            <li>• Use the <strong class="text-white">Leave Management</strong> page to approve or reject requests</li>
+                            <li>• Use the <strong class="text-white">Leave Management</strong> page to view and monitor requests</li>
                             <li>• This dashboard shows a summary view only</li>
-                            <li>• All approval actions must be done in the management section</li>
+                            <li>• Approval actions are handled by Department Heads and Directors</li>
                             <li>• All actions are logged for audit purposes</li>
                         </ul>
                     </div>
