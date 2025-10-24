@@ -1547,6 +1547,58 @@ error_log("Dashboard - Fetched " . count($leave_requests) . " leave requests for
     .fc-daygrid-event {
         margin: 1px 2px !important;
     }
+
+    /* More Link Styling */
+    .fc-more-link {
+        background: #0891b2 !important;
+        color: white !important;
+        border-radius: 4px !important;
+        padding: 2px 6px !important;
+        font-size: 0.75rem !important;
+        font-weight: 500 !important;
+        text-decoration: none !important;
+        display: inline-block !important;
+        margin-top: 2px !important;
+        transition: all 0.2s ease !important;
+    }
+
+    .fc-more-link:hover {
+        background: #0e7490 !important;
+        color: white !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 2px 4px rgba(8, 145, 178, 0.3) !important;
+    }
+
+    /* Popover Styling */
+    .fc-popover {
+        background: #1e293b !important;
+        border: 1px solid #334155 !important;
+        border-radius: 8px !important;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    .fc-popover-header {
+        background: #334155 !important;
+        color: #f8fafc !important;
+        border-bottom: 1px solid #475569 !important;
+        padding: 0.75rem 1rem !important;
+        font-weight: 600 !important;
+    }
+
+    .fc-popover-body {
+        background: #1e293b !important;
+        color: #f8fafc !important;
+        padding: 0.5rem !important;
+    }
+
+    .fc-popover-close {
+        color: #94a3b8 !important;
+        font-size: 1.25rem !important;
+    }
+
+    .fc-popover-close:hover {
+        color: #f8fafc !important;
+    }
     </style>
     
     <script>
@@ -1561,6 +1613,11 @@ error_log("Dashboard - Fetched " . count($leave_requests) . " leave requests for
                     right: 'dayGridMonth,listWeek'
                 },
                 height: 'auto',
+                dayMaxEvents: 3, // Limit to 3 events per day
+                moreLinkClick: 'popover', // Show popover for additional events
+                moreLinkText: function(num) {
+                    return '+ ' + num + ' more';
+                },
                 events: [
                     <?php 
                     // Get user's leave requests for calendar (exclude rejected leaves)
@@ -1585,17 +1642,25 @@ error_log("Dashboard - Fetched " . count($leave_requests) . " leave requests for
                         $leaveDisplayName = getLeaveTypeDisplayName($request['leave_type'], $request['original_leave_type'] ?? null, $leaveTypes);
                     ?>
                     {
+                        <?php
+                        // For without pay leaves, use original leave type color if available
+                        $colorClass = 'leave-' . $request['leave_type'];
+                        if ($request['leave_type'] === 'without_pay' && !empty($request['original_leave_type'])) {
+                            $colorClass = 'leave-' . $request['original_leave_type'];
+                        }
+                        ?>
                         id: '<?php echo $request['id']; ?>',
                         title: '<?php echo addslashes($leaveDisplayName); ?> (<?php echo $request['actual_days_approved']; ?> days)',
                         start: '<?php echo $request['start_date']; ?>',
                         end: '<?php echo date('Y-m-d', strtotime($request['start_date'] . ' +' . $request['actual_days_approved'] . ' days')); ?>',
-                        className: 'leave-<?php echo $request['leave_type']; ?>',
+                        className: '<?php echo $colorClass; ?>',
                         extendedProps: {
                             leave_type: '<?php echo $request['leave_type']; ?>',
                             status: '<?php echo $request['status']; ?>',
                             days_approved: <?php echo $request['actual_days_approved']; ?>,
                             days_requested: <?php echo $request['days_requested']; ?>,
-                            reason: '<?php echo addslashes($request['reason']); ?>'
+                            reason: '<?php echo addslashes($request['reason']); ?>',
+                            display_name: '<?php echo addslashes($leaveDisplayName); ?>'
                         }
                     },
                     <?php endforeach; ?>
@@ -1604,7 +1669,7 @@ error_log("Dashboard - Fetched " . count($leave_requests) . " leave requests for
                     const props = info.event.extendedProps;
                     const message = `
 Leave Details:
-Type: ${props.leave_type.replace('_', ' ')}
+Type: ${props.display_name}
 Status: ${props.status}
 Days Approved: ${props.days_approved}
 Days Requested: ${props.days_requested}

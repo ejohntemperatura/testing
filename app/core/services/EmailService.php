@@ -120,14 +120,15 @@ class EmailService {
         ?string $approverName = null,
         ?string $approverRole = null,
         ?int $approvedDays = null,
-        ?string $originalLeaveType = null
+        ?string $originalLeaveType = null,
+        ?string $rejectionReason = null
     ): bool {
         try {
             $this->mailer->clearAllRecipients();
             $this->mailer->addAddress($userEmail, $userName);
             
             // Determine email content based on status
-            $emailContent = $this->generateEmailContent($status, $userName, $startDate, $endDate, $leaveType, $approverName, $approverRole, $approvedDays, $originalLeaveType);
+            $emailContent = $this->generateEmailContent($status, $userName, $startDate, $endDate, $leaveType, $approverName, $approverRole, $approvedDays, $originalLeaveType, $rejectionReason);
             
             $this->mailer->Subject = $emailContent['subject'];
             $this->mailer->Body = $emailContent['html'];
@@ -154,7 +155,8 @@ class EmailService {
         ?string $approverName,
         ?string $approverRole,
         ?int $approvedDays = null,
-        ?string $originalLeaveType = null
+        ?string $originalLeaveType = null,
+        ?string $rejectionReason = null
     ): array {
         $statusColor = $this->getStatusColor($status);
         $statusText = $this->getStatusText($status);
@@ -291,6 +293,7 @@ class EmailService {
                     
                     <div class='status-message'>
                         Your leave request has been <strong>{$statusText}</strong>.
+                        " . ($status === 'rejected' && $rejectionReason ? "<p style='margin-top: 12px; color: #991b1b;'><strong>Reason:</strong> {$rejectionReason}</p>" : '') . "
                     </div>
                     
                     <div class='details'>
@@ -317,7 +320,8 @@ class EmailService {
 
         $plain = "{$subject}\n\n"
             . "Dear {$userName},\n\n"
-            . "Your leave request has been {$statusText}.\n\n"
+            . "Your leave request has been {$statusText}.\n"
+            . ($status === 'rejected' && $rejectionReason ? "\nReason: {$rejectionReason}\n" : '') . "\n"
             . "LEAVE REQUEST DETAILS:\n"
             . ($leaveType ? "Leave Type: " . $this->getLeaveTypeDisplayName($leaveType, $originalLeaveType) . "\n" : '')
             . "Start Date: {$startDate}\n"

@@ -35,6 +35,7 @@ try {
         die('Leave request not found');
     }
     
+    
     // Format dates
     function formatDate($dateString) {
         if (!$dateString) return 'N/A';
@@ -76,275 +77,144 @@ try {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            font-family: Arial, sans-serif; 
             line-height: 1.6; 
             color: #333; 
-            background: #f8f9fa;
+            background: white;
         }
         
         .print-container {
             max-width: 800px;
             margin: 0 auto;
             background: white;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            padding: 20px;
         }
         
         .header {
-            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #8b5cf6 100%);
-            color: white;
-            padding: 40px;
             text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/><circle cx="10" cy="60" r="0.5" fill="white" opacity="0.1"/><circle cx="90" cy="40" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-            opacity: 0.3;
-        }
-        
-        .header-content {
-            position: relative;
-            z-index: 1;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #333;
         }
         
         .header h1 {
-            font-size: 2.8rem;
-            font-weight: 800;
-            margin-bottom: 15px;
-            text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
-            letter-spacing: 2px;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
         }
         
         .header .subtitle {
-            font-size: 1.2rem;
-            opacity: 0.95;
-            font-weight: 400;
-            letter-spacing: 1px;
-        }
-        
-        .header .request-id {
-            position: absolute;
-            top: 25px;
-            right: 35px;
-            background: rgba(255,255,255,0.25);
-            padding: 10px 20px;
-            border-radius: 25px;
-            font-size: 0.95rem;
-            font-weight: 700;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.3);
-        }
-        
-        .print-date {
-            position: absolute;
-            top: 25px;
-            left: 35px;
-            font-size: 0.85rem;
-            opacity: 0.85;
-            font-weight: 500;
+            font-size: 16px;
+            color: #666;
         }
         
         .content {
-            padding: 40px;
+            padding: 0;
         }
         
         .section {
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
         
         .section-title {
-            font-size: 1.3rem;
-            font-weight: 600;
-            color: #1e40af;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #e5e7eb;
-            position: relative;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
         }
         
-        .section-title::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 0;
-            width: 50px;
-            height: 2px;
-            background: #3b82f6;
-        }
-        
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
             margin-bottom: 20px;
         }
         
-        .info-item {
-            display: flex;
-            flex-direction: column;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-left: 4px solid #3b82f6;
+        .info-table td {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+            vertical-align: top;
         }
         
-        .info-label {
-            font-size: 0.85rem;
-            color: #6b7280;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 5px;
-        }
-        
-        .info-value {
-            font-size: 1rem;
-            color: #1f2937;
-            font-weight: 500;
+        .info-table td:first-child {
+            width: 200px;
+            font-weight: bold;
+            color: #555;
         }
         
         .status-badge {
             display: inline-block;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
         
         .status-approved {
-            background: #dcfce7;
-            color: #166534;
+            background: #d4edda;
+            color: #155724;
         }
         
         .status-rejected {
-            background: #fef2f2;
-            color: #dc2626;
+            background: #f8d7da;
+            color: #721c24;
         }
         
         .status-pending {
-            background: #fef3c7;
-            color: #d97706;
+            background: #fff3cd;
+            color: #856404;
         }
         
         .reason-section {
             background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            border: 1px solid #ddd;
+            margin: 15px 0;
         }
         
         .reason-text {
-            font-size: 1rem;
-            line-height: 1.6;
-            color: #374151;
             font-style: italic;
+            color: #555;
         }
         
         .approval-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #333;
+        }
+        
+        .approval-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .approval-table th,
+        .approval-table td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        
+        .approval-table th {
             background: #f8f9fa;
-            padding: 30px;
-            border-radius: 12px;
-            margin-top: 30px;
-        }
-        
-        .approval-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-top: 20px;
-        }
-        
-        .approval-box {
-            background: white;
-            padding: 25px;
-            border-radius: 8px;
-            border: 2px solid #e5e7eb;
-            position: relative;
-        }
-        
-        .approval-box.approved {
-            border-color: #10b981;
-            background: #f0fdf4;
-        }
-        
-        .approval-box.rejected {
-            border-color: #ef4444;
-            background: #fef2f2;
-        }
-        
-        .approval-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #1f2937;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .approval-status {
-            margin-bottom: 10px;
-        }
-        
-        .approval-date {
-            font-size: 0.9rem;
-            color: #6b7280;
-            margin-bottom: 15px;
-        }
-        
-        .approval-details {
-            font-size: 0.9rem;
-            color: #374151;
-            margin-bottom: 20px;
-        }
-        
-        .signature-area {
-            margin-top: 30px;
-            text-align: center;
-        }
-        
-        .signature-line {
-            width: 200px;
-            height: 1px;
-            background: #374151;
-            margin: 0 auto 10px;
-        }
-        
-        .signature-label {
-            font-size: 0.8rem;
-            color: #6b7280;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-weight: bold;
         }
         
         .footer {
-            background: #f8f9fa;
-            padding: 20px;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ccc;
             text-align: center;
-            color: #6b7280;
-            font-size: 0.9rem;
-            border-top: 1px solid #e5e7eb;
+            color: #666;
+            font-size: 12px;
         }
         
         @media print {
             body { background: white; }
             .print-container { box-shadow: none; }
-            .header { -webkit-print-color-adjust: exact; }
-            .status-badge { -webkit-print-color-adjust: exact; }
-            .approval-box.approved { -webkit-print-color-adjust: exact; }
-            .approval-box.rejected { -webkit-print-color-adjust: exact; }
-            /* Ensure late application styling prints correctly */
-            .late-application-indicator { -webkit-print-color-adjust: exact; }
-            .late-justification-section { -webkit-print-color-adjust: exact; }
         }
         
         @page {
@@ -357,103 +227,86 @@ try {
 
     <div class="print-container">
         <div class="header">
-            <div class="print-date">Printed: <?php echo date('F j, Y \a\t g:i A'); ?></div>
-            <div class="request-id">Request #<?php echo $leaveRequest['id']; ?></div>
-            <div class="header-content">
-                <div style="margin-bottom: 20px;">
-                    <div style="width: 60px; height: 60px; background: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 24px;">
-                        <i class="fas fa-building" style="color: white;"></i>
-                    </div>
-                </div>
-                <h1>LEAVE REQUEST FORM</h1>
-                <?php if ($leaveRequest['is_late'] == 1): ?>
-                <div class="late-application-indicator" style="background: rgba(255, 165, 0, 0.2); border: 2px solid rgba(255, 165, 0, 0.5); border-radius: 8px; padding: 15px; margin: 20px 0; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                    <i class="fas fa-exclamation-triangle" style="color: #f59e0b; font-size: 1.2rem;"></i>
-                    <span style="color: #f59e0b; font-weight: 700; font-size: 1.1rem;">LATE LEAVE APPLICATION</span>
-                </div>
-                <?php endif; ?>
-                <p class="subtitle">Employee Leave Management System</p>
-                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
-                    <p style="font-size: 0.9rem; opacity: 0.8; margin: 0;">Official Document</p>
-                </div>
-            </div>
+            <h1>LEAVE REQUEST FORM</h1>
+            <p class="subtitle">Employee Leave Management System</p>
+            <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                Request #<?php echo $leaveRequest['id']; ?> | Printed: <?php echo date('F j, Y \a\t g:i A'); ?>
+            </p>
+            <?php if ($leaveRequest['is_late'] == 1): ?>
+            <p style="color: #f59e0b; font-weight: bold; margin-top: 10px;">⚠️ LATE LEAVE APPLICATION</p>
+            <?php endif; ?>
         </div>
         
         <div class="content">
             <div class="section">
                 <h2 class="section-title">Employee Information</h2>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Employee Name</div>
-                        <div class="info-value"><?php echo htmlspecialchars($leaveRequest['employee_name']); ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Position</div>
-                        <div class="info-value"><?php echo htmlspecialchars(!empty($leaveRequest['position']) ? $leaveRequest['position'] : 'N/A'); ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Department</div>
-                        <div class="info-value"><?php echo htmlspecialchars(!empty($leaveRequest['department']) ? $leaveRequest['department'] : 'N/A'); ?></div>
-                    </div>
-                </div>
+                <table class="info-table">
+                    <tr>
+                        <td>Employee Name:</td>
+                        <td><?php echo htmlspecialchars($leaveRequest['employee_name']); ?></td>
+                    </tr>
+                    <tr>
+                        <td>Position:</td>
+                        <td><?php echo htmlspecialchars(!empty($leaveRequest['position']) ? $leaveRequest['position'] : 'N/A'); ?></td>
+                    </tr>
+                    <tr>
+                        <td>Department:</td>
+                        <td><?php echo htmlspecialchars(!empty($leaveRequest['department']) ? $leaveRequest['department'] : 'N/A'); ?></td>
+                    </tr>
+                </table>
             </div>
             
             <div class="section">
                 <h2 class="section-title">Leave Details</h2>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Leave Type</div>
-                        <div class="info-value">
+                <table class="info-table">
+                    <tr>
+                        <td>Leave Type:</td>
+                        <td>
                             <?php echo strtoupper(str_replace('_', ' ', $leaveRequest['leave_type'])); ?>
                             <?php if ($leaveRequest['is_late'] == 1): ?>
-                                <span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; margin-left: 8px; font-weight: 600;">LATE</span>
+                                <span style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 5px; font-weight: bold;">LATE</span>
                             <?php endif; ?>
-                        </div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Total Days</div>
-                        <div class="info-value"><?php echo !empty($leaveRequest['days_requested']) ? $leaveRequest['days_requested'] : 'N/A'; ?> day(s)</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Start Date</div>
-                        <div class="info-value"><?php echo formatDate($leaveRequest['start_date']); ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">End Date</div>
-                        <div class="info-value"><?php echo formatDate($leaveRequest['end_date']); ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Application Date</div>
-                        <div class="info-value"><?php echo formatDate($leaveRequest['created_at']); ?></div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Current Status</div>
-                        <div class="info-value"><?php echo getStatusBadge($leaveRequest['status']); ?></div>
-                    </div>
-                </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Total Days:</td>
+                        <td><?php echo !empty($leaveRequest['days_requested']) ? $leaveRequest['days_requested'] : 'N/A'; ?> day(s)</td>
+                    </tr>
+                    <tr>
+                        <td>Start Date:</td>
+                        <td><?php echo formatDate($leaveRequest['start_date']); ?></td>
+                    </tr>
+                    <tr>
+                        <td>End Date:</td>
+                        <td><?php echo formatDate($leaveRequest['end_date']); ?></td>
+                    </tr>
+                    <tr>
+                        <td>Application Date:</td>
+                        <td><?php echo formatDate($leaveRequest['created_at']); ?></td>
+                    </tr>
+                    <tr>
+                        <td>Current Status:</td>
+                        <td><?php echo getStatusBadge($leaveRequest['status']); ?></td>
+                    </tr>
+                </table>
             </div>
             
             <div class="section">
                 <h2 class="section-title">Reason for Leave</h2>
-                <div class="reason-section">
-                    <p class="reason-text">"<?php echo htmlspecialchars($leaveRequest['reason']); ?>"</p>
-                </div>
+                <p style="padding: 10px; background: #f8f9fa; border: 1px solid #ddd; font-style: italic;">
+                    "<?php echo htmlspecialchars($leaveRequest['reason']); ?>"
+                </p>
             </div>
             
             <?php if ($leaveRequest['is_late'] == 1): ?>
             <div class="section">
                 <h2 class="section-title" style="color: #f59e0b;">Late Application Justification</h2>
-                <div class="late-justification-section reason-section" style="border-left-color: #f59e0b; background: #fef3c7;">
-                    <p class="reason-text" style="color: #92400e; font-weight: 500;">
-                        "<?php echo htmlspecialchars($leaveRequest['late_justification'] ?: 'No justification provided'); ?>"
-                    </p>
-                    <div style="margin-top: 15px; padding: 10px; background: rgba(245, 158, 11, 0.1); border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.3);">
-                        <p style="margin: 0; font-size: 0.9rem; color: #92400e; font-weight: 600;">
-                            <i class="fas fa-info-circle" style="margin-right: 5px;"></i>
-                            This application was submitted after the required deadline and requires special consideration.
-                        </p>
-                    </div>
-                </div>
+                <p style="padding: 10px; background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; font-style: italic;">
+                    "<?php echo htmlspecialchars($leaveRequest['late_justification'] ?: 'No justification provided'); ?>"
+                </p>
+                <p style="font-size: 12px; color: #92400e; margin-top: 10px; padding: 8px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3);">
+                    ⚠️ This application was submitted after the required deadline and requires special consideration.
+                </p>
             </div>
             <?php endif; ?>
             
@@ -466,130 +319,131 @@ try {
             <?php if (in_array($leaveType, ['vacation', 'special_privilege', 'sick', 'special_women', 'study'])): ?>
             <div class="section">
                 <h2 class="section-title">Additional Details</h2>
-                <div class="reason-section">
+                <table class="info-table">
                     <?php if (in_array($leaveType, ['vacation', 'special_privilege'])): ?>
-                        <div class="info-grid">
-                            <div class="info-item">
-                                <div class="info-label">Location Type</div>
-                                <div class="info-value"><?php echo !empty($leaveRequest['location_type']) ? ucfirst(str_replace('_', ' ', $leaveRequest['location_type'])) : 'N/A'; ?></div>
-                            </div>
-                            <div class="info-item">
-                                <div class="info-label">Specific Address</div>
-                                <div class="info-value"><?php echo !empty($leaveRequest['location_specify']) ? htmlspecialchars($leaveRequest['location_specify']) : 'N/A'; ?></div>
-                            </div>
-                        </div>
+                        <tr>
+                            <td>Location Type:</td>
+                            <td><?php echo !empty($leaveRequest['location_type']) ? ucfirst(str_replace('_', ' ', $leaveRequest['location_type'])) : 'N/A'; ?></td>
+                        </tr>
+                        <tr>
+                            <td>Specific Address:</td>
+                            <td><?php echo !empty($leaveRequest['location_specify']) ? htmlspecialchars($leaveRequest['location_specify']) : 'N/A'; ?></td>
+                        </tr>
                     <?php endif; ?>
                     
                     <?php if ($leaveType === 'sick'): ?>
-                        <div class="info-grid">
-                            <div class="info-item">
-                                <div class="info-label">Medical Condition</div>
-                                <div class="info-value"><?php echo !empty($leaveRequest['medical_condition']) ? ucfirst(str_replace('_', ' ', $leaveRequest['medical_condition'])) : 'N/A'; ?></div>
-                            </div>
-                            <div class="info-item">
-                                <div class="info-label">Illness Specification</div>
-                                <div class="info-value"><?php echo !empty($leaveRequest['illness_specify']) ? htmlspecialchars($leaveRequest['illness_specify']) : 'N/A'; ?></div>
-                            </div>
-                            <div class="info-item">
-                                <div class="info-label">Medical Certificate</div>
-                                <div class="info-value">
-                                    <?php if (!empty($leaveRequest['medical_certificate_path'])): ?>
-                                        <span style="color: #10b981; font-weight: 600;">✓ Medical Certificate Attached</span>
-                                        <br><small style="color: #6b7280;">File: <?php echo basename($leaveRequest['medical_certificate_path']); ?></small>
-                                    <?php else: ?>
-                                        <span style="color: #ef4444;">No Medical Certificate Provided</span>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        </div>
+                        <tr>
+                            <td>Medical Condition:</td>
+                            <td><?php echo !empty($leaveRequest['medical_condition']) ? ucfirst(str_replace('_', ' ', $leaveRequest['medical_condition'])) : 'N/A'; ?></td>
+                        </tr>
+                        <tr>
+                            <td>Illness Specification:</td>
+                            <td><?php echo !empty($leaveRequest['illness_specify']) ? htmlspecialchars($leaveRequest['illness_specify']) : 'N/A'; ?></td>
+                        </tr>
+                        <tr>
+                            <td>Medical Certificate:</td>
+                            <td>
+                                <?php if (!empty($leaveRequest['medical_certificate_path'])): ?>
+                                    <span style="color: #10b981; font-weight: bold;">✓ Medical Certificate Attached</span>
+                                    <br><small style="color: #666;">File: <?php echo basename($leaveRequest['medical_certificate_path']); ?></small>
+                                <?php else: ?>
+                                    <span style="color: #ef4444;">No Medical Certificate Provided</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
                     <?php endif; ?>
                     
                     <?php if ($leaveType === 'special_women'): ?>
-                        <div class="info-grid">
-                            <div class="info-item">
-                                <div class="info-label">Illness Specification</div>
-                                <div class="info-value"><?php echo !empty($leaveRequest['special_women_condition']) ? htmlspecialchars($leaveRequest['special_women_condition']) : 'N/A'; ?></div>
-                            </div>
-                        </div>
+                        <tr>
+                            <td>Illness Specification:</td>
+                            <td><?php echo !empty($leaveRequest['special_women_condition']) ? htmlspecialchars($leaveRequest['special_women_condition']) : 'N/A'; ?></td>
+                        </tr>
                     <?php endif; ?>
                     
                     <?php if ($leaveType === 'study'): ?>
-                        <div class="info-grid">
-                            <div class="info-item">
-                                <div class="info-label">Study Type</div>
-                                <div class="info-value"><?php echo !empty($leaveRequest['study_type']) ? ucfirst(str_replace('_', ' ', $leaveRequest['study_type'])) : 'N/A'; ?></div>
-                            </div>
-                        </div>
+                        <tr>
+                            <td>Study Type:</td>
+                            <td><?php echo !empty($leaveRequest['study_type']) ? ucfirst(str_replace('_', ' ', $leaveRequest['study_type'])) : 'N/A'; ?></td>
+                        </tr>
                     <?php endif; ?>
-                </div>
+                </table>
             </div>
             <?php endif; ?>
             
+            
             <div class="approval-section">
                 <h2 class="section-title">Approval Section</h2>
-                <div class="approval-grid">
-                    <div class="approval-box <?php echo $leaveRequest['dept_head_approval'] === 'approved' ? 'approved' : ($leaveRequest['dept_head_approval'] === 'rejected' ? 'rejected' : ''); ?>">
-                        <div class="approval-title">
-                            <span>Department Head Approval</span>
-                        </div>
-                        <div class="approval-status">
-                            <?php echo getStatusBadge($leaveRequest['dept_head_approval'] ?: 'pending'); ?>
-                        </div>
-                        <div class="approval-date">
-                            <?php echo !empty($leaveRequest['dept_head_approved_at']) ? 'Date: ' . formatDateTime($leaveRequest['dept_head_approved_at']) : 'Pending'; ?>
-                        </div>
-                        <?php if (!empty($leaveRequest['dept_head_notes'])): ?>
-                            <div class="approval-details">Notes: <?php echo htmlspecialchars($leaveRequest['dept_head_notes']); ?></div>
-                        <?php endif; ?>
-                        <div class="signature-area">
-                            <div class="signature-line"></div>
-                            <div class="signature-label">Department Head Signature</div>
-                        </div>
-                    </div>
-                    
-                    <div class="approval-box <?php echo $leaveRequest['director_approval'] === 'approved' ? 'approved' : ($leaveRequest['director_approval'] === 'rejected' ? 'rejected' : ''); ?>">
-                        <div class="approval-title">
-                            <span>Director Approval</span>
-                        </div>
-                        <div class="approval-status">
-                            <?php echo getStatusBadge($leaveRequest['director_approval'] ?: 'pending'); ?>
-                        </div>
-                        <div class="approval-date">
-                            <?php echo !empty($leaveRequest['director_approved_at']) ? 'Date: ' . formatDateTime($leaveRequest['director_approved_at']) : 'Pending'; ?>
-                        </div>
-                        <div class="approval-details">
-                            <?php if (!empty($leaveRequest['approved_days_with_pay'])): ?>
-                                Days with Pay: <?php echo $leaveRequest['approved_days_with_pay']; ?><br>
-                            <?php endif; ?>
-                            <?php if (!empty($leaveRequest['approved_days_without_pay'])): ?>
-                                Days without Pay: <?php echo $leaveRequest['approved_days_without_pay']; ?><br>
-                            <?php endif; ?>
-                            <?php if (!empty($leaveRequest['director_notes'])): ?>
-                                Notes: <?php echo htmlspecialchars($leaveRequest['director_notes']); ?>
-                            <?php endif; ?>
-                        </div>
-                        <div class="signature-area">
-                            <div class="signature-line"></div>
-                            <div class="signature-label">Director Signature</div>
-                        </div>
-                    </div>
-                </div>
+                <table class="approval-table">
+                    <thead>
+                        <tr>
+                            <th>Approver</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th>Notes</th>
+                            <th>Signature</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Department Head</strong></td>
+                            <td><?php echo getStatusBadge($leaveRequest['dept_head_approval'] ?: 'pending'); ?></td>
+                            <td><?php echo !empty($leaveRequest['dept_head_approved_at']) ? formatDateTime($leaveRequest['dept_head_approved_at']) : 'Pending'; ?></td>
+                            <td>
+                                <?php if (!empty($leaveRequest['dept_head_rejection_reason'])): ?>
+                                    <?php echo htmlspecialchars($leaveRequest['dept_head_rejection_reason']); ?>
+                                <?php elseif (!empty($leaveRequest['approved_days_with_pay']) || !empty($leaveRequest['approved_days_without_pay'])): ?>
+                                    <?php if (!empty($leaveRequest['approved_days_with_pay'])): ?>
+                                        <?php echo $leaveRequest['approved_days_with_pay']; ?> day(s) with pay
+                                    <?php endif; ?>
+                                    <?php if (!empty($leaveRequest['approved_days_without_pay'])): ?>
+                                        <?php if (!empty($leaveRequest['approved_days_with_pay'])): ?><br><?php endif; ?>
+                                        <?php echo $leaveRequest['approved_days_without_pay']; ?> day(s) without pay
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    -
+                                <?php endif; ?>
+                            </td>
+                            <td style="height: 40px; vertical-align: bottom;">
+                                <div style="border-bottom: 1px solid #333; width: 150px; margin-bottom: 5px;"></div>
+                                <small>Signature</small>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Director</strong></td>
+                            <td><?php 
+                                $director_display_status = ($leaveRequest['dept_head_approval'] === 'rejected') ? 'rejected' : ($leaveRequest['director_approval'] ?: 'pending');
+                                echo getStatusBadge($director_display_status); 
+                            ?></td>
+                            <td><?php echo !empty($leaveRequest['director_approved_at']) ? formatDateTime($leaveRequest['director_approved_at']) : 'Pending'; ?></td>
+                            <td>
+                                <?php if (!empty($leaveRequest['director_rejection_reason'])): ?>
+                                    <?php echo htmlspecialchars($leaveRequest['director_rejection_reason']); ?>
+                                <?php elseif (!empty($leaveRequest['approved_days_with_pay']) || !empty($leaveRequest['approved_days_without_pay'])): ?>
+                                    <?php if (!empty($leaveRequest['approved_days_with_pay'])): ?>
+                                        <?php echo $leaveRequest['approved_days_with_pay']; ?> day(s) with pay
+                                    <?php endif; ?>
+                                    <?php if (!empty($leaveRequest['approved_days_without_pay'])): ?>
+                                        <?php if (!empty($leaveRequest['approved_days_with_pay'])): ?><br><?php endif; ?>
+                                        <?php echo $leaveRequest['approved_days_without_pay']; ?> day(s) without pay
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    -
+                                <?php endif; ?>
+                            </td>
+                            <td style="height: 40px; vertical-align: bottom;">
+                                <div style="border-bottom: 1px solid #333; width: 150px; margin-bottom: 5px;"></div>
+                                <small>Signature</small>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
         
         <div class="footer">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <div style="text-align: left;">
-                    <p style="font-weight: 600; margin: 0; color: #374151;">Employee Leave Management System</p>
-                    <p style="margin: 5px 0 0 0; font-size: 0.85rem;">Official Leave Request Document</p>
-                </div>
-                <div style="text-align: right;">
-                    <p style="font-size: 0.8rem; margin: 0; color: #6b7280;">Document ID: LR-<?php echo date('Ymd'); ?>-<?php echo str_pad($leaveRequest['id'], 4, '0', STR_PAD_LEFT); ?></p>
-                </div>
-            </div>
-            <div style="border-top: 1px solid #e5e7eb; padding-top: 15px; text-align: center;">
-                <p style="margin: 0; font-size: 0.85rem;">For any inquiries, please contact the Human Resources Department</p>
-            </div>
+            <p><strong>Employee Leave Management System</strong> - Official Leave Request Document</p>
+            <p>Document ID: LR-<?php echo date('Ymd'); ?>-<?php echo str_pad($leaveRequest['id'], 4, '0', STR_PAD_LEFT); ?></p>
+            <p>For any inquiries, please contact the Human Resources Department</p>
         </div>
     </div>
     
@@ -614,7 +468,12 @@ try {
                 z-index: 1000;
             `;
             printButton.onclick = function() {
-                window.print();
+                // Hide the print button immediately before printing
+                printButton.style.display = 'none';
+                // Small delay to ensure button is hidden before print dialog
+                setTimeout(function() {
+                    window.print();
+                }, 100);
             };
             document.body.appendChild(printButton);
         }

@@ -80,8 +80,13 @@ $employees = $reportService->getEmployees();
 $departments = $reportService->getDepartments();
 $leaveTypes = $reportService->getLeaveTypes();
 
-// Handle exports
+// Handle PDF exports
 if (isset($_POST['export'])) {
+    // Clear any previous output
+    if (ob_get_level()) {
+        ob_end_clean();
+    }
+    
     $export_type = $_POST['export_type'];
     $export_filters = [
         'employee_id' => $_POST['employee_id'] ?? '',
@@ -91,77 +96,35 @@ if (isset($_POST['export'])) {
     
     switch ($export_type) {
         case 'leave_requests':
-            $data = $reportService->getLeaveRequestsForExport($start_date, $end_date, $export_filters);
-            $reportService->exportToCSV($data, "leave_requests_" . date('Y-m-d') . ".csv", [
-                'Employee', 'Department', 'Position', 'Leave Type', 'Start Date', 'End Date', 
-                'Days Requested', 'Status', 'Reason', 'Location', 'Medical Condition', 'Created At'
-            ]);
-            break;
-            
-        case 'employee_performance':
-            $data = $reportService->getEmployeePerformance($start_date, $end_date, $export_filters);
-            $reportService->exportToCSV($data, "employee_performance_" . date('Y-m-d') . ".csv", [
-                'Employee', 'Department', 'Position', 'Total Requests', 'Approved', 'Rejected', 
-                'Pending', 'Total Days', 'Vacation Balance', 'Sick Balance', 'Special Privilege Balance'
-            ]);
+            require_once '../../../../app/core/services/PDFLeaveRequestsGenerator.php';
+            $pdfGenerator = new PDFLeaveRequestsGenerator($pdo);
+            $pdfGenerator->generateLeaveRequestsReport($start_date, $end_date, $export_filters['department'], $export_filters['employee_id']);
             break;
             
         case 'attendance':
-            $data = $reportService->getDTRData($start_date, $end_date, $export_filters);
-            $reportService->exportToCSV($data, "attendance_" . date('Y-m-d') . ".csv", [
-                'Employee', 'Department', 'Date', 'Morning In', 'Morning Out', 'Afternoon In', 
-                'Afternoon Out', 'Status', 'Morning Hours', 'Afternoon Hours', 'Total Hours'
-            ]);
-            break;
-            
-        case 'department_summary':
-            $data = $reportService->getDepartmentStats($start_date, $end_date, $export_filters);
-            $reportService->exportToCSV($data, "department_summary_" . date('Y-m-d') . ".csv", [
-                'Department', 'Total Employees', 'Total Requests', 'Approved', 'Rejected', 
-                'Pending', 'Total Days', 'Avg Days per Request'
-            ]);
+            require_once '../../../../app/core/services/PDFAttendanceGenerator.php';
+            $pdfGenerator = new PDFAttendanceGenerator($pdo);
+            $pdfGenerator->generateAttendanceReport($start_date, $end_date, $export_filters['department'], $export_filters['employee_id']);
             break;
             
         case 'leave_credits':
-            $data = $reportService->getLeaveCreditsReport($export_filters);
-            $reportService->exportToCSV($data, "leave_credits_" . date('Y-m-d') . ".csv", [
-                'Employee ID', 'Name', 'Email', 'Department', 'Position', 'Vacation Leave', 
-                'Sick Leave', 'Special Privilege', 'Maternity Leave', 'Paternity Leave', 
-                'Solo Parent Leave', 'VAWC Leave', 'Rehabilitation Leave', 'Terminal Leave', 
-                'Last Update', 'Created At'
-            ]);
-            break;
-            
-        case 'compliance':
-            $data = $reportService->getComplianceMetrics($start_date, $end_date, $export_filters);
-            $reportService->exportToCSV([$data], "compliance_metrics_" . date('Y-m-d') . ".csv", [
-                'Total Requests', 'Late Submissions', 'Late Submission Rate', 'With Medical Cert', 
-                'Medical Cert Rate', 'Appeals', 'Appeal Rate', 'Avg Advance Notice Days'
-            ]);
-            break;
-            
-        case 'utilization':
-            $data = $reportService->getSystemUtilizationMetrics($start_date, $end_date, $export_filters);
-            $reportService->exportToCSV([$data], "utilization_metrics_" . date('Y-m-d') . ".csv", [
-                'Total Employees', 'Active Employees', 'Participation Rate', 'Total Requests', 
-                'Unique Employees', 'Avg Days per Request', 'Total Days Used'
-            ]);
-            break;
-            
-        case 'financial_impact':
-            $data = $reportService->getFinancialImpactAnalysis($start_date, $end_date, $export_filters);
-            $reportService->exportToCSV($data, "financial_impact_" . date('Y-m-d') . ".csv", [
-                'Leave Type', 'Approved Requests', 'Total Days', 'Avg Days per Request'
-            ]);
+            require_once '../../../../app/core/services/PDFLeaveCreditsGenerator.php';
+            $pdfGenerator = new PDFLeaveCreditsGenerator($pdo);
+            $pdfGenerator->generateLeaveCreditsReport($export_filters['department'], $export_filters['employee_id']);
             break;
     }
 }
 
-// Handle Excel report generation
-if (isset($_POST['generate_excel_report'])) {
-    require_once '../../../../app/core/services/EnhancedReportGenerator.php';
-    $reportGenerator = new EnhancedReportGenerator($pdo);
-    $reportGenerator->generateComprehensiveReport($start_date, $end_date);
+// Handle PDF report generation
+if (isset($_POST['generate_pdf_report'])) {
+    // Clear any previous output
+    if (ob_get_level()) {
+        ob_end_clean();
+    }
+    
+    require_once '../../../../app/core/services/PDFReportGenerator.php';
+    $reportGenerator = new PDFReportGenerator($pdo);
+    $reportGenerator->generateComprehensiveReport($start_date, $end_date, $selected_department, $selected_employee);
     exit();
 }
 ?>
@@ -404,59 +367,59 @@ if (isset($_POST['generate_excel_report'])) {
                     </div>
                     <div class="p-6">
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <form method="POST" class="bg-slate-700/50 rounded-xl p-4 border border-slate-600 hover:border-green-500 transition-all duration-300">
+                            <form method="POST" class="bg-slate-700/50 rounded-xl p-4 border border-slate-600 hover:border-red-500 transition-all duration-300">
                                 <input type="hidden" name="employee_id" value="<?php echo $selected_employee; ?>">
                                 <input type="hidden" name="department" value="<?php echo $selected_department; ?>">
                                 <input type="hidden" name="leave_type" value="<?php echo $selected_leave_type; ?>">
                                 <input type="hidden" name="export_type" value="leave_requests">
                                 <button type="submit" name="export" class="w-full text-left">
                                     <div class="flex items-center mb-2">
-                                        <i class="fas fa-file-csv text-green-400 text-xl mr-3"></i>
+                                        <i class="fas fa-file-pdf text-red-400 text-xl mr-3"></i>
                                         <span class="font-semibold text-white">Leave Requests</span>
                                     </div>
-                                    <p class="text-slate-400 text-sm">Export all leave requests</p>
+                                    <p class="text-slate-400 text-sm">Export all leave requests as PDF</p>
                                 </button>
                             </form>
                             
-                            <form method="POST" class="bg-slate-700/50 rounded-xl p-4 border border-slate-600 hover:border-blue-500 transition-all duration-300">
+                            <form method="POST" class="bg-slate-700/50 rounded-xl p-4 border border-slate-600 hover:border-red-500 transition-all duration-300">
                                 <input type="hidden" name="employee_id" value="<?php echo $selected_employee; ?>">
                                 <input type="hidden" name="department" value="<?php echo $selected_department; ?>">
                                 <input type="hidden" name="leave_type" value="<?php echo $selected_leave_type; ?>">
                                 <input type="hidden" name="export_type" value="attendance">
                                 <button type="submit" name="export" class="w-full text-left">
                                     <div class="flex items-center mb-2">
-                                        <i class="fas fa-clock text-blue-400 text-xl mr-3"></i>
+                                        <i class="fas fa-file-pdf text-red-400 text-xl mr-3"></i>
                                         <span class="font-semibold text-white">Attendance</span>
                                     </div>
-                                    <p class="text-slate-400 text-sm">Export attendance data</p>
+                                    <p class="text-slate-400 text-sm">Export attendance data as PDF</p>
                                 </button>
                             </form>
                             
-                            <form method="POST" class="bg-slate-700/50 rounded-xl p-4 border border-slate-600 hover:border-yellow-500 transition-all duration-300">
+                            <form method="POST" class="bg-slate-700/50 rounded-xl p-4 border border-slate-600 hover:border-red-500 transition-all duration-300">
                                 <input type="hidden" name="employee_id" value="<?php echo $selected_employee; ?>">
                                 <input type="hidden" name="department" value="<?php echo $selected_department; ?>">
                                 <input type="hidden" name="leave_type" value="<?php echo $selected_leave_type; ?>">
                                 <input type="hidden" name="export_type" value="leave_credits">
                                 <button type="submit" name="export" class="w-full text-left">
                                     <div class="flex items-center mb-2">
-                                        <i class="fas fa-coins text-yellow-400 text-xl mr-3"></i>
+                                        <i class="fas fa-file-pdf text-red-400 text-xl mr-3"></i>
                                         <span class="font-semibold text-white">Leave Credits</span>
                                     </div>
-                                    <p class="text-slate-400 text-sm">Export leave balances</p>
+                                    <p class="text-slate-400 text-sm">Export leave balances as PDF</p>
                                 </button>
                             </form>
                         </div>
                         
-                        <!-- Excel Export -->
+                        <!-- PDF Export -->
                         <div class="mt-6 pt-6 border-t border-slate-600">
                             <form method="POST" class="flex items-center justify-between p-4 bg-slate-700/50 rounded-xl">
                                 <div>
-                                    <h5 class="font-semibold text-white mb-1">Complete Excel Report</h5>
-                                    <p class="text-slate-400 text-sm">All data in one Excel file</p>
+                                    <h5 class="font-semibold text-white mb-1">Complete PDF Report</h5>
+                                    <p class="text-slate-400 text-sm">All data in one professional PDF file</p>
                                 </div>
-                                <button type="submit" name="generate_excel_report" 
-                                        class="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300 flex items-center">
-                                    <i class="fas fa-file-excel mr-2"></i>Download Excel
+                                <button type="submit" name="generate_pdf_report" 
+                                        class="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300 flex items-center">
+                                    <i class="fas fa-file-pdf mr-2"></i>Download PDF
                                 </button>
                             </form>
                         </div>

@@ -760,8 +760,8 @@ $leave_requests = $stmt->fetchAll();
                                         <div class="text-center">
                                             <label class="text-sm font-medium text-slate-400 mb-2 block">Director</label>
                                             <div class="mb-2">
-                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusBadgeClass(leave.director_approval || 'pending')} border">
-                                                    ${(leave.director_approval || 'pending').charAt(0).toUpperCase() + (leave.director_approval || 'pending').slice(1)}
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusBadgeClass((leave.dept_head_approval === 'rejected') ? 'rejected' : (leave.director_approval || 'pending'))} border">
+                                                    ${((leave.dept_head_approval === 'rejected') ? 'rejected' : (leave.director_approval || 'pending')).charAt(0).toUpperCase() + ((leave.dept_head_approval === 'rejected') ? 'rejected' : (leave.director_approval || 'pending')).slice(1)}
                                                 </span>
                                             </div>
                                             ${leave.director_name ? `<p class="text-xs text-slate-400">by ${leave.director_name}</p>` : ''}

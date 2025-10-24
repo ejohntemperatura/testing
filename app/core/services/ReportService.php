@@ -59,6 +59,10 @@ class ReportService {
             FROM leave_requests lr
             JOIN employees e ON lr.employee_id = e.id
             WHERE $whereClause
+            AND e.role = 'employee' 
+            AND e.department NOT IN ('Executive', 'Operations')
+            AND e.position NOT LIKE '%Department Head%'
+            AND e.position NOT LIKE '%Director Head%'
         ");
         $stmt->execute($params);
         $stats = $stmt->fetch();
@@ -113,6 +117,10 @@ class ReportService {
                 END) as avg_days_per_request
             FROM employees e
             LEFT JOIN leave_requests lr ON e.id = lr.employee_id AND $whereClause
+            WHERE e.role = 'employee' 
+            AND e.department NOT IN ('Executive', 'Operations')
+            AND e.position NOT LIKE '%Department Head%'
+            AND e.position NOT LIKE '%Director Head%'
             GROUP BY e.department
             ORDER BY total_requests DESC
         ");
@@ -364,13 +372,17 @@ class ReportService {
     }
     
     /**
-     * Get all employees for dropdown
+     * Get all employees for dropdown (excluding management roles)
      */
     public function getEmployees() {
         $stmt = $this->pdo->prepare("
             SELECT id, name, department, position, email 
             FROM employees 
             WHERE account_status = 'active' 
+            AND role = 'employee'
+            AND department NOT IN ('Executive', 'Operations')
+            AND position NOT LIKE '%Department Head%'
+            AND position NOT LIKE '%Director Head%'
             ORDER BY department, name
         ");
         $stmt->execute();
@@ -378,13 +390,16 @@ class ReportService {
     }
     
     /**
-     * Get all departments
+     * Get all departments (excluding Executive, Operations, and management roles)
      */
     public function getDepartments() {
         $stmt = $this->pdo->prepare("
             SELECT DISTINCT department 
             FROM employees 
             WHERE department IS NOT NULL AND department != '' 
+            AND department NOT IN ('Executive', 'Operations')
+            AND position NOT LIKE '%Department Head%'
+            AND position NOT LIKE '%Director Head%'
             ORDER BY department
         ");
         $stmt->execute();
@@ -472,10 +487,15 @@ class ReportService {
     }
     
     /**
-     * Get comprehensive leave credits report
+     * Get comprehensive leave credits report (excluding management roles)
      */
     public function getLeaveCreditsReport($filters = []) {
-        $whereConditions = ["1=1"];
+        $whereConditions = [
+            "role = 'employee'",
+            "department NOT IN ('Executive', 'Operations')",
+            "position NOT LIKE '%Department Head%'",
+            "position NOT LIKE '%Director Head%'"
+        ];
         $params = [];
         
         if (!empty($filters['employee_id'])) {

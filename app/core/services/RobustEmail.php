@@ -384,6 +384,17 @@ class RobustEmail {
                 
                 <p>Your leave request has been processed by <strong>{$approverName}</strong> ({$approverRoleFormatted}).</p>
                 
+                " . ($action === 'reject' && !empty($message) ? "
+                <div style='background: #fef2f2; border: 1px solid #ef4444; padding: 15px; border-radius: 6px; margin: 20px 0;'>
+                    <h4 style='color: #dc2626; margin: 0 0 10px 0; font-size: 16px;'>
+                        <i class='fas fa-times-circle' style='margin-right: 8px;'></i>Rejection Reason
+                    </h4>
+                    <p style='color: #991b1b; margin: 0; font-size: 14px;'>
+                        {$message}
+                    </p>
+                </div>
+                " : '') . "
+                
                 {$this->getNextApprovalMessage($action, $approverRole)}
                 
                 <h3>Leave Request Details:</h3>

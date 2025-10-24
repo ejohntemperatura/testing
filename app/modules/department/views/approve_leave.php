@@ -123,7 +123,8 @@ try {
                 $dept_head['name'] ?? 'Department Head',
                 'manager',
                 null,
-                $request['original_leave_type'] ?? null
+                $request['original_leave_type'] ?? null,
+                $reason
             );
         } catch (Exception $e) {
             error_log("Email notification failed: " . $e->getMessage());

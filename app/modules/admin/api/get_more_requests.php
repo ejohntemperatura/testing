@@ -130,9 +130,20 @@ try {
             </td>
             <td class="py-4 px-4">
                 <div class="flex flex-col gap-1">
-                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-' . ($request['director_approval'] == 'approved' ? 'green' : ($request['director_approval'] == 'rejected' ? 'red' : 'yellow')) . '-500/20 text-' . ($request['director_approval'] == 'approved' ? 'green' : ($request['director_approval'] == 'rejected' ? 'red' : 'yellow')) . '-400 border border-' . ($request['director_approval'] == 'approved' ? 'green' : ($request['director_approval'] == 'rejected' ? 'red' : 'yellow')) . '-500/30">
-                        ' . ucfirst($request['director_approval'] ?? 'pending') . '
-                    </span>
+                    ' . (function() use ($request) {
+                        $dept_status = $request['dept_head_approval'] ?? 'pending';
+                        $director_status = $request['director_approval'] ?? 'pending';
+                        
+                        // If department head rejected, director status should show as rejected
+                        if ($dept_status == 'rejected') {
+                            $director_status = 'rejected';
+                        }
+                        
+                        $director_color = $director_status == 'approved' ? 'green' : ($director_status == 'rejected' ? 'red' : 'yellow');
+                        return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-' . $director_color . '-500/20 text-' . $director_color . '-400 border border-' . $director_color . '-500/30">
+                            ' . ucfirst($director_status) . '
+                        </span>';
+                    })() . '
                 </div>
             </td>
             <td class="py-4 px-4">

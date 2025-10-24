@@ -509,13 +509,20 @@ $employees = $stmt->fetchAll(PDO::FETCH_COLUMN);
                                                 <!-- Director Approval -->
                                                 <td class="py-4 px-4">
                                                     <?php 
+                                                    $dept_status = $request['dept_head_approval'] ?? 'pending';
                                                     $director_status = $request['director_approval'] ?? 'pending';
+                                                    
+                                                    // If department head rejected, director status should show as rejected
+                                                    if ($dept_status == 'rejected') {
+                                                        $director_status = 'rejected';
+                                                    }
+                                                    
                                                     $director_color = $director_status == 'approved' ? 'green' : ($director_status == 'rejected' ? 'red' : 'yellow');
                                                     ?>
                                                     <div class="flex flex-col gap-1">
                                                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-<?php echo $director_color; ?>-500/20 text-<?php echo $director_color; ?>-400 border border-<?php echo $director_color; ?>-500/30" data-director-status="<?php echo ucfirst($director_status); ?>">
                                                         <?php echo ucfirst($director_status); ?>
-                                                    </span>
+                                                        </span>
                                                     </div>
                                                 </td>
                                                 <!-- Final Status -->
@@ -1068,7 +1075,7 @@ $employees = $stmt->fetchAll(PDO::FETCH_COLUMN);
                             </div>
                             <div class="text-center">
                                 <label class="text-sm font-medium text-slate-400 mb-2 block">Director</label>
-                                <div class="mb-2">${getStatusBadge(leaveRequest.director_approval || 'pending')}</div>
+                                <div class="mb-2">${getStatusBadge((leaveRequest.dept_head_approval === 'rejected') ? 'rejected' : (leaveRequest.director_approval || 'pending'))}</div>
                                 ${leaveRequest.director_name ? `<p class="text-xs text-slate-400">by ${leaveRequest.director_name}</p>` : ''}
                                 ${leaveRequest.director_approved_at ? `<p class="text-xs text-slate-400">${new Date(leaveRequest.director_approved_at).toLocaleDateString()}</p>` : ''}
                                 ${leaveRequest.director_rejection_reason ? `<p class="text-xs text-red-400 mt-1">${leaveRequest.director_rejection_reason}</p>` : ''}
