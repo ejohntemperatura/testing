@@ -28,11 +28,26 @@ include '../../../../includes/department_header.php';
 ?>
 <script src="../../../../assets/libs/chartjs/chart.umd.min.js"></script>
 
-<!-- Welcome Section -->
-<h1 class="elms-h1" style="margin-bottom: 0.5rem;">
-    Welcome, Department Head - <?php echo htmlspecialchars($dept_head_department ?? 'Technology'); ?>!
-</h1>
-<p class="elms-text-muted" style="margin-bottom: 2rem;">Manage department leave requests and view analytics</p>
+<!-- Welcome Section with Clock -->
+<div class="flex items-center justify-between mb-8">
+    <div class="flex-1">
+        <h1 class="text-3xl font-bold text-white mb-2">
+            Welcome back, <?php echo htmlspecialchars($me['name'] ?? 'Department Head'); ?>!
+        </h1>
+        <p class="text-slate-400">Here's what's happening with your leave requests today.</p>
+    </div>
+    
+    <!-- Live Clock -->
+    <div class="text-right">
+        <div id="liveClock" class="text-2xl font-bold text-white mb-1 font-mono tracking-wide">
+            --:--:-- --
+        </div>
+        <div class="text-sm text-slate-400">Today is</div>
+        <div id="liveDate" class="text-base font-semibold text-white">
+            Loading...
+        </div>
+    </div>
+</div>
 
 <!-- Success Message -->
 <?php if (isset($_SESSION['success'])): ?>
@@ -897,6 +912,37 @@ include '../../../../includes/department_header.php';
 				});
 			}
 		});
+
+		// Live Clock Function
+		function updateClock() {
+			const now = new Date();
+			
+			// Format time (12-hour format with AM/PM)
+			let hours = now.getHours();
+			const minutes = String(now.getMinutes()).padStart(2, '0');
+			const seconds = String(now.getSeconds()).padStart(2, '0');
+			const ampm = hours >= 12 ? 'PM' : 'AM';
+			hours = hours % 12;
+			hours = hours ? hours : 12; // the hour '0' should be '12'
+			const timeString = `${String(hours).padStart(2, '0')}:${minutes}:${seconds} ${ampm}`;
+			
+			// Format date
+			const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+			const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+			const dayName = days[now.getDay()];
+			const monthName = months[now.getMonth()];
+			const date = now.getDate();
+			const year = now.getFullYear();
+			const dateString = `${dayName}, ${monthName} ${date}, ${year}`;
+			
+			// Update DOM
+			document.getElementById('liveClock').textContent = timeString;
+			document.getElementById('liveDate').textContent = dateString;
+		}
+		
+		// Update clock immediately and then every second
+		updateClock();
+		setInterval(updateClock, 1000);
 	</script>
 
 <?php include '../../../../includes/department_footer.php'; ?>

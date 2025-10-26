@@ -12,20 +12,16 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['director','ad
 	exit();
 }
 
+// Basic user info
 $stmt = $pdo->prepare("SELECT * FROM employees WHERE id = ?");
 $stmt->execute([$_SESSION['user_id']]);
 $me = $stmt->fetch();
 
-// Get stats for dashboard
-$stmt = $pdo->query("SELECT COUNT(*) as total FROM employees");
-$total_employees = $stmt->fetch()['total'];
+// Set page title
+$page_title = "Director Dashboard";
 
-$stmt = $pdo->query("
-    SELECT COUNT(*) as approved 
-    FROM leave_requests 
-    WHERE director_approval = 'approved'
-");
-$approved_this_month = $stmt->fetch()['approved'];
+// Include director header with modern design
+include '../../../../includes/director_header.php';
 
 // Get pending leave requests for stats
 $initial_limit = 5; // Show only 5 initially
@@ -59,236 +55,160 @@ $pending_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 // Get leave types configuration
 $leaveTypes = getLeaveTypes();
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <!-- OFFLINE Tailwind CSS - No internet required! -->
-    <link rel="stylesheet" href="../../../../assets/css/tailwind.css">
-        <!-- Font Awesome Local - No internet required! -->
-    <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
+<script src="../../../../assets/libs/chartjs/chart.umd.min.js"></script>
+
+<!-- Welcome Section with Clock -->
+<div class="flex items-center justify-between mb-8">
+    <div class="flex-1">
+        <h1 class="text-3xl font-bold text-white mb-2">
+            Welcome back, <?php echo htmlspecialchars($me['name'] ?? 'Director'); ?>!
+        </h1>
+        <p class="text-slate-400">Here's what's happening with your leave requests today.</p>
+    </div>
     
-    <link rel="stylesheet" href="../../../../assets/css/style.css">
-    <link rel="stylesheet" href="../../../../assets/css/dark-theme.css">
-    <script src="../../../../assets/libs/chartjs/chart.umd.min.js"></script>
+    <!-- Live Clock -->
+    <div class="text-right">
+        <div id="liveClock" class="text-2xl font-bold text-white mb-1 font-mono tracking-wide">
+            --:--:-- --
+        </div>
+        <div class="text-sm text-slate-400">Today is</div>
+        <div id="liveDate" class="text-base font-semibold text-white">
+            Loading...
+        </div>
+    </div>
+</div>
+
+<!-- Success Message -->
+<?php if (isset($_SESSION['success'])): ?>
+    <div class="bg-green-500/20 border border-green-500/30 text-green-400 p-4 rounded-xl mb-6 flex items-center">
+        <i class="fas fa-check-circle mr-3"></i>
+        <?php echo $_SESSION['success']; unset($_SESSION['success']); ?>
+    </div>
+<?php endif; ?>
+
+<!-- Error Message -->
+<?php if (isset($_SESSION['error'])): ?>
+    <div class="bg-red-500/20 border border-red-500/30 text-red-400 p-4 rounded-xl mb-6 flex items-center">
+        <i class="fas fa-exclamation-circle mr-3"></i>
+        <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
+    </div>
+<?php endif; ?>
 
 
-
-    
-	
-    <link rel="stylesheet" href="../../../../assets/css/style.css">
-    <link rel="stylesheet" href="../../../../assets/css/dark-theme.css">
-    <style>
-        /* Fix navbar dropdown z-index for director dashboard */
-        #userDropdown {
-            z-index: 1300 !important;
-        }
-        nav {
-            z-index: 1200 !important;
-        }
-    </style>
-</head>
-<body class="bg-slate-900 text-white" data-user-role="director">
-	<?php include '../../../../includes/unified_navbar.php'; ?>
-
-	<div class="flex">
-		<!-- Left Sidebar -->
-		<aside id="sidebar" class="fixed left-0 top-16 h-screen w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40">
-			<nav class="p-4 space-y-2">
-				<!-- Active Navigation Item -->
-				<a href="dashboard.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
-					<i class="fas fa-tachometer-alt w-5"></i>
-					<span>Dashboard</span>
-				</a>
-				
-				<!-- Section Headers -->
-				<div class="space-y-1">
-					<h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Management</h3>
-					
-					<!-- Navigation Items -->
-					<a href="calendar.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-						<i class="fas fa-calendar w-5"></i>
-						<span>Leave Chart</span>
-					</a>
-				</div>
-				
-				<div class="space-y-1">
-					
-					
-				</div>
-			</nav>
-		</aside>
-		
-		<!-- Main Content -->
-		<main class="flex-1 ml-64 p-6 pt-24">
-			<div class="max-w-7xl mx-auto">
-
-				<!-- Success Message -->
-				<?php if (isset($_SESSION['success'])): ?>
-					<div class="bg-green-500/20 border border-green-500/30 text-green-400 p-4 rounded-xl mb-6 flex items-center">
-						<i class="fas fa-check-circle mr-3"></i>
-						<?php echo $_SESSION['success']; unset($_SESSION['success']); ?>
-					</div>
-				<?php endif; ?>
-				
-				<!-- Error Message -->
-				<?php if (isset($_SESSION['error'])): ?>
-					<div class="bg-red-500/20 border border-red-500/30 text-red-400 p-4 rounded-xl mb-6 flex items-center">
-						<i class="fas fa-exclamation-circle mr-3"></i>
-						<?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
-					</div>
-				<?php endif; ?>
-				
-				<!-- Welcome Section -->
-				<div class="mb-10 mt-16">
-					<div class="flex items-start justify-between">
-						<div class="flex items-center gap-5">
-							<div class="w-16 h-16 bg-gradient-to-r from-slate-700 to-slate-800 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
-								<i class="fas fa-crown text-2xl text-white"></i>
-							</div>
-							<div class="flex-1">
-								<h1 class="text-3xl font-bold text-white mb-2 leading-tight">Welcome, <?php echo htmlspecialchars($me['name'] ?? 'Director Head'); ?>!</h1>
-								<p class="text-slate-400 text-lg leading-relaxed">Executive overview and actions</p>
-							</div>
-						</div>
-						
-						<!-- Notification Button -->
-					</div>
-				</div>
-
-
-				<!-- Pending Leave Requests -->
-				<div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden mb-8">
-					<div class="px-6 py-5 border-b border-slate-700/50 bg-slate-700/30">
-						<h3 class="text-xl font-semibold text-white flex items-center">
-							<i class="fas fa-clock text-yellow-400 mr-3"></i>Pending Leave Requests
-						</h3>
-					</div>
-					<div class="p-8">
-						
-						<?php if (empty($pending_requests)): ?>
-							<div class="text-center py-16">
-								<div class="w-20 h-20 bg-gradient-to-r from-slate-600/20 to-slate-700/20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-									<i class="fas fa-check-circle text-slate-400 text-3xl"></i>
-								</div>
-								<h4 class="text-xl font-semibold text-white mb-3">All Caught Up!</h4>
-								<p class="text-slate-400 text-lg mb-4">No pending leave requests at the moment</p>
-								<div class="inline-flex items-center px-4 py-2 bg-slate-600/10 border border-slate-600/20 rounded-lg">
-									<i class="fas fa-thumbs-up text-slate-400 mr-2"></i>
-									<span class="text-slate-400 font-medium">Great job staying on top of approvals!</span>
-								</div>
-							</div>
-						<?php else: ?>
-							<div class="overflow-x-auto">
-								<table class="w-full">
-									<thead>
-										<tr class="border-b border-slate-700/50">
-											<th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Employee</th>
-											<th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Leave Type</th>
-											<th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Start Date</th>
-											<th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">End Date</th>
-											<th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Days</th>
-											<th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Reason</th>
-											<th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Status</th>
-											<th class="text-left py-3 px-4 text-sm font-semibold text-slate-300">Actions</th>
-										</tr>
-									</thead>
-									<tbody>
-										<?php foreach ($pending_requests as $request): ?>
-											<tr class="border-b border-slate-700/50/30 hover:bg-slate-700/30 transition-colors">
-												<td class="py-4 px-4">
-													<div>
-														<div class="font-semibold text-white"><?php echo htmlspecialchars($request['employee_name']); ?></div>
-														<div class="text-sm text-slate-400"><?php echo htmlspecialchars($request['position']); ?></div>
-													</div>
-												</td>
-												<td class="py-4 px-4">
-													<div class="flex flex-col gap-2">
-														<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
-															<?php echo getLeaveTypeDisplayName($request['leave_type'], $request['original_leave_type'] ?? null, $leaveTypes); ?>
-														</span>
-														<?php if ($request['is_late'] == 1): ?>
-															<span class="bg-orange-500/20 text-orange-400 px-2 py-1 rounded-full text-xs font-semibold flex items-center">
-																<i class="fas fa-exclamation-triangle mr-1"></i>
-																Late Application
-															</span>
-														<?php endif; ?>
-													</div>
-												</td>
-												<td class="py-4 px-4 text-white"><?php echo date('M d, Y', strtotime($request['start_date'])); ?></td>
-												<td class="py-4 px-4 text-white"><?php echo date('M d, Y', strtotime($request['end_date'])); ?></td>
-												<td class="py-4 px-4">
-													<span class="inline-flex items-center justify-center w-8 h-8 bg-slate-700 rounded-full text-sm font-semibold text-white">
-														<?php 
-														$start = new DateTime($request['start_date']);
-														$end = new DateTime($request['end_date']);
-														$days = $start->diff($end)->days + 1;
-														echo $days;
-														?>
-													</span>
-												</td>
-												<td class="py-4 px-4">
-													<span class="text-slate-300" title="<?php echo htmlspecialchars($request['reason']); ?>">
-														<?php echo strlen($request['reason']) > 30 ? substr(htmlspecialchars($request['reason']), 0, 30) . '...' : htmlspecialchars($request['reason']); ?>
-													</span>
-												</td>
-												<td class="py-4 px-4">
-													<div class="flex items-center gap-2">
-														<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
-															Pending
-														</span>
-														<button type="button" class="p-1 text-slate-400 hover:text-white transition-colors" 
-																onclick="showStatusInfo(<?php echo $request['id']; ?>)"
-																title="View Status Details">
-															<i class="fas fa-info-circle text-sm"></i>
-														</button>
-													</div>
-												</td>
-												<td class="py-4 px-4">
-                                                <div class="flex items-center gap-2">
-                                                    <button onclick="openDirectorApprovalModal(<?php echo $request['id']; ?>)" class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/80 text-white text-sm font-medium rounded-lg transition-colors">
-                                                        <i class="fas fa-gavel mr-2"></i> Process Request
-                                                    </button>
-                                                </div>
-												</td>
-												</tr>
-											<?php endforeach; ?>
-										</tbody>
-									</table>
-								</div>
-								<?php if ($total_pending > $initial_limit): ?>
-									<div class="text-center mt-6">
-										<button id="loadMoreBtn" class="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 font-semibold py-3 px-6 rounded-xl transition-colors">
-											<i class="fas fa-plus mr-2"></i>View More (<?php echo $total_pending - $initial_limit; ?> more)
-										</button>
-										<button id="showLessBtn" class="hidden bg-slate-600/20 hover:bg-slate-600/30 text-slate-400 border border-slate-600/30 font-semibold py-3 px-6 rounded-xl transition-colors ml-4">
-											<i class="fas fa-minus mr-2"></i>Show Less
+<!-- Pending Leave Requests -->
+<div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden mb-8">
+	<div class="px-6 py-4 border-b border-slate-700/50 bg-slate-700/30">
+		<h3 class="text-xl font-semibold text-white flex items-center">
+			<i class="fas fa-clock text-yellow-400 mr-3"></i>Pending Leave Requests
+		</h3>
+	</div>
+	<div class="p-6">
+		<?php if (empty($pending_requests)): ?>
+			<div class="text-center py-12">
+				<i class="fas fa-check-circle text-4xl text-green-400 mb-4"></i>
+				<p class="text-slate-400 text-lg">No pending leave requests</p>
+			</div>
+		<?php else: ?>
+			<div class="overflow-x-auto">
+				<table class="w-full">
+					<thead class="bg-slate-700/30">
+						<tr>
+							<th class="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Employee</th>
+							<th class="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Leave Type</th>
+							<th class="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Start Date</th>
+							<th class="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">End Date</th>
+							<th class="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Days</th>
+							<th class="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Reason</th>
+							<th class="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Status</th>
+							<th class="px-6 py-4 text-center text-xs font-semibold text-slate-300 uppercase tracking-wider">Actions</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-slate-700/50">
+						<?php foreach ($pending_requests as $request): ?>
+							<tr class="hover:bg-slate-700/30 transition-colors">
+								<td class="px-6 py-4">
+									<div>
+										<div class="font-semibold text-white"><?php echo htmlspecialchars($request['employee_name']); ?></div>
+										<div class="text-sm text-slate-400"><?php echo htmlspecialchars($request['position']); ?></div>
+									</div>
+								</td>
+								<td class="px-6 py-4">
+									<div class="flex flex-col gap-2">
+										<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
+											<?php echo getLeaveTypeDisplayName($request['leave_type'], $request['original_leave_type'] ?? null, $leaveTypes); ?>
+										</span>
+										<?php if ($request['is_late'] == 1): ?>
+											<span class="bg-orange-500/20 text-orange-400 px-2 py-1 rounded-full text-xs font-semibold flex items-center">
+												<i class="fas fa-exclamation-triangle mr-1"></i>
+												Late Application
+											</span>
+										<?php endif; ?>
+									</div>
+								</td>
+								<td class="px-6 py-4 text-slate-300 text-sm"><?php echo date('M d, Y', strtotime($request['start_date'])); ?></td>
+								<td class="px-6 py-4 text-slate-300 text-sm"><?php echo date('M d, Y', strtotime($request['end_date'])); ?></td>
+								<td class="px-6 py-4 text-slate-300 text-sm">
+									<?php 
+									$start = new DateTime($request['start_date']);
+									$end = new DateTime($request['end_date']);
+									$days = $start->diff($end)->days + 1;
+									echo $days;
+									?>
+								</td>
+								<td class="px-6 py-4 text-slate-300 text-sm max-w-xs truncate" title="<?php echo htmlspecialchars($request['reason']); ?>">
+									<?php echo strlen($request['reason']) > 30 ? substr(htmlspecialchars($request['reason']), 0, 30) . '...' : htmlspecialchars($request['reason']); ?>
+								</td>
+								<td class="px-6 py-4">
+									<div class="flex items-center gap-2">
+										<span class="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide">Pending</span>
+										<button type="button" onclick="showStatusInfo(<?php echo $request['id']; ?>)" title="View Status Details" class="text-slate-400 hover:text-white transition-colors">
+											<i class="fas fa-info-circle"></i>
 										</button>
 									</div>
-									<!-- Hidden container for additional requests -->
-									<div id="additionalRequests" class="hidden mt-6"></div>
-								<?php endif; ?>
-							<?php endif; ?>
-					</div>
-				</div>
-
-				<!-- Leave Chart Quick Action Card -->
-				<div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden hover:border-slate-600/50 transition-all duration-300 group">
-					<div class="p-6">
-						<div class="flex items-center mb-4">
-							<div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mr-4 group-hover:scale-110 transition-transform duration-300">
-								<i class="fas fa-calendar text-white text-lg"></i>
-							</div>
-							<h3 class="text-xl font-semibold text-white">Leave Chart</h3>
-						</div>
-						<p class="text-slate-400 mb-6">View comprehensive leave analytics and calendar overview across the organization.</p>
-						<a href="calendar.php" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors">
-							<i class="fas fa-calendar mr-2"></i>View Leave Chart
-						</a>
-					</div>
-				</div>
+								</td>
+								<td class="px-6 py-4 text-center">
+									<div class="flex justify-center">
+										<button onclick="openDirectorApprovalModal(<?php echo $request['id']; ?>)" class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary/80 text-white text-sm font-medium rounded-lg transition-colors">
+											<i class="fas fa-gavel mr-2"></i> Process Request
+										</button>
+									</div>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
 			</div>
-		</main>
+			<?php if ($total_pending > $initial_limit): ?>
+				<div class="text-center mt-6">
+					<button id="loadMoreBtn" class="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 font-semibold py-3 px-6 rounded-xl transition-colors">
+						<i class="fas fa-plus mr-2"></i>View More (<?php echo $total_pending - $initial_limit; ?> more)
+					</button>
+					<button id="showLessBtn" class="hidden bg-slate-600/20 hover:bg-slate-600/30 text-slate-400 border border-slate-600/30 font-semibold py-3 px-6 rounded-xl transition-colors ml-4">
+						<i class="fas fa-minus mr-2"></i>Show Less
+					</button>
+				</div>
+				<!-- Hidden container for additional requests -->
+				<div id="additionalRequests" class="hidden mt-6"></div>
+			<?php endif; ?>
+		<?php endif; ?>
 	</div>
+</div>
+
+<!-- Leave Chart Quick Action Card -->
+<div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden hover:border-slate-600/50 transition-all duration-300 group">
+	<div class="p-6">
+		<div class="flex items-center mb-4">
+			<div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mr-4 group-hover:scale-110 transition-transform duration-300">
+				<i class="fas fa-calendar text-white text-lg"></i>
+			</div>
+			<h3 class="text-xl font-semibold text-white">Leave Chart</h3>
+		</div>
+		<p class="text-slate-400 mb-6">View comprehensive leave analytics and calendar overview across the organization.</p>
+		<a href="view_chart.php" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors">
+			<i class="fas fa-calendar mr-2"></i>View Leave Chart
+		</a>
+	</div>
+</div>
 
 	<script>
 		// Pass leave types data to JavaScript
@@ -350,22 +270,6 @@ $leaveTypes = getLeaveTypes();
 				return isWithoutPay ? displayName + ' (Without Pay)' : displayName;
 			}
 		}
-		
-		// User dropdown toggle function
-		function toggleUserDropdown() {
-			const dropdown = document.getElementById('userDropdown');
-			dropdown.classList.toggle('hidden');
-		}
-
-		// Close dropdown when clicking outside
-		document.addEventListener('click', function(event) {
-			const userDropdown = document.getElementById('userDropdown');
-			const userButton = event.target.closest('[onclick="toggleUserDropdown()"]');
-			
-			if (userDropdown && !userDropdown.contains(event.target) && !userButton) {
-				userDropdown.classList.add('hidden');
-			}
-		});
 
 		// Show status information modal
 		function showStatusInfo(leaveId) {
@@ -388,7 +292,7 @@ $leaveTypes = getLeaveTypes();
 								<h4 class="text-lg font-semibold text-white mb-2 flex items-center">
 									<i class="fas fa-clock text-blue-400 mr-2"></i>Current Status
 								</h4>
-								<p class="text-slate-300">This leave request has been <strong class="text-white">approved by the department head</strong> and is now waiting for your decision.</p>
+								<p class="text-slate-300">This leave request has been <strong class="text-white">approved by the department head</strong> and is now awaiting your final decision as Director.</p>
 							</div>
 							<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
 								<div class="bg-slate-700/50 rounded-xl p-4">
@@ -402,12 +306,12 @@ $leaveTypes = getLeaveTypes();
 								</div>
 								<div class="bg-slate-700/50 rounded-xl p-4">
 									<h4 class="text-primary font-semibold mb-3 flex items-center">
-										<i class="fas fa-user-tie mr-2"></i>Director (You)
+										<i class="fas fa-crown mr-2"></i>Director (You)
 									</h4>
 									<p class="text-slate-300 mb-2"><strong class="text-white">Status:</strong> 
 										<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 ml-2">Pending</span>
 									</p>
-									<p class="text-slate-400 text-sm">Action Required: Approve or Reject this request</p>
+									<p class="text-slate-400 text-sm">Action Required: Final approval decision</p>
 								</div>
 							</div>
 							<div class="border-t border-slate-700/50 pt-6">
@@ -416,9 +320,9 @@ $leaveTypes = getLeaveTypes();
 										<i class="fas fa-flag-checkered mr-2"></i>Final Status
 									</h4>
 									<p class="text-slate-300 mb-2"><strong class="text-white">Result:</strong> 
-										<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-500/20 text-slate-400 border border-slate-500/30 ml-2">Pending</span>
+										<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-500/20 text-slate-400 border border-slate-500/30 ml-2">Pending Your Decision</span>
 									</p>
-									<p class="text-slate-400 text-sm">Depends on all approval levels</p>
+									<p class="text-slate-400 text-sm">Your decision will be final</p>
 								</div>
 							</div>
 							<div class="flex justify-end mt-6">
@@ -1081,8 +985,37 @@ $leaveTypes = getLeaveTypes();
 				});
 			}
 		});
+
+		// Live Clock Function
+		function updateClock() {
+			const now = new Date();
+			
+			// Format time (12-hour format with AM/PM)
+			let hours = now.getHours();
+			const minutes = String(now.getMinutes()).padStart(2, '0');
+			const seconds = String(now.getSeconds()).padStart(2, '0');
+			const ampm = hours >= 12 ? 'PM' : 'AM';
+			hours = hours % 12;
+			hours = hours ? hours : 12; // the hour '0' should be '12'
+			const timeString = `${String(hours).padStart(2, '0')}:${minutes}:${seconds} ${ampm}`;
+			
+			// Format date
+			const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+			const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+			const dayName = days[now.getDay()];
+			const monthName = months[now.getMonth()];
+			const date = now.getDate();
+			const year = now.getFullYear();
+			const dateString = `${dayName}, ${monthName} ${date}, ${year}`;
+			
+			// Update DOM
+			document.getElementById('liveClock').textContent = timeString;
+			document.getElementById('liveDate').textContent = dateString;
+		}
+		
+		// Update clock immediately and then every second
+		updateClock();
+		setInterval(updateClock, 1000);
 	</script>
-</body>
-</html>
 
-
+<?php include '../../../../includes/director_footer.php'; ?>

@@ -1,5 +1,5 @@
 <?php
-// Department Head Header - Dark Theme with Modern Design
+// Director Header - Dark Theme with Modern Design
 // No notifications (employee-exclusive feature)
 
 // Get current page name for active link highlighting
@@ -8,17 +8,14 @@ $current_page = basename($_SERVER['PHP_SELF']);
 // Get user info
 $stmt = $pdo->prepare("SELECT * FROM employees WHERE id = ?");
 $stmt->execute([$_SESSION['user_id']]);
-$dept_head = $stmt->fetch();
-
-// Get department info
-$dept_name = $dept_head['department'] ?? 'Technology';
+$director = $stmt->fetch();
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $page_title ?? 'ELMS Department Head'; ?></title>
+    <title><?php echo $page_title ?? 'ELMS Director'; ?></title>
     <link rel="stylesheet" href="../../../../assets/css/tailwind.css">
     <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
     <link rel="stylesheet" href="../../../../assets/css/elms-dark-theme.css">
@@ -29,27 +26,27 @@ $dept_name = $dept_head['department'] ?? 'Technology';
         <div class="elms-navbar-content">
             <!-- Logo -->
             <div class="elms-logo">
-                <span class="elms-logo-text">ELMS Department Head</span>
+                <span class="elms-logo-text">ELMS Director</span>
             </div>
             
-            <!-- Right Side: Department Badge & User Dropdown (NO Notification Bell) -->
+            <!-- Right Side: Director Badge & User Dropdown (NO Notification Bell) -->
             <div style="display: flex; align-items: center; gap: 1rem; margin-left: auto;">
-                <!-- Department Badge -->
-                <div style="background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.3); padding: 0.375rem 0.75rem; border-radius: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                    <i class="fas fa-building" style="color: #06b6d4; font-size: 0.75rem;"></i>
-                    <span style="color: #06b6d4; font-weight: 600; font-size: 0.75rem;">DE</span>
-                    <span style="color: white; font-weight: 600; font-size: 0.75rem;">Department Head - <?php echo htmlspecialchars($dept_name); ?></span>
+                <!-- Director Badge -->
+                <div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); padding: 0.375rem 0.75rem; border-radius: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-crown" style="color: #a855f7; font-size: 0.75rem;"></i>
+                    <span style="color: #a855f7; font-weight: 600; font-size: 0.75rem;">DIR</span>
+                    <span style="color: white; font-weight: 600; font-size: 0.75rem;">Director</span>
                 </div>
                 
                 <!-- User Dropdown -->
                 <div style="position: relative;">
-                    <button id="deptUserDropdownBtn" style="display: flex; align-items: center; gap: 0.5rem; background: none; border: none; cursor: pointer; padding: 0;">
-                        <div style="width: 32px; height: 32px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.875rem;">
-                            <?php echo strtoupper(substr($dept_head['name'], 0, 1)); ?>
+                    <button id="directorUserDropdownBtn" style="display: flex; align-items: center; gap: 0.5rem; background: none; border: none; cursor: pointer; padding: 0;">
+                        <div style="width: 32px; height: 32px; background: #a855f7; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.875rem;">
+                            <?php echo strtoupper(substr($director['name'], 0, 1)); ?>
                         </div>
                         <div style="text-align: left;">
                             <div style="color: white; font-weight: 600; font-size: 0.875rem;">
-                                <?php echo htmlspecialchars($dept_head['name']); ?>
+                                <?php echo htmlspecialchars($director['name']); ?>
                             </div>
                         </div>
                         <i class="fas fa-chevron-down" style="color: #cbd5e1; font-size: 0.625rem;"></i>
@@ -60,13 +57,13 @@ $dept_name = $dept_head['department'] ?? 'Technology';
                         <!-- Dropdown Header -->
                         <div style="padding: 1rem; border-bottom: 1px solid #334155;">
                             <div style="font-weight: 600; color: white; margin-bottom: 0.25rem; font-size: 0.9375rem;">
-                                <?php echo htmlspecialchars($dept_head['name']); ?>
+                                <?php echo htmlspecialchars($director['name']); ?>
                             </div>
                             <div style="color: #94a3b8; font-size: 0.8125rem; margin-bottom: 0.5rem;">
-                                <?php echo htmlspecialchars($dept_head['email'] ?? 'depthead@elms.com'); ?>
+                                <?php echo htmlspecialchars($director['email'] ?? 'director@elms.com'); ?>
                             </div>
-                            <span style="display: inline-block; background: #10b981; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.6875rem; font-weight: 600;">
-                                Department Head
+                            <span style="display: inline-block; background: #a855f7; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.6875rem; font-weight: 600;">
+                                Director
                             </span>
                         </div>
                         
@@ -98,7 +95,7 @@ $dept_name = $dept_head['department'] ?? 'Technology';
             <!-- Management Section -->
             <div class="elms-sidebar-section">
                 <h3 class="elms-sidebar-header">Management</h3>
-                <a href="view_chart.php" class="elms-sidebar-link <?php echo ($current_page == 'leave_chart.php' || $current_page == 'view_chart.php') ? 'active' : ''; ?>">
+                <a href="view_chart.php" class="elms-sidebar-link <?php echo ($current_page == 'view_chart.php' || $current_page == 'calendar.php') ? 'active' : ''; ?>">
                     <i class="fas fa-calendar elms-sidebar-icon"></i>
                     <span>Leave Chart</span>
                 </a>
@@ -112,28 +109,28 @@ $dept_name = $dept_head['department'] ?? 'Technology';
     <script>
         // Wait for DOM to be ready
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Department header script loaded');
+            console.log('Director header script loaded');
             
-            const dropdownBtn = document.getElementById('deptUserDropdownBtn');
+            const dropdownBtn = document.getElementById('directorUserDropdownBtn');
             const dropdown = document.getElementById('userDropdown');
             
             console.log('Button:', dropdownBtn);
             console.log('Dropdown:', dropdown);
             
             if (!dropdownBtn) {
-                console.error('Department dropdown button not found!');
+                console.error('Director dropdown button not found!');
                 return;
             }
             
             if (!dropdown) {
-                console.error('Department dropdown menu not found!');
+                console.error('Director dropdown menu not found!');
                 return;
             }
             
             // Toggle dropdown when button is clicked
             dropdownBtn.addEventListener('click', function(event) {
                 event.stopPropagation();
-                console.log('Department dropdown button clicked');
+                console.log('Director dropdown button clicked');
                 const isHidden = dropdown.style.display === 'none' || dropdown.style.display === '';
                 dropdown.style.display = isHidden ? 'block' : 'none';
                 console.log('Dropdown display changed to:', dropdown.style.display);

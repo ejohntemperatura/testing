@@ -324,3 +324,4 @@ new Chart(monthlyTrendsCtx, {
 
 
 
+
