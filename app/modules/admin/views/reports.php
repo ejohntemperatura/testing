@@ -127,24 +127,14 @@ if (isset($_POST['generate_pdf_report'])) {
     $reportGenerator->generateComprehensiveReport($start_date, $end_date, $selected_department, $selected_employee);
     exit();
 }
-?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reports & Analytics - ELMS</title>
-    
-    <!-- Stylesheets -->
-    <link rel="stylesheet" href="../../../../assets/css/tailwind.css">
-    <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
-    <link rel="stylesheet" href="../../../../assets/css/style.css">
-    <link rel="stylesheet" href="../../../../assets/css/dark-theme.css">
-    <link rel="stylesheet" href="../../../../assets/css/admin_style.css">
-    
-    <!-- Chart.js -->
-    <script src="../../../../assets/libs/chartjs/chart.umd.min.js"></script>
+// Set page title
+$page_title = "Reports & Analytics";
+
+// Include admin header
+include '../../../../includes/admin_header.php';
+?>
+<script src="../../../../assets/libs/chartjs/chart.umd.min.js"></script>
     
     <style>
         .report-card {
@@ -167,62 +157,6 @@ if (isset($_POST['generate_pdf_report'])) {
             backdrop-filter: blur(10px);
         }
     </style>
-</head>
-<body class="bg-slate-900 text-white">
-    <!-- Navigation -->
-    <?php 
-        $role = $_SESSION['role'];
-        $panelTitle = $role === 'director' ? 'Director Panel' : ($role === 'manager' ? 'Department Head' : 'Admin Panel');
-    ?>
-    <?php include '../../../../includes/unified_navbar.php'; ?>
-
-    <div class="flex">
-        <!-- Sidebar -->
-        <aside id="sidebar" class="fixed left-0 top-16 h-screen w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
-            <nav class="p-4 space-y-2">
-                <a href="dashboard.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-tachometer-alt w-5"></i>
-                    <span>Dashboard</span>
-                </a>
-                
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Management</h3>
-                    
-                    <a href="manage_user.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-users-cog w-5"></i>
-                        <span>Manage Users</span>
-                    </a>
-                    
-                    <a href="leave_management.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-calendar-check w-5"></i>
-                        <span>Leave Management</span>
-                    </a>
-                    
-                    <a href="leave_alerts.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-bell w-5"></i>
-                        <span>Leave Alerts</span>
-                    </a>
-                </div>
-                
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
-                    
-                    <a href="calendar.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-calendar w-5"></i>
-                        <span>Leave Chart</span>
-                    </a>
-                
-                    <a href="reports.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
-                        <i class="fas fa-file-alt w-5"></i>
-                        <span>Reports</span>
-                    </a>
-                </div>
-            </nav>
-        </aside>
-        
-        <!-- Main Content -->
-        <main class="flex-1 ml-64 p-6 pt-24">
-            <div class="max-w-7xl mx-auto">
                 <!-- Page Header -->
                 <div class="mb-8">
                     <div class="flex items-center gap-4">
@@ -426,8 +360,6 @@ if (isset($_POST['generate_pdf_report'])) {
                     </div>
                 </div>
             </div>
-        </main>
-    </div>
 
     <script>
         // Function to fetch pending leave count
@@ -458,5 +390,5 @@ if (isset($_POST['generate_pdf_report'])) {
             setInterval(fetchPendingLeaveCount, 30000);
         });
     </script>
-</body>
-</html>
+    
+<?php include '../../../../includes/admin_footer.php'; ?>

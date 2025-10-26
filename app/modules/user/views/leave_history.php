@@ -29,95 +29,19 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute([$_SESSION['user_id']]);
 $leave_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Set page title
+$page_title = "Leave History";
+
+// Include user header
+include '../../../../includes/user_header.php';
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <!-- OFFLINE Tailwind CSS - No internet required! -->
-    <link rel="stylesheet" href="../../../../assets/css/tailwind.css">
-        <!-- Font Awesome Local - No internet required! -->
-    <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
-    
-
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leave History - ELMS</title>
-    
-    <link rel="stylesheet" href="../../../../assets/css/style.css">
-    <link rel="stylesheet" href="../../../../assets/css/dark-theme.css">
-    
-    <!-- Force cache refresh -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    
-</head>
-<body class="bg-slate-900 text-white">
-    <?php include '../../../../includes/unified_navbar.php'; ?>
-
-    <div class="flex">
-        <!-- Left Sidebar -->
-        <aside class="fixed left-0 top-16 h-screen w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40">
-            <nav class="p-4 space-y-2">
-                <!-- Active Navigation Item (Dashboard) -->
-                <a href="dashboard.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-tachometer-alt w-5"></i>
-                    <span>Dashboard</span>
-                </a>
-                
-                <!-- Section Headers -->
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Leave Management</h3>
-                    
-                    <!-- Navigation Items -->
-                  <!-- Navigation Items -->
-                  <a href="leave_history.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
-                        <i class="fas fa-history w-5"></i>
-                        <span>Leave History</span>
-                    </a>
-                    <a href="leave_credits.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-calculator w-5"></i>
-                        <span>Leave Credits</span>
-                    </a>
-                    
-                
-                </div>
-                
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
-                    <a href="calendar.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors">
-                        <i class="fas fa-calendar-alt w-5"></i>
-                        <span>Leave Chart</span>
-                    </a>
-                </div>
-                
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Account</h3>
-                    <a href="profile.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors">
-                        <i class="fas fa-user w-5"></i>
-                        <span>Profile</span>
-                    </a>
-                </div>
-                
-            </nav>
-        </aside>
-        
-        <!-- Main Content -->
-        <main class="flex-1 ml-64 p-6 pt-24">
-            <div class="max-w-7xl mx-auto">
-                <!-- Page Header -->
-                <div class="mb-8">
-                    <div class="flex items-center gap-4">
-                        <div class="w-16 h-16 bg-gradient-to-r from-primary to-accent rounded-2xl flex items-center justify-center">
-                            <i class="fas fa-history text-2xl text-white"></i>
-                        </div>
-                        <div>
-                            <h1 class="text-3xl font-bold text-white mb-2">Leave History</h1>
-                            <p class="text-slate-400">View all your leave requests and their status</p>
-                        </div>
-                    </div>
-                </div>
+<!-- Page Header -->
+<h1 class="elms-h1" style="margin-bottom: 0.5rem; display: flex; align-items: center;">
+    <i class="fas fa-history" style="color: #0891b2; margin-right: 0.75rem;"></i>Leave History
+</h1>
+<p class="elms-text-muted" style="margin-bottom: 2rem;">View all your leave requests and their status</p>
                 
                 <?php if (isset($_SESSION['success'])): ?>
                     <div class="bg-green-500/20 border border-green-500/30 text-green-400 p-4 rounded-xl mb-6 flex items-center">
@@ -305,22 +229,6 @@ $leave_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 return isWithoutPay ? displayName + ' (Without Pay)' : displayName;
             }
         }
-
-        // User dropdown toggle function
-        function toggleUserDropdown() {
-            const dropdown = document.getElementById('userDropdown');
-            dropdown.classList.toggle('hidden');
-        }
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(event) {
-            const userDropdown = document.getElementById('userDropdown');
-            const userButton = event.target.closest('[onclick="toggleUserDropdown()"]');
-            
-            if (userDropdown && !userDropdown.contains(event.target) && !userButton) {
-                userDropdown.classList.add('hidden');
-            }
-        });
 
         function openLeaveDetailsModal() {
             document.getElementById('leaveDetailsModal').classList.remove('hidden');
@@ -621,5 +529,5 @@ $leave_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
     </script>
-</body>
-</html> 
+
+<?php include '../../../../includes/user_footer.php'; ?> 

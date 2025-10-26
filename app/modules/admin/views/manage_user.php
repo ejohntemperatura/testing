@@ -237,98 +237,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Fetch all users
 $stmt = $pdo->query("SELECT * FROM employees ORDER BY position ASC, name ASC");
 $users = $stmt->fetchAll();
+
+// Set page title
+$page_title = "Manage Users";
+
+// Include admin header
+include '../../../../includes/admin_header.php';
 ?>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <!-- OFFLINE Tailwind CSS - No internet required! -->
-    <link rel="stylesheet" href="../../../../assets/css/tailwind.css">
-        <!-- Font Awesome Local - No internet required! -->
-    <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
-    
-
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ELMS - Manage Users</title>
-    <script>
-    </script>
-    
-    <link rel="stylesheet" href="../../../../assets/css/style.css">
-    <link rel="stylesheet" href="../../../../assets/css/dark-theme.css">
-    <link rel="stylesheet" href="../../../../assets/css/admin_style.css">
-    <script>
-    </script>
-</head>
-<body class="bg-slate-900 text-white">
-    <?php include '../../../../includes/unified_navbar.php'; ?>
-
-    <div class="flex">
-        <!-- Left Sidebar -->
-        <aside class="fixed left-0 top-16 h-screen w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40">
-            <nav class="p-4 space-y-2">
-                <!-- Active Navigation Item (Dashboard) -->
-                <a href="dashboard.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-tachometer-alt w-5"></i>
-                    <span>Dashboard</span>
-                </a>
-                
-                <!-- Section Headers -->
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Management</h3>
-                    
-                    <!-- Navigation Items -->
-                    <a href="manage_user.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
-                        <i class="fas fa-users-cog w-5"></i>
-                        <span>Manage Users</span>
-                    </a>
-                    
-                    <a href="leave_management.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-calendar-check w-5"></i>
-                        <span>Leave Management</span>
-                        <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full" id="pendingLeaveBadge" style="display: none;">0</span>
-                    </a>
-                    
-                    <a href="leave_alerts.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-bell w-5"></i>
-                        <span>Leave Alerts</span>
-                    </a>
-                </div>
-                
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
-                    
-                    <a href="calendar.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-calendar w-5"></i>
-                        <span>Leave Chart</span>
-                    </a>
-                    
-                    <a href="reports.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-file-alt w-5"></i>
-                        <span>Reports</span>
-                    </a>
-                </div>
-                
-            </nav>
-        </aside>
-        
-        <!-- Main Content -->
-        <main class="flex-1 ml-64 p-6 pt-24">
-            <div class="max-w-7xl mx-auto">
-                <!-- Page Header -->
-                <div class="mb-8">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h1 class="text-3xl font-bold text-white mb-2 flex items-center">
-                                <i class="fas fa-users-cog text-primary mr-3"></i>Manage Users
-                            </h1>
-                            <p class="text-slate-400">Add, edit, and manage user accounts</p>
-                        </div>
-                        <button type="button" onclick="openAddUserModal()" class="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl">
-                            <i class="fas fa-plus mr-2"></i>Add New User
-                        </button>
-                    </div>
-                </div>
+<!-- Page Header -->
+<div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 2rem;">
+    <div>
+        <h1 class="elms-h1" style="margin-bottom: 0.5rem; display: flex; align-items: center;">
+            <i class="fas fa-users-cog" style="color: #0891b2; margin-right: 0.75rem;"></i>Manage Users
+        </h1>
+        <p class="elms-text-muted">Add, edit, and manage user accounts</p>
+    </div>
+    <button type="button" onclick="openAddUserModal()" class="elms-btn elms-btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; white-space: nowrap; padding: 0.625rem 1.25rem; font-weight: 600;">
+        <i class="fas fa-plus"></i>Add New User
+    </button>
+</div>
 
                 <!-- Search Section -->
                 <div class="bg-slate-800 rounded-2xl p-6 mb-8 border border-slate-700">
@@ -345,26 +272,26 @@ $users = $stmt->fetchAll();
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="usersRow">
                     <?php foreach ($users as $user): ?>
                     <div id="user-card-<?php echo $user['id']; ?>" class="bg-slate-800 rounded-2xl p-6 border border-slate-700 hover:border-slate-600/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl">
-                        <div class="flex justify-between items-start mb-4">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-12 h-12 bg-gradient-to-r from-primary to-accent rounded-xl flex items-center justify-center">
-                                    <i class="fas fa-user text-white text-lg"></i>
-                                </div>
-                                <div>
-                                    <h3 class="text-lg font-semibold text-white"><?php echo htmlspecialchars($user['name']); ?></h3>
-                                    <p class="text-slate-400 text-sm"><?php echo htmlspecialchars($user['email']); ?></p>
-                                </div>
+                        <div class="flex items-start mb-4">
+                            <div class="w-12 h-12 bg-gradient-to-r from-primary to-accent rounded-xl flex items-center justify-center flex-shrink-0">
+                                <i class="fas fa-user text-white text-lg"></i>
                             </div>
-                            <span class="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide <?php 
-                                echo $user['role'] === 'admin' ? 'bg-red-500/20 text-red-400' : 
-                                    ($user['role'] === 'manager' ? 'bg-orange-500/20 text-orange-400' : 
-                                    ($user['role'] === 'director' ? 'bg-purple-500/20 text-purple-400' : 'bg-green-500/20 text-green-400')); 
-                            ?>">
-                                <?php 
-                                    echo $user['role'] === 'manager' ? 'Department Head' : 
-                                        ($user['role'] === 'director' ? 'Director Head' : ucfirst($user['role'])); 
-                                ?>
-                            </span>
+                            <div class="ml-3 flex-1 min-w-0">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="text-lg font-semibold text-white truncate"><?php echo htmlspecialchars($user['name']); ?></h3>
+                                    <span class="ml-2 px-2 py-1 rounded text-xs font-bold uppercase tracking-wide whitespace-nowrap flex-shrink-0 <?php 
+                                        echo $user['role'] === 'admin' ? 'bg-red-500/20 text-red-400' : 
+                                            ($user['role'] === 'manager' ? 'bg-orange-500/20 text-orange-400' : 
+                                            ($user['role'] === 'director' ? 'bg-purple-500/20 text-purple-400' : 'bg-green-500/20 text-green-400')); 
+                                    ?>">
+                                        <?php 
+                                            echo $user['role'] === 'manager' ? 'DEPARTMENT HEAD' : 
+                                                ($user['role'] === 'director' ? 'DIRECTOR HEAD' : strtoupper($user['role'])); 
+                                        ?>
+                                    </span>
+                                </div>
+                                <p class="text-slate-400 text-sm mt-1"><?php echo htmlspecialchars($user['email']); ?></p>
+                            </div>
                         </div>
                         
                         <div class="space-y-3 mb-6">
@@ -541,44 +468,6 @@ $users = $stmt->fetchAll();
     </div>
 
     <script>
-        // User dropdown toggle function
-        function toggleUserDropdown() {
-            const dropdown = document.getElementById('userDropdown');
-            const notificationDropdown = document.getElementById('notificationDropdown');
-            
-            if (dropdown) {
-                dropdown.classList.toggle('hidden');
-                
-                // Ensure dropdown is properly positioned and isolated
-                if (!dropdown.classList.contains('hidden')) {
-                    dropdown.style.position = 'absolute';
-                    dropdown.style.zIndex = '1000';
-                    dropdown.style.isolation = 'isolate';
-                    
-                    // Remove any misplaced elements that might have appeared
-                    const misplacedInputs = dropdown.querySelectorAll('input');
-                    misplacedInputs.forEach(input => {
-                        input.remove();
-                    });
-                }
-                
-                // Close notification dropdown when opening user dropdown
-                if (notificationDropdown) {
-                    notificationDropdown.classList.add('hidden');
-                }
-            }
-        }
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(event) {
-            const userDropdown = document.getElementById('userDropdown');
-            const userButton = event.target.closest('[onclick="toggleUserDropdown()"]');
-            
-            if (userDropdown && !userDropdown.contains(event.target) && !userButton) {
-                userDropdown.classList.add('hidden');
-            }
-        });
-
         // Modal functions
         function openAddUserModal() {
             document.getElementById('addUserModal').classList.remove('hidden');
@@ -945,5 +834,5 @@ $users = $stmt->fetchAll();
             z-index: 1;
         }
     </style>
-</body>
-</html> 
+    
+<?php include '../../../../includes/admin_footer.php'; ?> 

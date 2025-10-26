@@ -124,8 +124,44 @@ if ($leave_type === 'study') {
     $creditCheck['message'] = 'Study leave is typically without pay. Would you like to proceed with without pay leave?';
 }
 
+// Special case: CTO leave requires sufficient credits - cannot proceed without pay
+// DOUBLE CHECK: Direct database query to ensure CTO balance is available
+if ($leave_type === 'cto') {
+    $stmt = $pdo->prepare("SELECT cto_balance FROM employees WHERE id = ?");
+    $stmt->execute([$employee_id]);
+    $cto_balance = $stmt->fetchColumn() ?: 0;
+    
+    $hours_requested = (int)$days * 8; // Calculate hours needed
+    
+    if ($cto_balance <= 0) {
+        $_SESSION['error'] = "You have no CTO credits available. Current balance: {$cto_balance} hours. Cannot submit CTO leave request.";
+        header('Location: dashboard.php');
+        exit();
+    }
+    
+    if ($hours_requested > $cto_balance) {
+        $_SESSION['error'] = "Insufficient CTO balance. Available: {$cto_balance} hours, Requested: {$hours_requested} hours. Cannot submit CTO leave request.";
+        header('Location: dashboard.php');
+        exit();
+    }
+    
+    // If creditCheck says insufficient but balance check passes, use the balance check
+    if (!$creditCheck['sufficient']) {
+        $_SESSION['error'] = $creditCheck['message'] . " CTO leave cannot be taken without pay.";
+        header('Location: dashboard.php');
+        exit();
+    }
+}
+
 // Check if user wants to proceed with without pay leave
 $proceed_without_pay = isset($_POST['proceed_without_pay']) && $_POST['proceed_without_pay'] === 'yes';
+
+// Additional check: CTO cannot proceed without pay even if proceed_without_pay is set
+if ($leave_type === 'cto' && !$creditCheck['sufficient'] && $proceed_without_pay) {
+    $_SESSION['error'] = "CTO leave requires sufficient credits and cannot be taken without pay.";
+    header('Location: dashboard.php');
+    exit();
+}
 
 // Prevent duplicate submissions
 $submission_key = $employee_id . '_' . $leave_type . '_' . $start_date . '_' . $end_date;
@@ -187,6 +223,28 @@ try {
     // Begin transaction
     $pdo->beginTransaction();
 
+    // FINAL CHECK for CTO balance before inserting
+    if ($leave_type === 'cto') {
+        $stmt = $pdo->prepare("SELECT cto_balance FROM employees WHERE id = ? FOR UPDATE");
+        $stmt->execute([$employee_id]);
+        $final_cto_balance = $stmt->fetchColumn() ?: 0;
+        $final_hours_requested = (int)$days * 8;
+        
+        if ($final_cto_balance <= 0) {
+            $pdo->rollBack();
+            $_SESSION['error'] = "Cannot submit CTO leave request. You have no CTO credits available (Current balance: {$final_cto_balance} hours).";
+            header('Location: dashboard.php');
+            exit();
+        }
+        
+        if ($final_hours_requested > $final_cto_balance) {
+            $pdo->rollBack();
+            $_SESSION['error'] = "Cannot submit CTO leave request. Insufficient CTO balance. Available: {$final_cto_balance} hours, Requested: {$final_hours_requested} hours.";
+            header('Location: dashboard.php');
+            exit();
+        }
+    }
+
     // Insert leave request with conditional fields
     // Check if original_leave_type column exists
     try {
@@ -202,12 +260,27 @@ try {
         }
     }
 
-    // Note: Leave credits will be deducted when the leave is approved by Director
-    // This ensures we deduct only the approved days, not the requested days
-
     // Get the insert ID before committing the transaction
     $leaveRequestId = $pdo->lastInsertId();
     
+    // For CTO leave type, deduct credits immediately when submitted (not on approval)
+    if ($leave_type === 'cto') {
+        try {
+            $creditsManager->deductLeaveCredits($employee_id, 'cto', $start_date, $end_date);
+            error_log("CTO credits deducted immediately on submission - Request ID: $leaveRequestId");
+        } catch (Exception $e) {
+            // If deduction fails, rollback the transaction
+            $pdo->rollBack();
+            $_SESSION['error'] = "Failed to deduct CTO credits: " . $e->getMessage();
+            error_log("CTO credit deduction failed: " . $e->getMessage());
+            header('Location: dashboard.php');
+            exit();
+        }
+    }
+    
+    // Note: For other leave types, credits will be deducted when the leave is approved by Director
+    // This ensures we deduct only the approved days, not the requested days
+
     $pdo->commit();
     
     // Send notification to department head

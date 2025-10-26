@@ -92,37 +92,116 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $stmt = $pdo->prepare("SELECT * FROM dtr WHERE user_id = ? ORDER BY date DESC, morning_time_in DESC LIMIT 10");
 $stmt->execute([$_SESSION['user_id']]);
 $recent_records = $stmt->fetchAll();
-?>
 
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- OFFLINE Tailwind CSS - No internet required! -->
-    <link rel="stylesheet" href="../../../../assets/css/tailwind.css">
-        <!-- Font Awesome Local - No internet required! -->
-    <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
-    
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ELMS - Time In/Out</title>
-    <script>
-    </script>
-    
-    <link rel="stylesheet" href="../../../../assets/css/style.css">
-    <link rel="stylesheet" href="../../../../assets/css/dark-theme.css">
-    
+    <link rel="stylesheet" href="../../../../assets/css/tailwind.css">
+    <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="../../../../assets/css/elms-dark-theme.css">
 </head>
-<body class="bg-slate-900 text-white min-h-screen">
-    <?php include '../../../../includes/unified_navbar.php'; ?>
+<body style="background-color: #0f172a; margin: 0; min-height: 100vh;">
+    <!-- Simple Navbar (No Sidebar) -->
+    <nav class="elms-navbar">
+        <div class="elms-navbar-content">
+            <a href="dashboard.php" class="elms-logo" style="text-decoration: none; cursor: pointer;">
+                <span class="elms-logo-text">ELMS Employee</span>
+            </a>
+            
+            <div style="display: flex; align-items: center; gap: 1rem; margin-left: auto;">
+                <!-- Notifications Bell -->
+                <div style="position: relative;">
+                    <button onclick="toggleNotificationDropdown()" onmouseover="this.style.color='white'; this.style.backgroundColor='#334155'" onmouseout="this.style.color='#cbd5e1'; this.style.backgroundColor='transparent'" style="position: relative; padding: 0.5rem; color: #cbd5e1; background: transparent; border: none; cursor: pointer; border-radius: 0.5rem; transition: all 0.2s;">
+                        <i class="fas fa-bell" style="font-size: 1.25rem;"></i>
+                        <span id="navbarAlertBadge" style="display: none; position: absolute; top: -4px; right: -4px; background: #ef4444; color: white; font-size: 0.75rem; border-radius: 9999px; height: 20px; width: 20px; align-items: center; justify-content: center; font-weight: 600;">
+                            0
+                        </span>
+                    </button>
+                    
+                    <!-- Notification Dropdown -->
+                    <div id="notificationDropdown" style="display: none; position: absolute; right: 0; margin-top: 0.5rem; width: 24rem; background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); z-index: 100; max-height: 400px;">
+                        <div style="padding: 1rem; border-bottom: 1px solid #334155;">
+                            <h3 style="font-size: 1.125rem; font-weight: 600; color: white; display: flex; align-items: center;">
+                                <i class="fas fa-bell" style="margin-right: 0.5rem;"></i>
+                                Notifications
+                            </h3>
+                        </div>
+                        <div id="navbarAlertsContainer" style="max-height: 16rem; overflow-y: auto;">
+                            <div style="text-align: center; padding: 2rem;">
+                                <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; color: #64748b; margin-bottom: 1rem;"></i>
+                                <p style="color: #94a3b8;">Loading alerts...</p>
+                            </div>
+                        </div>
+                        <div style="padding: 0.75rem; border-top: 1px solid #334155; display: flex; justify-content: space-between; align-items: center;">
+                            <button onclick="markAllNavbarAlertsRead()" style="font-size: 0.75rem; color: #94a3b8; background: none; border: none; cursor: pointer; display: flex; align-items: center;">
+                                <i class="fas fa-check-double" style="margin-right: 0.25rem;"></i>Clear All
+                            </button>
+                            <a href="dashboard.php#alerts" style="font-size: 0.75rem; color: #60a5fa; text-decoration: none;">
+                                View All Notifications
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- User Dropdown -->
+                <div style="position: relative;">
+                    <button onclick="toggleUserDropdown()" style="display: flex; align-items: center; gap: 0.5rem; background: none; border: none; cursor: pointer; padding: 0;">
+                        <div style="width: 32px; height: 32px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.875rem;">
+                            <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
+                        </div>
+                        <div style="text-align: left;">
+                            <div style="color: white; font-weight: 600; font-size: 0.875rem;">
+                                <?php echo htmlspecialchars($user['name']); ?>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-down" style="color: #cbd5e1; font-size: 0.75rem;"></i>
+                    </button>
+                    
+                    <!-- Dropdown Menu -->
+                    <div id="userDropdown" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 0.5rem; width: 260px; background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); z-index: 100;">
+                        <!-- Dropdown Header -->
+                        <div style="padding: 1rem; border-bottom: 1px solid #334155;">
+                            <div style="font-weight: 600; color: white; margin-bottom: 0.25rem; font-size: 0.9375rem;">
+                                <?php echo htmlspecialchars($user['name']); ?>
+                            </div>
+                            <div style="color: #94a3b8; font-size: 0.8125rem; margin-bottom: 0.5rem;">
+                                <?php echo htmlspecialchars($user['email'] ?? 'employee@elms.com'); ?>
+                            </div>
+                            <span style="display: inline-block; background: #10b981; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.6875rem; font-weight: 600;">
+                                Employee
+                            </span>
+                        </div>
+                        
+                        <!-- Dropdown Items -->
+                        <div style="padding: 0.5rem 0;">
+                            <a href="profile.php" style="display: block; padding: 0.75rem 1rem; color: #cbd5e1; text-decoration: none; transition: all 0.2s; font-size: 0.875rem; font-weight: 500;" onmouseover="this.style.backgroundColor='#334155'; this.style.color='white'" onmouseout="this.style.backgroundColor='transparent'; this.style.color='#cbd5e1'">
+                                <i class="fas fa-user" style="margin-right: 0.625rem; width: 18px; font-size: 0.875rem;"></i>
+                                My Profile
+                            </a>
+                            <a href="../../../../auth/controllers/logout.php" style="display: block; padding: 0.75rem 1rem; color: #ef4444; text-decoration: none; transition: all 0.2s; border-top: 1px solid #334155; font-size: 0.875rem; font-weight: 500;" onmouseover="this.style.backgroundColor='#334155'" onmouseout="this.style.backgroundColor='transparent'">
+                                <i class="fas fa-sign-out-alt" style="margin-right: 0.625rem; width: 18px; font-size: 0.875rem;"></i>
+                                Sign Out
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
 
-    <!-- Main Content -->
-    <main class="pt-24 px-4 pb-6">
-        <div class="max-w-4xl mx-auto">
+    <!-- Main Content (No Sidebar) -->
+    <main style="padding: 6rem 2rem 2rem 2rem;">
+        <div style="max-width: 1000px; margin: 0 auto;">
             <!-- Welcome Section -->
-            <div class="text-center mb-8 animate-fade-in mt-12">
-                <h1 class="text-3xl font-bold text-white mb-2">Welcome, <?php echo htmlspecialchars($user['name']); ?>!</h1>
-                <p class="text-slate-400">Please record your attendance for today</p>
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <h1 style="font-size: 2.5rem; font-weight: 700; color: white; margin-bottom: 0.5rem;">
+                    Welcome, <?php echo htmlspecialchars($user['name']); ?>!
+                </h1>
+                <p style="color: #94a3b8; font-size: 1.125rem;">Please record your attendance for today</p>
             </div>
 
             <!-- Current Time Display -->
@@ -321,27 +400,374 @@ $recent_records = $stmt->fetchAll();
     </main>
 
     <script>
-        // User dropdown toggle function
+        let navbarAlertPollingInterval = null;
+        let lastNavbarAlertCount = 0;
+        
+        function toggleNotificationDropdown() {
+            const dropdown = document.getElementById('notificationDropdown');
+            const userDropdown = document.getElementById('userDropdown');
+            
+            if (userDropdown) {
+                userDropdown.style.display = 'none';
+            }
+            
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+            
+            if (dropdown.style.display === 'block') {
+                loadNavbarAlerts();
+            }
+        }
+        
         function toggleUserDropdown() {
             const dropdown = document.getElementById('userDropdown');
-            dropdown.classList.toggle('hidden');
+            const notificationDropdown = document.getElementById('notificationDropdown');
+            
+            if (notificationDropdown) {
+                notificationDropdown.style.display = 'none';
+            }
+            
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
         }
+        
+        async function loadNavbarAlerts() {
+            const apiUrl = '/ELMS/api/get_realtime_alerts.php';
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayNavbarAlerts(data.alerts);
+                    updateNavbarAlertBadge(data.unread_count);
+                } else {
+                    showNavbarAlertError('Failed to load alerts');
+                }
+            } catch (error) {
+                console.error('Error fetching alerts:', error);
+                showNavbarAlertError('Network error loading alerts');
+            }
+        }
+        
+        function displayNavbarAlerts(alerts) {
+            const container = document.getElementById('navbarAlertsContainer');
+            
+            if (alerts.length === 0) {
+                container.innerHTML = '<div style="padding: 2rem; text-align: center;"><i class="fas fa-bell-slash" style="font-size: 2.5rem; color: #64748b; margin-bottom: 1rem;"></i><p style="color: #94a3b8;">No notifications</p></div>';
+                return;
+            }
 
-        // Close dropdown when clicking outside
+            container.innerHTML = alerts.slice(0, 5).map(alert => {
+                const iconClass = alert.alert_icon || 'fas fa-bell';
+                const colorClass = alert.alert_color || 'text-cyan-400 bg-cyan-500/20';
+                const iconColor = colorClass.split(' ')[0].replace('text-', '');
+                const bgColor = colorClass.split(' ')[1].replace('bg-', '');
+                
+                return `
+                <div class="notification-item" style="padding: 0.75rem; border-bottom: 1px solid rgba(51, 65, 85, 0.5); cursor: pointer;" 
+                     onmouseover="this.style.backgroundColor='rgba(51, 65, 85, 0.3)'" 
+                     onmouseout="this.style.backgroundColor='transparent'"
+                     data-alert-id="${alert.id}"
+                     data-alert-type="${alert.alert_type}"
+                     data-message="${alert.message.replace(/"/g, '&quot;')}"
+                     data-created-at="${alert.created_at}"
+                     data-sent-by="${(alert.sent_by_name || 'System').replace(/"/g, '&quot;')}">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="width: 2rem; height: 2rem; ${bgColor ? 'background: ' + bgColor.replace('/', '') : 'background: rgba(6, 182, 212, 0.2)'}; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="${iconClass}" style="font-size: 0.75rem;"></i>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.25rem;">
+                                <h4 style="font-size: 0.875rem; font-weight: 600; color: white; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    ${getAlertTitle(alert.alert_type)}
+                                </h4>
+                                <span style="font-size: 0.75rem; color: #64748b;">${alert.time_ago}</span>
+                            </div>
+                            <p style="font-size: 0.75rem; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${alert.message.substring(0, 60)}...</p>
+                            <span style="font-size: 0.75rem; color: #60a5fa; font-weight: 500;">Click to view →</span>
+                        </div>
+                    </div>
+                </div>
+            `}).join('');
+        }
+        
+        function getAlertTitle(alertType) {
+            const titles = {
+                'urgent_year_end': '🚨 Urgent Year-End Alert',
+                'csc_utilization_low': '📊 CSC Utilization Low',
+                'critical_utilization': '⚠️ Critical Low Utilization',
+                'csc_limit_exceeded': '🚫 CSC Limit Exceeded',
+                'csc_limit_approaching': '⚠️ CSC Limit Approaching',
+                'year_end_critical': '🔥 Year-End Critical',
+                'year_end_warning': '⚠️ Year-End Warning',
+                'moderate_reminder': '📋 Moderate Reminder',
+                'planning_reminder': '📅 Planning Reminder',
+                'csc_compliance': '📜 CSC Compliance Notice',
+                'wellness_focus': '💚 Wellness Focus',
+                'custom': '✏️ Custom Message'
+            };
+            return titles[alertType] || '📢 Leave Alert';
+        }
+        
+        function updateNavbarAlertBadge(count) {
+            const badge = document.getElementById('navbarAlertBadge');
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+        
+        function showNavbarAlertError(message) {
+            const container = document.getElementById('navbarAlertsContainer');
+            container.innerHTML = `<div style="padding: 2rem; text-align: center;"><i class="fas fa-exclamation-triangle" style="font-size: 2.5rem; color: #ef4444; margin-bottom: 1rem;"></i><p style="color: #f87171;">${message}</p></div>`;
+        }
+        
+        async function markAllNavbarAlertsRead() {
+            try {
+                const response = await fetch('/ELMS/api/mark_all_alerts_read.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        loadNavbarAlerts();
+                        updateNavbarAlertBadge(0);
+                    }
+                }
+            } catch (error) {
+                console.error('Error clearing alerts:', error);
+            }
+        }
+        
+        // Close dropdowns when clicking outside
         document.addEventListener('click', function(event) {
             const userDropdown = document.getElementById('userDropdown');
-            const userButton = event.target.closest('[onclick="toggleUserDropdown()"]');
+            const notificationDropdown = document.getElementById('notificationDropdown');
+            const button = event.target.closest('button');
             
-            if (userDropdown && !userDropdown.contains(event.target) && !userButton) {
-                userDropdown.classList.add('hidden');
+            if (!button) {
+                if (userDropdown && !userDropdown.contains(event.target)) {
+                    userDropdown.style.display = 'none';
+                }
+                if (notificationDropdown && !notificationDropdown.contains(event.target)) {
+                    notificationDropdown.style.display = 'none';
+                }
             }
+        });
+        
+        // Open notification modal
+        window.openNotificationModal = function(alertId, alertType, message, createdAt, sentBy) {
+            try {
+                const modalOverlay = document.createElement('div');
+                modalOverlay.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4';
+                modalOverlay.style.position = 'fixed';
+                modalOverlay.style.zIndex = '9999';
+                modalOverlay.style.top = '0';
+                modalOverlay.style.left = '0';
+                modalOverlay.style.right = '0';
+                modalOverlay.style.bottom = '0';
+                modalOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                modalOverlay.style.backdropFilter = 'blur(4px)';
+                modalOverlay.style.display = 'flex';
+                modalOverlay.style.alignItems = 'center';
+                modalOverlay.style.justifyContent = 'center';
+                modalOverlay.style.padding = '1rem';
+            
+                const modalContent = document.createElement('div');
+                modalContent.className = 'bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto shadow-2xl transform scale-95 opacity-0 transition-all duration-300 ease-out';
+                modalContent.style.zIndex = '10000';
+                modalContent.style.backgroundColor = '#1e293b';
+                modalContent.style.border = '1px solid #334155';
+                modalContent.style.borderRadius = '1rem';
+                modalContent.style.maxWidth = '32rem';
+                modalContent.style.maxHeight = '80vh';
+                modalContent.style.overflowY = 'auto';
+                
+                const formattedDate = new Date(createdAt).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit'
+                });
+                
+                modalContent.innerHTML = `
+                    <div style="padding: 1.5rem; border-bottom: 1px solid #334155; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <div style="width: 3.5rem; height: 3.5rem; background: rgba(16, 185, 129, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-bell" style="font-size: 1.5rem; color: #34d399;"></i>
+                                </div>
+                                <div>
+                                    <h3 style="font-size: 1.5rem; font-weight: 700; color: white; margin-bottom: 0.25rem;">Leave Alert</h3>
+                                    <p style="font-size: 0.875rem; color: #94a3b8; display: flex; align-items: center;">
+                                        <i class="fas fa-hashtag" style="margin-right: 0.25rem;"></i>
+                                        Alert ID: ${alertId}
+                                    </p>
+                                </div>
+                            </div>
+                            <button onclick="closeNotificationModal()" style="color: #94a3b8; background: none; border: none; cursor: pointer; padding: 0.5rem; border-radius: 50%; transition: all 0.2s;" onmouseover="this.style.color='white'; this.style.backgroundColor='#334155'" onmouseout="this.style.color='#94a3b8'; this.style.backgroundColor='transparent'">
+                                <i class="fas fa-times" style="font-size: 1.25rem;"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div style="padding: 1.5rem; background: rgba(15, 23, 42, 0.5);">
+                        <div style="margin-bottom: 1.5rem;">
+                            <h4 style="font-size: 0.875rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.75rem; display: flex; align-items: center;">
+                                <i class="fas fa-message" style="margin-right: 0.5rem;"></i>
+                                Message Details
+                            </h4>
+                            <div style="background: rgba(51, 65, 85, 0.3); border: 1px solid rgba(71, 85, 105, 0.5); border-radius: 0.75rem; padding: 1.25rem; max-height: 16rem; overflow-y: auto;">
+                                <p style="color: #e2e8f0; line-height: 1.75; white-space: pre-line; font-size: 0.875rem;">${message}</p>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; font-size: 0.875rem;">
+                            <div style="background: rgba(51, 65, 85, 0.2); border-radius: 0.5rem; padding: 1rem; border: 1px solid rgba(71, 85, 105, 0.3);">
+                                <h4 style="font-weight: 600; color: #cbd5e1; margin-bottom: 0.5rem; display: flex; align-items: center;">
+                                    <i class="fas fa-user-circle" style="margin-right: 0.5rem; color: #60a5fa;"></i>
+                                    Sent By
+                                </h4>
+                                <p style="color: #94a3b8; display: flex; align-items: center;">
+                                    <i class="fas fa-user" style="margin-right: 0.5rem;"></i>
+                                    ${sentBy}
+                                </p>
+                            </div>
+                            <div style="background: rgba(51, 65, 85, 0.2); border-radius: 0.5rem; padding: 1rem; border: 1px solid rgba(71, 85, 105, 0.3);">
+                                <h4 style="font-weight: 600; color: #cbd5e1; margin-bottom: 0.5rem; display: flex; align-items: center;">
+                                    <i class="fas fa-calendar-alt" style="margin-right: 0.5rem; color: #34d399;"></i>
+                                    Date & Time
+                                </h4>
+                                <p style="color: #94a3b8; display: flex; align-items: center;">
+                                    <i class="fas fa-clock" style="margin-right: 0.5rem;"></i>
+                                    ${formattedDate}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="padding: 1.5rem; border-top: 1px solid #334155; background: rgba(30, 41, 59, 0.3); display: flex; justify-content: flex-end;">
+                        <button onclick="closeNotificationModal()" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; font-weight: 600; padding: 0.75rem 2rem; border-radius: 0.75rem; border: none; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 6px 12px rgba(37, 99, 235, 0.4)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 6px rgba(37, 99, 235, 0.3)'">
+                            <i class="fas fa-check" style="margin-right: 0.5rem;"></i>
+                            Mark as Read
+                        </button>
+                    </div>
+                `;
+                
+                modalOverlay.appendChild(modalContent);
+                document.body.appendChild(modalOverlay);
+                
+                // Mark notification as read
+                markNotificationAsRead(alertId);
+                
+                // Animate modal in
+                requestAnimationFrame(() => {
+                    modalContent.style.transform = 'scale(1)';
+                    modalContent.style.opacity = '1';
+                });
+                
+                // Close modal when clicking outside
+                modalOverlay.onclick = function(e) {
+                    if (e.target === modalOverlay) {
+                        closeNotificationModal();
+                    }
+                };
+                
+                window.currentNotificationModal = modalOverlay;
+            } catch (error) {
+                console.error('Error opening notification modal:', error);
+            }
+        }
+        
+        window.closeNotificationModal = function() {
+            if (window.currentNotificationModal) {
+                const modalContent = window.currentNotificationModal.querySelector('div');
+                if (modalContent) {
+                    modalContent.style.transform = 'scale(0.95)';
+                    modalContent.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        if (document.body.contains(window.currentNotificationModal)) {
+                            document.body.removeChild(window.currentNotificationModal);
+                        }
+                        window.currentNotificationModal = null;
+                    }, 300);
+                } else {
+                    document.body.removeChild(window.currentNotificationModal);
+                    window.currentNotificationModal = null;
+                }
+            }
+        }
+        
+        async function markNotificationAsRead(alertId) {
+            try {
+                const response = await fetch('/ELMS/api/mark_alert_read.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ alert_id: alertId })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        loadNavbarAlerts();
+                    }
+                }
+            } catch (error) {
+                console.error('Error marking alert as read:', error);
+            }
+        }
+        
+        // Event delegation for notification clicks
+        document.addEventListener('click', function(event) {
+            const notificationItem = event.target.closest('.notification-item');
+            if (notificationItem) {
+                const alertId = notificationItem.getAttribute('data-alert-id');
+                const alertType = notificationItem.getAttribute('data-alert-type');
+                const message = notificationItem.getAttribute('data-message');
+                const createdAt = notificationItem.getAttribute('data-created-at');
+                const sentBy = notificationItem.getAttribute('data-sent-by');
+                
+                if (typeof window.openNotificationModal === 'function') {
+                    window.openNotificationModal(alertId, alertType, message, createdAt, sentBy);
+                    // Close notification dropdown
+                    document.getElementById('notificationDropdown').style.display = 'none';
+                }
+            }
+        });
+        
+        // Load notifications on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadNavbarAlerts();
         });
 
         // Update time display
         function updateTime() {
             const now = new Date();
             const timeString = now.toLocaleTimeString('en-US', { 
-                hour12: false,
+                hour12: true,
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit'

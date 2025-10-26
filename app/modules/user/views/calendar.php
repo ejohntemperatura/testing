@@ -12,79 +12,22 @@ if (!isset($_SESSION['user_id'])) {
 $stmt = $pdo->prepare("SELECT * FROM employees WHERE id = ?");
 $stmt->execute([$_SESSION['user_id']]);
 $employee = $stmt->fetch();
+
+// Set page title
+$page_title = "Leave Calendar";
+
+// Include user header
+include '../../../../includes/user_header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ELMS - Leave Calendar</title>
-    <link rel="stylesheet" href="../../../../assets/css/tailwind.css">
-    <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
-    <link rel="stylesheet" href="../../../../assets/css/style.css">
-    <link rel="stylesheet" href="../../../../assets/css/dark-theme.css">
-    <link href='../../../../assets/libs/fullcalendar/css/main.min.css' rel='stylesheet' />
-</head>
-<body class="bg-slate-900 text-white min-h-screen" data-user-role="user">
-    <?php include '../../../../includes/unified_navbar.php'; ?>
+<link href='../../../../assets/libs/fullcalendar/css/main.min.css' rel='stylesheet' />
 
-    <div class="flex">
-        <!-- Left Sidebar -->
-        <aside id="sidebar" class="fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40">
-            <nav class="p-4 space-y-2">
-                <!-- Navigation Item -->
-                <a href="dashboard.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700/د rounded-lg transition-colors">
-                    <i class="fas fa-tachometer-alt w-5"></i>
-                    <span>Dashboard</span>
-                </a>
-                
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Leave Management</h3>
-                    <a href="leave_history.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors">
-                        <i class="fas fa-history w-5"></i>
-                        <span>Leave History</span>
-                    </a>
-                    <a href="leave_credits.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors">
-                        <i class="fas fa-calculator w-5"></i>
-                        <span>Leave Credits</span>
-                    </a>
-                </div>
-                
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
-                    <a href="calendar.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
-                        <i class="fas fa-calendar-alt w-5"></i>
-                        <span>Leave Chart</span>
-                    </a>
-                </div>
-                
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Account</h3>
-                    <a href="profile.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors">
-                        <i class="fas fa-user w-5"></i>
-                        <span>Profile</span>
-                    </a>
-                </div>
-            </nav>
-        </aside>
+<!-- Page Header -->
+<h1 class="elms-h1" style="margin-bottom: 0.5rem; display: flex; align-items: center;">
+    <i class="fas fa-calendar" style="color: #0891b2; margin-right: 0.75rem;"></i>Leave Calendar
+</h1>
+<p class="elms-text-muted" style="margin-bottom: 2rem;">View all your leave requests in calendar format</p>
 
-        <!-- Main Content -->
-        <main class="flex-1 ml-64 pt-24 px-6 pb-6">
-            <div class="max-w-7xl mx-auto">
-                <!-- Header -->
-                <div class="mb-10 mt-16">
-                    <div class="flex items-center gap-4">
-                        <div class="w-16 h-16 bg-slate-700 rounded-2xl flex items-center justify-center">
-                            <i class="fas fa-calendar-alt text-2xl text-white"></i>
-                        </div>
-                        <div>
-                            <h1 class="text-3xl font-bold text-white mb-2">Leave Chart</h1>
-                            <p class="text-slate-400">View your leave requests in calendar format</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Use shared calendar component -->
+<!-- Use shared calendar component -->
                 <?php 
                 // Create a custom calendar component for users (only approved leaves)
                 $stmt = $pdo->prepare("
@@ -182,9 +125,6 @@ $employee = $stmt->fetch();
                         <div id="calendar"></div>
                     </div>
                 </div>
-            </div>
-        </main>
-    </div>
     
     <script src="../../../../assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src='../../../../assets/libs/fullcalendar/js/main.min.js'></script>

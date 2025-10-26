@@ -144,94 +144,18 @@ $leaveTypeMapping = [
     'other' => 'Other Purpose'
 ];
 
+// Set page title
+$page_title = "Leave Credits";
+
+// Include user header
+include '../../../../includes/user_header.php';
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <!-- OFFLINE Tailwind CSS - No internet required! -->
-    <link rel="stylesheet" href="../../../../assets/css/tailwind.css">
-        <!-- Font Awesome Local - No internet required! -->
-    <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
-    
-
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ELMS - Leave Credits</title>
-    <script>
-    </script>
-    
-    <link rel="stylesheet" href="../../../../assets/css/style.css">
-    <link rel="stylesheet" href="../../../../assets/css/dark-theme.css">
-    <script>
-    </script>
-</head>
-<body class="bg-slate-900 text-white min-h-screen">
-    <?php include '../../../../includes/unified_navbar.php'; ?>
-
-    <div class="flex">
-        <!-- Left Sidebar -->
-        <aside class="fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40">
-            <nav class="p-4 space-y-2">
-                <!-- Active Navigation Item (Dashboard) -->
-                <a href="dashboard.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-tachometer-alt w-5"></i>
-                    <span>Dashboard</span>
-                </a>
-                
-                <!-- Section Headers -->
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Leave Management</h3>
-                    
-                    <!-- Navigation Items -->
-                <a href="leave_history.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-history w-5"></i>
-                    <span>Leave History</span>
-                </a>
-                
-                <a href="leave_credits.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
-                    <i class="fas fa-calculator w-5"></i>
-                    <span>Leave Credits</span>
-                </a>
-                </div>
-                
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
-                    <a href="calendar.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors">
-                        <i class="fas fa-calendar-alt w-5"></i>
-                        <span>Leave Chart</span>
-                    </a>
-                </div>
-                
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Account</h3>
-                    <a href="profile.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors">
-                        <i class="fas fa-user w-5"></i>
-                        <span>Profile</span>
-                    </a>
-                </div>
-                
-            </nav>
-        </aside>
-        
-        <!-- Main Content -->
-        <main class="pt-24 flex-1 ml-64 pt-24 px-6 pb-6">
-            <div class="max-w-7xl mx-auto">
-                <!-- Header -->
-                <div class="mb-8">
-                    <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-4">
-                        <div class="w-16 h-16 bg-gradient-to-r from-primary to-accent rounded-2xl flex items-center justify-center">
-                            <i class="fas fa-calculator text-2xl text-white"></i>
-                        </div>
-                        <div>
-                            <h1 class="text-3xl font-bold text-white mb-2">Leave Credits</h1>
-                                <p class="text-slate-400">Civil Service compliant leave credit management</p>
-                            </div>
-                </div>
-
-                </div>
-            </div>
+<!-- Page Header -->
+<h1 class="elms-h1" style="margin-bottom: 0.5rem; display: flex; align-items: center;">
+    <i class="fas fa-wallet" style="color: #0891b2; margin-right: 0.75rem;"></i>Leave Credits
+</h1>
+<p class="elms-text-muted" style="margin-bottom: 2rem;">Civil Service compliant leave credit management</p>
 
                 <!-- Civil Service Information -->
                 <div class="bg-blue-500/20 border border-blue-500/30 rounded-2xl p-6 mb-8">
@@ -259,7 +183,8 @@ $leaveTypeMapping = [
                     
                     foreach ($leaveTypes as $type => $info):
                         // Get current balance from the manager
-                        $fieldName = $type . '_leave_balance';
+                        // Use credit_field from config if available, otherwise construct field name
+                        $fieldName = isset($info['credit_field']) ? $info['credit_field'] : ($type . '_leave_balance');
                         $currentBalance = isset($leaveSummary[$fieldName]) ? $leaveSummary[$fieldName] : 0;
                         
                         // Get usage statistics for this leave type
@@ -271,9 +196,22 @@ $leaveTypeMapping = [
                             'count' => 0
                         ];
                         
+                        // For CTO, convert days to hours (1 day = 8 hours)
+                        $isCTO = ($type === 'cto');
+                        $totalAllocatedDays = $usage['approved_days'];
+                        $pendingDays = $usage['pending_days'];
+                        $rejectedDays = $usage['rejected_days'];
+                        
+                        if ($isCTO) {
+                            $totalAllocatedHours = $totalAllocatedDays * 8;
+                            $pendingHours = $pendingDays * 8;
+                            $rejectedHours = $rejectedDays * 8;
+                        }
+                        
                         // Calculate total allocated (current balance + used)
-                        $totalAllocated = $currentBalance + $usage['approved_days'];
-                        $usedPercentage = $totalAllocated > 0 ? ($usage['approved_days'] / $totalAllocated) * 100 : 0;
+                        $totalAllocated = $currentBalance + ($isCTO ? $totalAllocatedHours : $totalAllocatedDays);
+                        $usedAmount = $isCTO ? $totalAllocatedHours : $totalAllocatedDays;
+                        $usedPercentage = $totalAllocated > 0 ? ($usedAmount / $totalAllocated) * 100 : 0;
                         $remainingPercentage = 100 - $usedPercentage;
                     ?>
                     <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6 hover:border-slate-600/50 transition-all duration-300">
@@ -289,29 +227,29 @@ $leaveTypeMapping = [
                             </div>
                             <div class="text-right">
                                 <div class="text-2xl font-bold text-white"><?php echo number_format($currentBalance, 1); ?></div>
-                                <div class="text-slate-400 text-sm"><?php echo $type === 'cto' ? 'hours remaining' : 'remaining'; ?></div>
+                                <div class="text-slate-400 text-sm"><?php echo $type === 'cto' ? 'hours remaining' : 'days remaining'; ?></div>
                             </div>
                         </div>
                         
                         <div class="space-y-2">
                             <div class="flex justify-between text-sm">
                                 <span class="text-slate-400">Total Allocated:</span>
-                                <span class="text-white font-semibold"><?php echo number_format($totalAllocated, 1); ?> <?php echo $type === 'cto' ? 'hours' : 'days'; ?></span>
+                                <span class="text-white font-semibold"><?php echo number_format($isCTO ? $totalAllocatedHours : $totalAllocatedDays, 1); ?> <?php echo $type === 'cto' ? 'hours' : 'days'; ?></span>
                             </div>
                             <div class="flex justify-between text-sm">
                                 <span class="text-slate-400">Used (Approved):</span>
-                                <span class="text-white font-semibold"><?php echo $usage['approved_days']; ?> <?php echo $type === 'cto' ? 'hours' : 'days'; ?></span>
+                                <span class="text-white font-semibold"><?php echo number_format($isCTO ? $totalAllocatedHours : $totalAllocatedDays, 1); ?> <?php echo $type === 'cto' ? 'hours' : 'days'; ?></span>
                             </div>
-                            <?php if ($usage['pending_days'] > 0): ?>
+                            <?php if ($isCTO ? $pendingHours > 0 : $pendingDays > 0): ?>
                             <div class="flex justify-between text-sm">
                                 <span class="text-slate-400">Pending:</span>
-                                <span class="text-yellow-400 font-semibold"><?php echo $usage['pending_days']; ?> <?php echo $type === 'cto' ? 'hours' : 'days'; ?></span>
+                                <span class="text-yellow-400 font-semibold"><?php echo number_format($isCTO ? $pendingHours : $pendingDays, 1); ?> <?php echo $type === 'cto' ? 'hours' : 'days'; ?></span>
                             </div>
                             <?php endif; ?>
-                            <?php if ($usage['rejected_days'] > 0): ?>
+                            <?php if ($isCTO ? $rejectedHours > 0 : $rejectedDays > 0): ?>
                             <div class="flex justify-between text-sm">
                                 <span class="text-slate-400">Rejected:</span>
-                                <span class="text-red-400 font-semibold"><?php echo $usage['rejected_days']; ?> <?php echo $type === 'cto' ? 'hours' : 'days'; ?></span>
+                                <span class="text-red-400 font-semibold"><?php echo number_format($isCTO ? $rejectedHours : $rejectedDays, 1); ?> <?php echo $type === 'cto' ? 'hours' : 'days'; ?></span>
                             </div>
                             <?php endif; ?>
                             <div class="w-full bg-slate-700 rounded-full h-2">
@@ -453,23 +391,6 @@ $leaveTypeMapping = [
     </div>
 
     <script>
-        // User dropdown toggle function
-        function toggleUserDropdown() {
-            const dropdown = document.getElementById('userDropdown');
-            dropdown.classList.toggle('hidden');
-        }
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(event) {
-            const userDropdown = document.getElementById('userDropdown');
-            const userButton = event.target.closest('[onclick="toggleUserDropdown()"]');
-            
-            if (userDropdown && !userDropdown.contains(event.target) && !userButton) {
-                userDropdown.classList.add('hidden');
-            }
-        });
-
-
         // Auto-refresh every 30 seconds if there are pending requests
         <?php if (count(array_filter($leaveHistory, function($leave) { return $leave['status'] === 'pending'; })) > 0): ?>
         setTimeout(function() {
@@ -479,5 +400,5 @@ $leaveTypeMapping = [
         }, 30000);
         <?php endif; ?>
     </script>
-</body>
-</html> 
+
+<?php include '../../../../includes/user_footer.php'; ?> 

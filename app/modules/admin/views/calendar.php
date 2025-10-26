@@ -14,62 +14,14 @@ exit();
 $stmt = $pdo->prepare("SELECT * FROM employees WHERE id = ?");
 $stmt->execute([$_SESSION['user_id']]);
 $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Set page title
+$page_title = "Leave Calendar";
+
+// Include admin header
+include '../../../../includes/admin_header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <link rel="stylesheet" href="../../../../assets/css/tailwind.css">
-    <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ELMS - Admin Leave Calendar</title>
-    <link rel="stylesheet" href="../../../../assets/css/style.css">
-    <link rel="stylesheet" href="../../../../assets/css/dark-theme.css">
-    <link rel="stylesheet" href="../../../../assets/css/admin_style.css">
-    <link href='../../../../assets/libs/fullcalendar/css/main.min.css' rel='stylesheet' />
-</head>
-<body class="bg-slate-900 text-white">
-    <?php include '../../../../includes/unified_navbar.php'; ?>
-    
-    <div class="flex">
-        <aside id="sidebar" class="fixed left-0 top-16 h-screen w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40">
-            <nav class="p-4 space-y-2">
-                <a href="dashboard.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-tachometer-alt w-5"></i>
-                    <span>Dashboard</span>
-                </a>
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Management</h3>
-                    <a href="manage_user.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-users-cog w-5"></i>
-                        <span>Manage Users</span>
-                    </a>
-                    <a href="leave_management.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-calendar-check w-5"></i>
-                        <span>Leave Management</span>
-                        <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full" id="pendingLeaveBadge" style="display: none;">0</span>
-                    </a>
-                    <a href="leave_alerts.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-bell w-5"></i>
-                        <span>Leave Alerts</span>
-                    </a>
-                </div>
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
-                    <a href="view_chart.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
-                        <i class="fas fa-calendar w-5"></i>
-                        <span>Leave Chart</span>
-                    </a>
-                    <a href="reports.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-file-alt w-5"></i>
-                        <span>Reports</span>
-                    </a>
-                </div>
-            </nav>
-        </aside>
-        
-        <main class="flex-1 ml-64 p-6 pt-24">
-            <div class="max-w-7xl mx-auto">
+<link href='../../../../assets/libs/fullcalendar/css/main.min.css' rel='stylesheet' />
                 <div class="mb-8">
                     <div class="flex items-center gap-4">
                         <div class="w-16 h-16 bg-gradient-to-r from-primary to-accent rounded-2xl flex items-center justify-center">

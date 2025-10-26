@@ -42,6 +42,52 @@ class LeaveCreditsManager {
      */
     public function checkLeaveCredits($employee_id, $leave_type, $start_date, $end_date) {
         $days_requested = $this->calculateDays($start_date, $end_date);
+        
+        // Handle CTO specially - it uses hours instead of days
+        if ($leave_type === 'cto') {
+            $hours_requested = $days_requested * 8; // Convert days to hours
+            
+            // Check if CTO balance column exists
+            $stmt = $this->pdo->query("DESCRIBE employees");
+            $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            if (!in_array('cto_balance', $columns)) {
+                return ['sufficient' => false, 'message' => 'CTO balance tracking not available'];
+            }
+            
+            // Get current CTO balance
+            $stmt = $this->pdo->prepare("SELECT cto_balance FROM employees WHERE id = ?");
+            $stmt->execute([$employee_id]);
+            $available_credits = $stmt->fetchColumn() ?: 0;
+            
+            // Check if user has any CTO credits available
+            if ($available_credits <= 0) {
+                return [
+                    'sufficient' => false,
+                    'available' => 0,
+                    'requested' => $hours_requested,
+                    'message' => "You have no CTO credits available. Current balance: {$available_credits} hours"
+                ];
+            }
+            
+            // Check if requested hours exceed available credits
+            if ($hours_requested > $available_credits) {
+                return [
+                    'sufficient' => false,
+                    'available' => $available_credits,
+                    'requested' => $hours_requested,
+                    'message' => "Insufficient CTO balance. Available: {$available_credits} hours, Requested: {$hours_requested} hours"
+                ];
+            }
+            
+            return [
+                'sufficient' => true,
+                'available' => $available_credits,
+                'requested' => $hours_requested,
+                'message' => 'Sufficient CTO credits available'
+            ];
+        }
+        
         $mapping = $this->getLeaveTypeMapping();
         
         // Check if leave type requires credits
@@ -101,6 +147,11 @@ class LeaveCreditsManager {
      * Deduct leave credits when leave is applied
      */
     public function deductLeaveCredits($employee_id, $leave_type, $start_date, $end_date) {
+        // Handle CTO specially - it uses hours instead of days
+        if ($leave_type === 'cto') {
+            return $this->handleCTOCredits($employee_id, $leave_type, $start_date, $end_date, 'deduct');
+        }
+        
         $days_requested = $this->calculateDays($start_date, $end_date);
         $mapping = $this->getLeaveTypeMapping();
         
@@ -144,6 +195,11 @@ class LeaveCreditsManager {
      * Restore leave credits when leave is rejected or cancelled
      */
     public function restoreLeaveCredits($employee_id, $leave_type, $start_date, $end_date) {
+        // Handle CTO specially - it uses hours instead of days
+        if ($leave_type === 'cto') {
+            return $this->handleCTOCredits($employee_id, $leave_type, $start_date, $end_date, 'restore');
+        }
+        
         $days_requested = $this->calculateDays($start_date, $end_date);
         $mapping = $this->getLeaveTypeMapping();
         

@@ -150,26 +150,12 @@ foreach ($alertData as $employeeId => $data) {
     $employees[] = $employee;
 }
 
-?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <!-- OFFLINE Tailwind CSS - No internet required! -->
-    <link rel="stylesheet" href="../../../../assets/css/tailwind.css">
-        <!-- Font Awesome Local - No internet required! -->
-    <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
-        <!-- Font Awesome Local - No internet required! -->
-        
-        <link rel="stylesheet" href="../../../../assets/css/style.css">
-        <link rel="stylesheet" href="../../../../assets/css/admin_style.css">
-        <link rel="stylesheet" href="../../../../assets/css/dark-theme.css">
+// Set page title
+$page_title = "Leave Alerts";
 
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ELMS - Leave Maximization Alerts</title>
-    
-    <script>
-    </script>
+// Include admin header
+include '../../../../includes/admin_header.php';
+?>
     
     <style>
         /* Custom scrollbar styling for modals */
@@ -239,78 +225,16 @@ foreach ($alertData as $employeeId => $data) {
             background: #fff9e6;
         }
     </style>
-</head>
-<body class="bg-slate-900 text-white" data-user-role="admin">
-    <?php include '../../../../includes/unified_navbar.php'; ?>
 
-    <div class="flex">
-        <!-- Left Sidebar -->
-        <aside id="sidebar" class="fixed left-0 top-16 h-screen w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
-            <nav class="p-4 space-y-2">
-                <!-- Active Navigation Item -->
-                <a href="dashboard.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-tachometer-alt w-5"></i>
-                    <span>Dashboard</span>
-                </a>
-                
-                <!-- Section Headers -->
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Management</h3>
-                    
-                    <!-- Navigation Items -->
-                    <a href="manage_user.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-users-cog w-5"></i>
-                        <span>Manage Users</span>
-                    </a>
-                    
-                    <a href="leave_management.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-calendar-check w-5"></i>
-                        <span>Leave Management</span>
-                        <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full" id="pendingLeaveBadge" style="display: none;">0</span>
-                    </a>
-                    
-                    <a href="leave_alerts.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
-                        <i class="fas fa-bell w-5"></i>
-                        <span>Leave Alerts</span>
-                    </a>
-                </div>
-                
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
-                    
-                    <a href="calendar.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-calendar w-5"></i>
-                        <span>Leave Chart</span>
-                    </a>
-                    
-                    <a href="reports.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-file-alt w-5"></i>
-                        <span>Reports</span>
-                    </a>
-                </div>
-                
-            </nav>
-        </aside>
-        
-        <!-- Main Content -->
-        <main class="flex-1 ml-64 p-6 pt-24">
-            <div class="max-w-7xl mx-auto">
-                <!-- Page Header -->
-                <div class="mb-8">
-                    <div class="flex items-center gap-4">
-                        <div class="w-16 h-16 bg-gradient-to-r from-primary to-accent rounded-2xl flex items-center justify-center">
-                            <i class="fas fa-bell text-2xl text-white"></i>
-                        </div>
-                        <div>
-                            <h1 class="text-3xl font-bold text-white mb-2">Leave Maximization Alerts</h1>
-                            <p class="text-slate-400">Monitor and send alerts to employees with low leave utilization</p>
-                        </div>
-                    </div>
-                </div>
+<!-- Page Header -->
+<h1 class="elms-h1" style="margin-bottom: 0.5rem; display: flex; align-items: center;">
+    <i class="fas fa-bell" style="color: #0891b2; margin-right: 0.75rem;"></i>Leave Maximization Alerts
+</h1>
+<p class="elms-text-muted" style="margin-bottom: 2rem;">Monitor and send alerts to employees with low leave utilization</p>
 
 
-                <!-- Enhanced Alert Statistics Dashboard -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+<!-- Enhanced Alert Statistics Dashboard -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <!-- Total Alerts Card -->
                     <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
                         <div class="flex items-center justify-between mb-4">
@@ -607,8 +531,6 @@ foreach ($alertData as $employeeId => $data) {
                 </div>
                 <?php endif; ?>
             </div>
-        </main>
-    </div>
 
     <!-- Enhanced Leave Maximization Alert Modal -->
     <div id="alertModal" class="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden overflow-y-auto">
@@ -778,44 +700,6 @@ foreach ($alertData as $employeeId => $data) {
 
 
     <script>
-        // Toggle user dropdown
-        function toggleUserDropdown() {
-            const dropdown = document.getElementById('userDropdown');
-            const notificationDropdown = document.getElementById('notificationDropdown');
-            
-            if (dropdown) {
-                dropdown.classList.toggle('hidden');
-                
-                // Ensure dropdown is properly positioned and isolated
-                if (!dropdown.classList.contains('hidden')) {
-                    dropdown.style.position = 'absolute';
-                    dropdown.style.zIndex = '1000';
-                    dropdown.style.isolation = 'isolate';
-                    
-                    // Remove any misplaced elements that might have appeared
-                    const misplacedInputs = dropdown.querySelectorAll('input');
-                    misplacedInputs.forEach(input => {
-                        input.remove();
-                    });
-                }
-                
-                // Close notification dropdown when opening user dropdown
-                if (notificationDropdown) {
-                    notificationDropdown.classList.add('hidden');
-                }
-            }
-        }
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(event) {
-            const dropdown = document.getElementById('userDropdown');
-            const button = event.target.closest('button[onclick="toggleUserDropdown()"]');
-            
-            if (dropdown && !dropdown.contains(event.target) && !button) {
-                dropdown.classList.add('hidden');
-            }
-        });
-
         // Open alert modal with enhanced functionality
         function openAlertModal(employeeId, employeeName, priority = 'low', totalRemaining = 0) {
             console.log('Opening enhanced modal for employee:', employeeId, employeeName, priority, totalRemaining);
@@ -1272,8 +1156,5 @@ foreach ($alertData as $employeeId => $data) {
         setInterval(fetchPendingLeaveCount, 30000);
     </script>
             </div>
-        </main>
-    </div>
-</body>
-</html>
+<?php include '../../../../includes/admin_footer.php'; ?>
 

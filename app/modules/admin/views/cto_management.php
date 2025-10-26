@@ -12,29 +12,71 @@ $calculator = new LeaveCreditsCalculator($pdo);
 
 // Handle CTO earning submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-    if ($_POST['action'] === 'add_cto_earning') {
+    if ($_POST['action'] === 'manual_add_cto') {
+        // Handle manual CTO addition
         $employee_id = $_POST['employee_id'];
-        $hours_worked = $_POST['hours_worked'];
-        $work_type = $_POST['work_type'];
-        $description = $_POST['description'];
-        $approved_by = $_SESSION['user_id'];
+        $hours_to_add = $_POST['hours_to_add'];
+        $reason = $_POST['reason'] ?? 'Manual adjustment by admin';
         
-        $result = $calculator->addCTOEarnings($employee_id, $hours_worked, $work_type, $description, $approved_by);
-        
-        if ($result) {
-            $_SESSION['success'] = "CTO earning added successfully: {$result} hours";
-        } else {
-            $_SESSION['error'] = "Failed to add CTO earning";
+        try {
+            // Get current balance
+            $stmt = $pdo->prepare("SELECT cto_balance, name FROM employees WHERE id = ?");
+            $stmt->execute([$employee_id]);
+            $employee = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$employee) {
+                throw new Exception('Employee not found');
+            }
+            
+            $current_balance = $employee['cto_balance'] ?? 0;
+            $new_balance = $current_balance + $hours_to_add;
+            
+            // Check maximum accumulation limit (40 hours)
+            if ($new_balance > 40) {
+                $max_to_add = 40 - $current_balance;
+                if ($max_to_add <= 0) {
+                    throw new Exception("Employee already has maximum CTO balance (40 hours)");
+                }
+                $hours_to_add = $max_to_add;
+                $new_balance = 40;
+            }
+            
+            // Update employee balance
+            $stmt = $pdo->prepare("UPDATE employees SET cto_balance = ? WHERE id = ?");
+            $stmt->execute([$new_balance, $employee_id]);
+            
+            // Get the approver ID (admin who is making this adjustment)
+            $approver_id = null;
+            if (isset($_SESSION['user_id'])) {
+                // Verify that the session user_id exists in employees table
+                $stmt = $pdo->prepare("SELECT id FROM employees WHERE id = ?");
+                $stmt->execute([$_SESSION['user_id']]);
+                if ($stmt->fetchColumn()) {
+                    $approver_id = $_SESSION['user_id'];
+                }
+            }
+            
+            // Record in cto_earnings for history
+            // Note: work_type must be one of: 'overtime', 'holiday', 'weekend', 'special_assignment'
+            // Since this is a manual adjustment, we'll use 'special_assignment' as the closest match
+            // OR we can create a separate audit log table, but for now, we'll insert with NULL approved_by if no valid approver
+            $stmt = $pdo->prepare("
+                INSERT INTO cto_earnings 
+                (employee_id, earned_date, hours_worked, cto_earned, work_type, rate_applied, description, approved_by, status) 
+                VALUES (?, CURDATE(), ?, ?, 'special_assignment', 1.0, ?, ?, 'approved')
+            ");
+            $stmt->execute([$employee_id, $hours_to_add, $hours_to_add, $reason, $approver_id]);
+            
+            $_SESSION['success'] = "Successfully added {$hours_to_add} hours CTO to {$employee['name']}. New balance: {$new_balance} hours";
+            
+        } catch (Exception $e) {
+            $_SESSION['error'] = "Error: " . $e->getMessage();
         }
         
         header('Location: cto_management.php');
         exit();
     }
 }
-
-// Get all employees for dropdown
-$stmt = $pdo->query("SELECT id, name, email, department FROM employees WHERE role != 'admin' ORDER BY name");
-$employees = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Get CTO earnings history
 $stmt = $pdo->query("
@@ -68,64 +110,13 @@ $stmt = $pdo->query("
     ORDER BY e.cto_balance DESC
 ");
 $employeesWithCTO = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Set page title
+$page_title = "CTO Management";
+
+// Include admin header
+include '../../../../includes/admin_header.php';
 ?>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <link rel="stylesheet" href="../../../../assets/css/tailwind.css">
-    <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ELMS - CTO Management</title>
-    <link rel="stylesheet" href="../../../../assets/css/style.css">
-    <link rel="stylesheet" href="../../../../assets/css/dark-theme.css">
-</head>
-<body class="bg-slate-900 text-white min-h-screen">
-    <?php include '../../../../includes/unified_navbar.php'; ?>
-
-    <div class="flex">
-        <!-- Left Sidebar -->
-        <aside class="fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40">
-            <nav class="p-4 space-y-2">
-                <a href="dashboard.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                    <i class="fas fa-tachometer-alt w-5"></i>
-                    <span>Dashboard</span>
-                </a>
-                
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Leave Management</h3>
-                    
-                    <a href="leave_management.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-calendar-alt w-5"></i>
-                        <span>Leave Management</span>
-                    </a>
-                    
-                    <a href="leave_alerts.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-bell w-5"></i>
-                        <span>Leave Alerts</span>
-                    </a>
-                    
-                    <a href="cto_management.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-purple-500/20 rounded-lg border border-purple-500/30">
-                        <i class="fas fa-clock w-5"></i>
-                        <span>CTO Management</span>
-                    </a>
-                </div>
-                
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
-                    
-                    <a href="reports.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-chart-bar w-5"></i>
-                        <span>Reports</span>
-                    </a>
-                </div>
-            </nav>
-        </aside>
-        
-        <!-- Main Content -->
-        <main class="pt-24 flex-1 ml-64 px-6 pb-6">
-            <div class="max-w-7xl mx-auto">
                 <!-- Header -->
                 <div class="mb-8">
                     <div class="flex items-center gap-4">
@@ -173,59 +164,62 @@ $employeesWithCTO = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     </div>
                 </div>
 
-                <!-- Add CTO Earning Form -->
-                <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6 mb-8">
-                    <h3 class="text-xl font-semibold text-white mb-6 flex items-center">
-                        <i class="fas fa-plus-circle text-purple-400 mr-3"></i>
-                        Add CTO Earning
-                    </h3>
+                <!-- Manual CTO Adjustment Form -->
+                <div class="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-6 mb-8">
+                    <div class="flex items-start gap-4 mb-6">
+                        <i class="fas fa-info-circle text-blue-400 text-2xl mt-1"></i>
+                        <div>
+                            <h3 class="text-xl font-semibold text-blue-400 mb-2">Manual CTO Credit Addition</h3>
+                            <p class="text-slate-300">This feature allows you to manually add CTO credits to employees. Use this for special cases, corrections, or administrative adjustments. Maximum accumulation is 40 hours per employee.</p>
+                        </div>
+                    </div>
                     
                     <form method="POST" class="space-y-4">
-                        <input type="hidden" name="action" value="add_cto_earning">
+                        <input type="hidden" name="action" value="manual_add_cto">
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-slate-300 mb-2">Employee</label>
-                                <select name="employee_id" required class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                <select name="employee_id" id="employee_select" required class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                                     <option value="">Select Employee</option>
-                                    <?php foreach ($employees as $employee): ?>
-                                        <option value="<?php echo $employee['id']; ?>">
+                                    <?php 
+                                    // Get all regular employees only (exclude admin, manager, and director)
+                                    $stmt = $pdo->query("SELECT id, name, department, cto_balance FROM employees WHERE role NOT IN ('admin', 'manager', 'director') ORDER BY name");
+                                    $allEmployees = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                                    foreach ($allEmployees as $employee): 
+                                    ?>
+                                        <option value="<?php echo $employee['id']; ?>" data-balance="<?php echo $employee['cto_balance'] ?? 0; ?>">
                                             <?php echo htmlspecialchars($employee['name']); ?> - <?php echo htmlspecialchars($employee['department']); ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
+                                <div id="current_balance" class="mt-2 text-sm text-slate-400 hidden">
+                                    <i class="fas fa-wallet mr-1"></i>Current CTO Balance: <span class="font-semibold text-blue-400" id="balance_value">0</span> hours
+                                </div>
                             </div>
                             
                             <div>
-                                <label class="block text-sm font-medium text-slate-300 mb-2">Work Type</label>
-                                <select name="work_type" required class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                                    <option value="">Select Work Type</option>
-                                    <option value="overtime">Overtime (1:1 ratio)</option>
-                                    <option value="holiday">Holiday Work (1.5:1 ratio)</option>
-                                    <option value="weekend">Weekend Work (1:1 ratio)</option>
-                                    <option value="special_assignment">Special Assignment (1:1 ratio)</option>
-                                </select>
+                                <label class="block text-sm font-medium text-slate-300 mb-2">Hours to Add</label>
+                                <input type="number" name="hours_to_add" id="hours_input" step="0.5" min="0.5" max="40" required 
+                                       class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                       placeholder="Enter hours to add (max 40)">
+                                <div id="max_hours" class="mt-2 text-xs text-slate-500 hidden">
+                                    Maximum: 40 hours total (will cap at limit)
+                                </div>
                             </div>
                             
-                            <div>
-                                <label class="block text-sm font-medium text-slate-300 mb-2">Hours Worked</label>
-                                <input type="number" name="hours_worked" step="0.5" min="0.5" max="40" required 
-                                       class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                       placeholder="Enter hours worked">
-                            </div>
-                            
-                            <div>
-                                <label class="block text-sm font-medium text-slate-300 mb-2">Description</label>
-                                <input type="text" name="description" 
-                                       class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                       placeholder="Brief description of work performed">
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-slate-300 mb-2">Reason for Manual Addition</label>
+                                <input type="text" name="reason" 
+                                       class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                       placeholder="e.g., Special project completion bonus, Administrative adjustment, Overtime correction">
                             </div>
                         </div>
                         
                         <div class="flex justify-end">
-                            <button type="submit" class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors">
-                                <i class="fas fa-plus mr-2"></i>
-                                Add CTO Earning
+                            <button type="submit" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors shadow-lg shadow-blue-500/20">
+                                <i class="fas fa-plus-circle mr-2"></i>
+                                Add CTO Credits
                             </button>
                         </div>
                     </form>
@@ -384,10 +378,46 @@ $employeesWithCTO = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <script>
+        // Handle employee selection and show current CTO balance
+        document.getElementById('employee_select').addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const currentBalance = parseFloat(selectedOption.getAttribute('data-balance')) || 0;
+            const balanceDisplay = document.getElementById('current_balance');
+            const balanceValue = document.getElementById('balance_value');
+            const maxHoursDiv = document.getElementById('max_hours');
+            
+            if (this.value) {
+                balanceDisplay.classList.remove('hidden');
+                balanceValue.textContent = currentBalance.toFixed(1);
+                
+                // Update max hours input dynamically
+                if (currentBalance >= 40) {
+                    document.getElementById('hours_input').max = 0;
+                    maxHoursDiv.textContent = 'Employee already has maximum CTO balance (40 hours)';
+                    maxHoursDiv.classList.remove('hidden');
+                    maxHoursDiv.classList.add('text-red-400');
+                } else {
+                    const maxToAdd = 40 - currentBalance;
+                    document.getElementById('hours_input').max = maxToAdd;
+                    maxHoursDiv.textContent = `Maximum hours that can be added: ${maxToAdd.toFixed(1)} (Total will be 40)`;
+                    maxHoursDiv.classList.remove('text-red-400');
+                    if (maxToAdd < 5) {
+                        maxHoursDiv.classList.remove('hidden');
+                    } else {
+                        maxHoursDiv.classList.add('hidden');
+                    }
+                }
+            } else {
+                balanceDisplay.classList.add('hidden');
+                document.getElementById('hours_input').max = 40;
+                maxHoursDiv.classList.add('hidden');
+            }
+        });
+        
         // Auto-refresh every 60 seconds
         setTimeout(function() {
             window.location.reload();
         }, 60000);
     </script>
-</body>
-</html>
+    
+<?php include '../../../../includes/admin_footer.php'; ?>

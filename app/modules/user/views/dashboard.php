@@ -116,6 +116,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     exit();
 }
 
+// Get dashboard statistics
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM leave_requests WHERE employee_id = ? AND status = 'pending'");
+$stmt->execute([$_SESSION['user_id']]);
+$pending_count = $stmt->fetchColumn();
+
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM leave_requests WHERE employee_id = ? AND status = 'approved'");
+$stmt->execute([$_SESSION['user_id']]);
+$approved_count = $stmt->fetchColumn();
+
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM leave_requests WHERE employee_id = ? AND status = 'rejected'");
+$stmt->execute([$_SESSION['user_id']]);
+$rejected_count = $stmt->fetchColumn();
+
+// Get total available leave credits from employees table
+// Most systems store leave balance in the employees table
+$total_credits = $employee['vacation_leave'] ?? 15; // Default to 15 if not set
+
 // Fetch user's leave requests with approved days calculation
 $stmt = $pdo->prepare("
     SELECT 
@@ -135,21 +152,13 @@ $leave_requests = $stmt->fetchAll();
 // Debug: Log leave requests fetch
 error_log("Dashboard - Fetched " . count($leave_requests) . " leave requests for user " . $_SESSION['user_id']);
 
+// Set page title
+$page_title = "Dashboard";
+
+// Include user header
+include '../../../../includes/user_header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ELMS - User Dashboard</title>
-    <link rel="stylesheet" href="../../../../assets/css/tailwind.css">
-    <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
-    <link rel="stylesheet" href="../../../../assets/css/style.css">
-    <link rel="stylesheet" href="../../../../assets/css/dark-theme.css">
-    <link href='../../../../assets/libs/fullcalendar/css/main.min.css' rel='stylesheet' />
-</head>
-<body class="bg-slate-900 text-white min-h-screen" data-user-role="user">
-    <?php include '../../../../includes/unified_navbar.php'; ?>
+<link href='../../../../assets/libs/fullcalendar/css/main.min.css' rel='stylesheet' />
 
     <!-- Apply Leave Modal -->
     <div id="applyLeaveModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
@@ -337,7 +346,7 @@ error_log("Dashboard - Fetched " . count($leave_requests) . " leave requests for
                         <label for="modal_reason" class="block text-sm font-semibold text-slate-300 mb-2">
                             <i class="fas fa-comment-alt mr-2"></i>Reason for Leave
                         </label>
-                        <textarea id="modal_reason" name="reason" rows="4" placeholder="Please provide a detailed reason for your leave request..." required class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" style="resize: vertical; min-height: 100px;"></textarea>
+                        <textarea id="modal_reason" name="reason" rows="4" placeholder="Please provide a detailed reason for your leave request..." required class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" style="resize: vertical; min-height: 100px; pointer-events: auto;"></textarea>
                     </div>
                     
                     <div class="flex gap-4 justify-end pt-6">
@@ -434,7 +443,7 @@ error_log("Dashboard - Fetched " . count($leave_requests) . " leave requests for
                         <label for="modal_late_reason" class="block text-sm font-semibold text-slate-300 mb-2">
                             <i class="fas fa-comment-alt mr-2"></i>Reason for Leave
                         </label>
-                        <textarea id="modal_late_reason" name="reason" rows="4" placeholder="Please provide a detailed reason for your leave request..." required class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"></textarea>
+                        <textarea id="modal_late_reason" name="reason" rows="4" placeholder="Please provide a detailed reason for your leave request..." required class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent" style="pointer-events: auto;"></textarea>
                     </div>
                     
                     <!-- Conditional Fields for Late Application Modal -->
@@ -546,7 +555,7 @@ error_log("Dashboard - Fetched " . count($leave_requests) . " leave requests for
                         <label for="modal_late_justification" class="block text-sm font-semibold text-slate-300 mb-2">
                             <i class="fas fa-exclamation-triangle mr-2"></i>Late Justification
                         </label>
-                        <textarea id="modal_late_justification" name="late_justification" rows="4" placeholder="Please explain why you are submitting this leave application late..." required class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"></textarea>
+                        <textarea id="modal_late_justification" name="late_justification" rows="4" placeholder="Please explain why you are submitting this leave application late..." required class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent" style="pointer-events: auto;"></textarea>
                     </div>
                     
                     <div class="flex gap-4 justify-end pt-6">
@@ -604,49 +613,8 @@ error_log("Dashboard - Fetched " . count($leave_requests) . " leave requests for
         </div>
     </div>
 
-    <div class="flex">
-        <!-- Left Sidebar -->
-        <aside id="sidebar" class="fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40">
-            <nav class="p-4 space-y-2">
-                <!-- Active Navigation Item -->
-                <a href="dashboard.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
-                    <i class="fas fa-tachometer-alt w-5"></i>
-                    <span>Dashboard</span>
-                </a>
-                
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Leave Management</h3>
-                    <a href="leave_history.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors">
-                        <i class="fas fa-history w-5"></i>
-                        <span>Leave History</span>
-                    </a>
-                    <a href="leave_credits.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors">
-                        <i class="fas fa-calculator w-5"></i>
-                        <span>Leave Credits</span>
-                    </a>
-                </div>
-                
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
-                    <a href="calendar.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors">
-                        <i class="fas fa-calendar-alt w-5"></i>
-                        <span>Leave Chart</span>
-                    </a>
-                </div>
-                
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Account</h3>
-                    <a href="profile.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors">
-                        <i class="fas fa-user w-5"></i>
-                        <span>Profile</span>
-                    </a>
-                </div>
-            </nav>
-        </aside>
-
-        <!-- Main Content -->
-        <main class="flex-1 ml-64 pt-24 px-6 pb-6">
-            <div class="max-w-7xl mx-auto">
+<!-- Page Content -->
+<div class="max-w-7xl mx-auto">
                 <!-- Error Messages Only (Success messages are shown in modal) -->
                 <?php if (isset($_SESSION['error'])): ?>
                     <div class="bg-red-500/20 border border-red-500/30 text-red-400 p-4 rounded-xl mb-6 flex items-center">
@@ -658,19 +626,38 @@ error_log("Dashboard - Fetched " . count($leave_requests) . " leave requests for
                     </div>
                 <?php endif; ?>
 
-                <!-- Welcome Section -->
-                <div class="mb-10 mt-16">
-                    <div class="flex items-start justify-between">
-                        <div>
-                            <h1 class="text-4xl font-bold text-white mb-2">Welcome back, <?php echo htmlspecialchars($employee['name']); ?>!</h1>
-                            <p class="text-slate-400 text-lg">Here's what's happening with your leave requests today.</p>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-slate-400 text-sm">Today is</div>
-                            <div class="text-white text-lg font-semibold"><?php echo date('l, F j, Y'); ?></div>
-                        </div>
-                    </div>
-                </div>
+<!-- Welcome Section -->
+<div style="margin-bottom: 2rem;">
+    <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+        <div>
+            <h1 class="elms-h1" style="margin-bottom: 0.5rem;">Welcome back, <?php echo htmlspecialchars($employee['name']); ?>!</h1>
+            <p class="elms-text-muted">Here's what's happening with your leave requests today.</p>
+        </div>
+        <div style="text-align: right;">
+            <div id="dashboard-time" style="color: white; font-size: 1.5rem; font-weight: 700; font-family: 'Courier New', monospace; margin-bottom: 0.25rem;">00:00:00 AM</div>
+            <div style="color: #94a3b8; font-size: 0.875rem;">Today is</div>
+            <div style="color: white; font-size: 1.125rem; font-weight: 600;"><?php echo date('l, F j, Y'); ?></div>
+        </div>
+    </div>
+    
+    <script>
+        // Update dashboard time
+        function updateDashboardTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { 
+                hour12: true,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('dashboard-time').textContent = timeString;
+        }
+        
+        // Update time immediately and then every second
+        updateDashboardTime();
+        setInterval(updateDashboardTime, 1000);
+    </script>
+</div>
 
                 <!-- Messages -->
                 <?php if (isset($_SESSION['message'])): ?>
@@ -735,32 +722,64 @@ error_log("Dashboard - Fetched " . count($leave_requests) . " leave requests for
                     ?>
                 <?php endif; ?>
 
-                <!-- Quick Actions -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <button onclick="openApplyLeaveModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-6 px-6 rounded-2xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl text-center">
-                        <i class="fas fa-calendar-plus text-2xl mb-3 block"></i>
-                        <h3 class="text-lg font-semibold mb-2">Apply for Leave</h3>
-                        <p class="text-sm opacity-90">Submit a new leave request</p>
-                    </button>
-
-                    <button onclick="openLateApplicationModal()" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-6 px-6 rounded-2xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl text-center">
-                        <i class="fas fa-exclamation-triangle text-2xl mb-3 block"></i>
-                        <h3 class="text-lg font-semibold mb-2">Late Application</h3>
-                        <p class="text-sm opacity-90">Submit late leave request</p>
-                    </button>
-
-                    <a href="leave_history.php" class="bg-slate-800/50 backdrop-blur-sm/50 hover:bg-slate-700/50 backdrop-blur-sm border border-slate-700/50 hover:border-slate-600/50 text-white font-semibold py-6 px-6 rounded-2xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl text-center">
-                        <i class="fas fa-history text-2xl mb-3 block text-blue-500"></i>
-                        <h3 class="text-lg font-semibold mb-2">Leave History</h3>
-                        <p class="text-sm text-slate-400">View all your leave requests</p>
-                    </a>
-
-                    <a href="dtr.php" class="bg-slate-800/50 backdrop-blur-sm/50 hover:bg-slate-700/50 backdrop-blur-sm border border-slate-700/50 hover:border-slate-600/50 text-white font-semibold py-6 px-6 rounded-2xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl text-center">
-                        <i class="fas fa-clock text-2xl mb-3 block text-green-500"></i>
-                        <h3 class="text-lg font-semibold mb-2">DTR</h3>
-                        <p class="text-sm text-slate-400">Time in/out and attendance</p>
-                    </a>
-                </div>
+<!-- Quick Action Cards -->
+<div class="elms-grid elms-grid-1 elms-grid-md-2 elms-grid-lg-4" style="margin-bottom: 2rem;">
+    <!-- Apply for Leave Card -->
+    <button onclick="openApplyLeaveModal()" class="elms-stat-card" style="border: none; cursor: pointer; text-align: left;">
+        <div>
+            <p class="elms-stat-label">Apply for Leave</p>
+            <p class="elms-stat-value" style="font-size: 1rem; margin-top: 0.5rem;">📝</p>
+            <p style="color: #60a5fa; font-size: 0.875rem; margin-top: 0.5rem;">
+                <i class="fas fa-arrow-right"></i> Submit new request
+            </p>
+        </div>
+        <div class="elms-stat-icon-container" style="background-color: rgba(37, 99, 235, 0.2);">
+            <i class="fas fa-calendar-plus elms-stat-icon" style="color: #60a5fa;"></i>
+        </div>
+    </button>
+            
+    <!-- Late Application Card -->
+    <button onclick="openLateApplicationModal()" class="elms-stat-card" style="border: none; cursor: pointer; text-align: left;">
+        <div>
+            <p class="elms-stat-label">Late Application</p>
+            <p class="elms-stat-value" style="font-size: 1rem; margin-top: 0.5rem;">⏰</p>
+            <p style="color: #fb923c; font-size: 0.875rem; margin-top: 0.5rem;">
+                <i class="fas fa-arrow-right"></i> Submit late request
+            </p>
+        </div>
+        <div class="elms-stat-icon-container" style="background-color: rgba(249, 115, 22, 0.2);">
+            <i class="fas fa-exclamation-triangle elms-stat-icon" style="color: #fb923c;"></i>
+        </div>
+    </button>
+            
+    <!-- Leave History Card -->
+    <a href="leave_history.php" class="elms-stat-card" style="text-decoration: none;">
+        <div>
+            <p class="elms-stat-label">Leave History</p>
+            <p class="elms-stat-value" style="font-size: 1rem; margin-top: 0.5rem;">📋</p>
+            <p style="color: #60a5fa; font-size: 0.875rem; margin-top: 0.5rem;">
+                <i class="fas fa-arrow-right"></i> View all requests
+            </p>
+        </div>
+        <div class="elms-stat-icon-container" style="background-color: rgba(37, 99, 235, 0.2);">
+            <i class="fas fa-history elms-stat-icon" style="color: #60a5fa;"></i>
+        </div>
+    </a>
+            
+    <!-- DTR Card -->
+    <a href="dtr.php" class="elms-stat-card" style="text-decoration: none;">
+        <div>
+            <p class="elms-stat-label">DTR</p>
+            <p class="elms-stat-value" style="font-size: 1rem; margin-top: 0.5rem;">🕐</p>
+            <p style="color: #34d399; font-size: 0.875rem; margin-top: 0.5rem;">
+                <i class="fas fa-arrow-right"></i> Time in/out and attendance
+            </p>
+        </div>
+        <div class="elms-stat-icon-container" style="background-color: rgba(16, 185, 129, 0.2);">
+            <i class="fas fa-clock elms-stat-icon" style="color: #34d399;"></i>
+        </div>
+    </a>
+</div>
 
                 <!-- Recent Leave Requests -->
                 <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-8 mb-8">
@@ -853,11 +872,9 @@ error_log("Dashboard - Fetched " . count($leave_requests) . " leave requests for
                 </div>
 
 
-            </div>
-        </main>
-    </div>
+</div>
 
-    <script>
+<script>
         // Modal Functions
         function openApplyLeaveModal() {
             const modal = document.getElementById('applyLeaveModal');
@@ -1812,5 +1829,5 @@ Date: ${info.event.start.toLocaleDateString()}
             sessionStorage.setItem('successModalShown', 'true');
         }
     </script>
-</body>
-</html>
+
+<?php include '../../../../includes/user_footer.php'; ?>

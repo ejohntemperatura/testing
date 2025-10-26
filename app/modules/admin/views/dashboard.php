@@ -94,207 +94,270 @@ $leave_requests = $stmt->fetchAll();
     <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
         <!-- Font Awesome Local - No internet required! -->
         
-        <link rel="stylesheet" href="../../../../assets/css/style.css">
-        <link rel="stylesheet" href="../../../../assets/css/admin_style.css">
-        <link rel="stylesheet" href="../../../../assets/css/dark-theme.css">
+        <link rel="stylesheet" href="../../../../assets/css/elms-dark-theme.css">
         <script src="../../../../assets/libs/chartjs/chart.umd.min.js"></script>
-        <style>
-            /* Remove conflicting z-index - let unified navbar handle it */
-        </style>
 </head>
-<body class="bg-slate-900 text-white" data-user-role="admin">
-    <?php include '../../../../includes/unified_navbar.php'; ?>
+<body style="background-color: #0f172a; margin: 0;">
+    <!-- Top Navbar -->
+    <nav class="elms-navbar">
+        <div class="elms-navbar-content">
+            <div class="elms-logo">
+                <span class="elms-logo-text">ELMS HR</span>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 1rem; margin-left: auto;">
+                <!-- User Dropdown -->
+                <div style="position: relative;">
+                    <button onclick="toggleUserDropdown()" style="display: flex; align-items: center; gap: 0.5rem; background: none; border: none; cursor: pointer; padding: 0;">
+                        <div style="width: 32px; height: 32px; background: #06b6d4; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.875rem;">
+                            <?php echo strtoupper(substr($admin['name'], 0, 1)); ?>
+                        </div>
+                        <div style="text-align: left;">
+                            <div style="color: white; font-weight: 600; font-size: 0.875rem;">
+                                <?php echo htmlspecialchars($admin['name']); ?>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-down" style="color: #cbd5e1; font-size: 0.625rem;"></i>
+                    </button>
+                    
+                    <!-- Dropdown Menu -->
+                    <div id="userDropdown" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 0.5rem; width: 260px; background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); z-index: 100;">
+                        <!-- Dropdown Header -->
+                        <div style="padding: 1rem; border-bottom: 1px solid #334155;">
+                            <div style="font-weight: 600; color: white; margin-bottom: 0.25rem; font-size: 0.9375rem;">
+                                <?php echo htmlspecialchars($admin['name']); ?>
+                            </div>
+                            <div style="color: #94a3b8; font-size: 0.8125rem; margin-bottom: 0.5rem;">
+                                <?php echo htmlspecialchars($admin['email'] ?? 'admin@elms.com'); ?>
+                            </div>
+                            <span style="display: inline-block; background: #06b6d4; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.6875rem; font-weight: 600;">
+                                Administrator
+                            </span>
+                        </div>
+                        
+                        <!-- Dropdown Items -->
+                        <div style="padding: 0.5rem 0;">
+                            <a href="leave_management.php" style="display: block; padding: 0.75rem 1rem; color: #cbd5e1; text-decoration: none; transition: all 0.2s; font-size: 0.875rem; font-weight: 500;">
+                                <i class="fas fa-calendar-check" style="margin-right: 0.625rem; width: 18px; font-size: 0.875rem;"></i>
+                                Leave Management
+                            </a>
+                            <a href="../../../../auth/controllers/logout.php" style="display: block; padding: 0.75rem 1rem; color: #ef4444; text-decoration: none; transition: all 0.2s; border-top: 1px solid #334155; font-size: 0.875rem; font-weight: 500;">
+                                <i class="fas fa-sign-out-alt" style="margin-right: 0.625rem; width: 18px; font-size: 0.875rem;"></i>
+                                Sign Out
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <script>
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('userDropdown');
+            const button = event.target.closest('button');
+            if (!button || button.getAttribute('onclick') !== 'toggleUserDropdown()') {
+                if (dropdown && !dropdown.contains(event.target)) {
+                    dropdown.style.display = 'none';
+                }
+            }
+        });
+    </script>
 
-    <div class="flex">
-        <!-- Left Sidebar -->
-        <aside id="sidebar" class="fixed left-0 top-16 h-screen w-64 bg-slate-900 border-r border-slate-800 overflow-y-auto z-40 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
-            <nav class="p-4 space-y-2">
-                <!-- Active Navigation Item -->
-                <a href="dashboard.php" class="flex items-center space-x-3 px-4 py-3 text-white bg-blue-500/20 rounded-lg border border-blue-500/30">
-                    <i class="fas fa-tachometer-alt w-5"></i>
+    <!-- Sidebar -->
+    <aside class="elms-sidebar">
+        <nav>
+            <!-- Dashboard Section -->
+            <div class="elms-sidebar-section">
+                <h3 class="elms-sidebar-header">Dashboard</h3>
+                <a href="dashboard.php" class="elms-sidebar-link active">
+                    <i class="fas fa-tachometer-alt elms-sidebar-icon"></i>
                     <span>Dashboard</span>
                 </a>
-                
-                <!-- Section Headers -->
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Management</h3>
-                    
-                    <!-- Navigation Items -->
-                    <a href="manage_user.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-users-cog w-5"></i>
-                        <span>Manage Users</span>
-                    </a>
-                    
-                    <a href="leave_management.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-calendar-check w-5"></i>
-                        <span>Leave Management</span>
-                        <span class="bg-slate-600 text-white text-xs px-2 py-1 rounded-full" id="pendingLeaveBadge" style="display: none;">0</span>
-                    </a>
-                    
-                    <a href="leave_alerts.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-bell w-5"></i>
-                        <span>Leave Alerts</span>
-                    </a>
+            </div>
+            
+            <!-- Management Section -->
+            <div class="elms-sidebar-section">
+                <h3 class="elms-sidebar-header">Management</h3>
+                <a href="manage_user.php" class="elms-sidebar-link">
+                    <i class="fas fa-users-cog elms-sidebar-icon"></i>
+                    <span>Manage Users</span>
+                </a>
+                <a href="leave_management.php" class="elms-sidebar-link">
+                    <i class="fas fa-calendar-check elms-sidebar-icon"></i>
+                    <span>Leave Management</span>
+                </a>
+                <a href="leave_alerts.php" class="elms-sidebar-link">
+                    <i class="fas fa-bell elms-sidebar-icon"></i>
+                    <span>Leave Alerts</span>
+                </a>
+                <a href="cto_management.php" class="elms-sidebar-link">
+                    <i class="fas fa-clock elms-sidebar-icon"></i>
+                    <span>CTO Management</span>
+                </a>
+            </div>
+            
+            <!-- Reports Section -->
+            <div class="elms-sidebar-section">
+                <h3 class="elms-sidebar-header">Reports</h3>
+                <a href="calendar.php" class="elms-sidebar-link">
+                    <i class="fas fa-calendar elms-sidebar-icon"></i>
+                    <span>Leave Chart</span>
+                </a>
+                <a href="reports.php" class="elms-sidebar-link">
+                    <i class="fas fa-file-alt elms-sidebar-icon"></i>
+                    <span>Reports</span>
+                </a>
+            </div>
+        </nav>
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="elms-main">
+        <!-- Welcome Section -->
+        <div style="margin-bottom: 2rem;">
+            <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+                <div>
+                    <h1 class="elms-h1" style="margin-bottom: 0.5rem;">Welcome, <?php echo htmlspecialchars($admin['name']); ?>!</h1>
+                    <p class="elms-text-muted">Manage your system from this dashboard.</p>
                 </div>
-                
-                <div class="space-y-1">
-                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2">Reports</h3>
-                    
-                    <a href="calendar.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-calendar w-5"></i>
-                        <span>Leave Chart</span>
-                    </a>
-                    
-                    <a href="reports.php" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
-                        <i class="fas fa-file-alt w-5"></i>
-                        <span>Reports</span>
-                    </a>
+                <div style="text-align: right;">
+                    <div id="admin-dashboard-time" style="color: white; font-size: 1.5rem; font-weight: 700; font-family: 'Courier New', monospace; margin-bottom: 0.25rem;">00:00:00 AM</div>
+                    <div style="color: #94a3b8; font-size: 0.875rem;">Today is</div>
+                    <div style="color: white; font-size: 1.125rem; font-weight: 600;"><?php echo date('l, F j, Y'); ?></div>
                 </div>
+            </div>
+            
+            <script>
+                // Update admin dashboard time
+                function updateAdminDashboardTime() {
+                    const now = new Date();
+                    const timeString = now.toLocaleTimeString('en-US', { 
+                        hour12: true,
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                    document.getElementById('admin-dashboard-time').textContent = timeString;
+                }
                 
-            </nav>
-        </aside>
-        
-        <!-- Main Content -->
-        <main class="flex-1 md:ml-64 p-6 pt-24">
-            <div class="max-w-7xl mx-auto">
-                <!-- Welcome Section -->
-                <div class="mb-10 mt-16">
-                    <div class="flex items-start justify-between">
-                        <div class="flex items-center gap-5">
-                            <div class="w-16 h-16 bg-gradient-to-r from-slate-600 to-slate-700 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
-                                <i class="fas fa-user-shield text-2xl text-white"></i>
-                            </div>
-                            <div class="flex-1">
-                                <h1 class="text-3xl font-bold text-white mb-2 leading-tight">Welcome, <?php echo htmlspecialchars($admin['name']); ?>!</h1>
-                                <p class="text-slate-400 text-lg leading-relaxed flex items-center">
-                                    <i class="fas fa-calendar-alt mr-2"></i>
-                                    Today is <?php echo date('l, F j, Y'); ?> • <?php echo date('H:i A'); ?>
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                // Update time immediately and then every second
+                updateAdminDashboardTime();
+                setInterval(updateAdminDashboardTime, 1000);
+            </script>
+        </div>
 
-                <!-- Statistics Cards -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6 mb-6 md:mb-8">
-                    <!-- Total Users Card -->
-                    <a href="manage_user.php" class="block bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-slate-600 transition-all duration-200 hover:scale-[1.02]">
-                        <div class="flex items-center justify-between mb-4">
-                            <div>
-                                <p class="text-slate-400 text-sm font-semibold uppercase tracking-wider">Total Users</p>
-                                <h2 class="text-4xl font-bold text-white mt-2"><?php echo $total_employees; ?></h2>
-                            </div>
-                            <div class="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-users text-primary text-xl"></i>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1 text-green-400 text-sm font-medium">
-                            <i class="fas fa-arrow-up"></i>
-                            <span>Active users</span>
-                        </div>
-                    </a>
+        <!-- Statistics Cards -->
+        <div class="elms-grid elms-grid-1 elms-grid-md-2 elms-grid-lg-5" style="margin-bottom: 2rem;">
+            <!-- Total Users Card -->
+            <a href="manage_user.php" class="elms-stat-card" style="text-decoration: none;">
+                <div>
+                    <p class="elms-stat-label">Total Users</p>
+                    <p class="elms-stat-value"><?php echo $total_employees; ?></p>
+                    <p style="color: #34d399; font-size: 0.875rem; margin-top: 0.5rem;">
+                        <i class="fas fa-arrow-up"></i> Active users
+                    </p>
+                </div>
+                <div class="elms-stat-icon-container" style="background-color: rgba(37, 99, 235, 0.2);">
+                    <i class="fas fa-users elms-stat-icon" style="color: #60a5fa;"></i>
+                </div>
+            </a>
                     
-                    <!-- Pending Requests Card -->
-                    <a href="leave_management.php?status=pending" class="block bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-slate-600 transition-all duration-200 hover:scale-[1.02]">
-                        <div class="flex items-center justify-between mb-4">
-                            <div>
-                                <p class="text-slate-400 text-sm font-semibold uppercase tracking-wider">Pending Requests</p>
-                                <h2 class="text-4xl font-bold text-white mt-2"><?php echo $pending_requests; ?></h2>
-                            </div>
-                            <div class="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-clock text-yellow-500 text-xl"></i>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1 text-slate-400 text-sm font-medium">
-                            <i class="fas fa-hourglass-half"></i>
-                            <span>Awaiting review</span>
-                        </div>
-                    </a>
+            <!-- Pending Requests Card -->
+            <a href="leave_management.php?status=pending" class="elms-stat-card" style="text-decoration: none;">
+                <div>
+                    <p class="elms-stat-label">Pending Requests</p>
+                    <p class="elms-stat-value"><?php echo $pending_requests; ?></p>
+                    <p style="color: #fb923c; font-size: 0.875rem; margin-top: 0.5rem;">
+                        <i class="fas fa-hourglass-half"></i> Awaiting review
+                    </p>
+                </div>
+                <div class="elms-stat-icon-container" style="background-color: rgba(249, 115, 22, 0.2);">
+                    <i class="fas fa-clock elms-stat-icon" style="color: #fb923c;"></i>
+                </div>
+            </a>
                     
-                    <!-- Approved Requests Card -->
-                    <a href="leave_management.php?status=approved" class="block bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-slate-600 transition-all duration-200 hover:scale-[1.02]">
-                        <div class="flex items-center justify-between mb-4">
-                            <div>
-                                <p class="text-slate-400 text-sm font-semibold uppercase tracking-wider">Approved Requests</p>
-                                <h2 class="text-4xl font-bold text-white mt-2"><?php echo $approved_requests; ?></h2>
-                            </div>
-                            <div class="w-12 h-12 bg-slate-600/20 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-check-circle text-slate-400 text-xl"></i>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1 text-slate-400 text-sm font-medium">
-                            <i class="fas fa-arrow-up"></i>
-                            <span>This month</span>
-                        </div>
-                    </a>
+            <!-- Approved Requests Card -->
+            <a href="leave_management.php?status=approved" class="elms-stat-card" style="text-decoration: none;">
+                <div>
+                    <p class="elms-stat-label">Approved Requests</p>
+                    <p class="elms-stat-value"><?php echo $approved_requests; ?></p>
+                    <p style="color: #34d399; font-size: 0.875rem; margin-top: 0.5rem;">
+                        <i class="fas fa-arrow-up"></i> This month
+                    </p>
+                </div>
+                <div class="elms-stat-icon-container" style="background-color: rgba(5, 150, 105, 0.2);">
+                    <i class="fas fa-check-circle elms-stat-icon" style="color: #34d399;"></i>
+                </div>
+            </a>
                     
-                    <!-- Rejected Requests Card -->
-                    <a href="leave_management.php?status=rejected" class="block bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-slate-600 transition-all duration-200 hover:scale-[1.02]">
-                        <div class="flex items-center justify-between mb-4">
-                            <div>
-                                <p class="text-slate-400 text-sm font-semibold uppercase tracking-wider">Rejected Requests</p>
-                                <h2 class="text-4xl font-bold text-white mt-2"><?php echo $rejected_requests; ?></h2>
-                            </div>
-                            <div class="w-12 h-12 bg-slate-600/20 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-times-circle text-slate-400 text-xl"></i>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1 text-slate-400 text-sm font-medium">
-                            <i class="fas fa-arrow-down"></i>
-                            <span>This month</span>
-                        </div>
-                    </a>
+            <!-- Rejected Requests Card -->
+            <a href="leave_management.php?status=rejected" class="elms-stat-card" style="text-decoration: none;">
+                <div>
+                    <p class="elms-stat-label">Rejected Requests</p>
+                    <p class="elms-stat-value"><?php echo $rejected_requests; ?></p>
+                    <p style="color: #94a3b8; font-size: 0.875rem; margin-top: 0.5rem;">
+                        <i class="fas fa-arrow-down"></i> This month
+                    </p>
+                </div>
+                <div class="elms-stat-icon-container" style="background-color: rgba(100, 116, 139, 0.2);">
+                    <i class="fas fa-times-circle elms-stat-icon" style="color: #94a3b8;"></i>
+                </div>
+            </a>
                     
-                    <!-- Low Utilization Alert Card -->
-                    <a href="leave_alerts.php" class="block bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-slate-600 transition-all duration-200 hover:scale-[1.02]">
-                        <div class="flex items-center justify-between mb-4">
-                            <div>
-                                <p class="text-slate-400 text-sm font-semibold uppercase tracking-wider">Total Alerts</p>
-                                <h2 class="text-4xl font-bold text-white mt-2"><?php echo $alertStats['total_employees_with_alerts']; ?></h2>
-                            </div>
-                            <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-bell text-blue-400 text-xl"></i>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1 text-blue-400 text-sm font-medium">
-                            <i class="fas fa-users"></i>
-                            <span>Need attention</span>
-                        </div>
-                    </a>
+            <!-- Total Alerts Card -->
+            <a href="leave_alerts.php" class="elms-stat-card" style="text-decoration: none;">
+                <div>
+                    <p class="elms-stat-label">Total Alerts</p>
+                    <p class="elms-stat-value"><?php echo $alertStats['total_employees_with_alerts']; ?></p>
+                    <p style="color: #60a5fa; font-size: 0.875rem; margin-top: 0.5rem;">
+                        <i class="fas fa-users"></i> Need attention
+                    </p>
+                </div>
+                <div class="elms-stat-icon-container" style="background-color: rgba(37, 99, 235, 0.2);">
+                    <i class="fas fa-bell elms-stat-icon" style="color: #60a5fa;"></i>
+                </div>
+            </a>
                     
                 </div>
 
-                <!-- Recent Leave Requests Table -->
-                <div class="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
-                    <div class="px-6 py-4 border-b border-slate-700 bg-slate-700">
-                        <h3 class="text-xl font-semibold text-white m-0 flex items-center gap-3">
-                            <i class="fas fa-list text-primary"></i>
-                            Recent Leave Requests
-                        </h3>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full min-w-[800px]">
-                            <thead class="bg-slate-700">
-                                <tr>
-                                    <th class="px-3 md:px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Employee</th>
-                                    <th class="px-3 md:px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider hidden sm:table-cell">Type</th>
-                                    <th class="px-3 md:px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider hidden md:table-cell">Start Date</th>
-                                    <th class="px-3 md:px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider hidden md:table-cell">End Date</th>
-                                    <th class="px-3 md:px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                                        <div class="flex items-center gap-2">
-                                            <span>Status</span>
-                                            <button type="button" 
-                                                    onclick="showStatusInfoHelp()"
-                                                    title="View Status Information"
-                                                    class="text-blue-400 hover:text-blue-300 transition-colors">
-                                                <i class="fas fa-info-circle text-xs"></i>
-                                            </button>
-                                        </div>
-                                    </th>
-                                    <th class="px-3 md:px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-700">
+        <!-- Recent Leave Requests Table -->
+        <div class="elms-table">
+            <div class="elms-table-header">
+                <h3 class="elms-h3" style="display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="fas fa-list" style="color: #0891b2;"></i>
+                    Recent Leave Requests
+                </h3>
+            </div>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; min-width: 800px;">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th class="hidden sm:table-cell">Type</th>
+                            <th class="hidden md:table-cell">Start Date</th>
+                            <th class="hidden md:table-cell">End Date</th>
+                            <th>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span>Status</span>
+                                    <button type="button" 
+                                            onclick="showStatusInfoHelp()"
+                                            title="View Status Information"
+                                            style="color: #60a5fa; background: none; border: none; cursor: pointer;">
+                                        <i class="fas fa-info-circle" style="font-size: 0.75rem;"></i>
+                                    </button>
+                                </div>
+                            </th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
                                 <?php foreach ($recent_requests as $request): ?>
                                 <tr class="hover:bg-slate-700/50 transition-colors">
                                     <td class="px-3 md:px-6 py-4">

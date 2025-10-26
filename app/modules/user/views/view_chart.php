@@ -82,7 +82,7 @@ $leaveTypeMapping = [
     <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
     <link rel="stylesheet" href="../../../../assets/css/style.css">
     <link rel="stylesheet" href="../../../../assets/css/dark-theme.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../../../../assets/libs/chartjs/chart.umd.min.js"></script>
 </head>
 <body class="bg-slate-900 text-white min-h-screen" data-user-role="user">
     <?php include '../../../../includes/unified_navbar.php'; ?>
