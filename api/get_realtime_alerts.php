@@ -3,6 +3,9 @@
 error_reporting(E_ERROR | E_PARSE);
 ini_set('display_errors', 0);
 
+// Set timezone to Philippines
+date_default_timezone_set('Asia/Manila');
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -75,13 +78,30 @@ try {
 }
 
 function getTimeAgo($datetime) {
-    $time = time() - strtotime($datetime);
+    // Create DateTime objects for proper timezone handling
+    $now = new DateTime('now', new DateTimeZone('Asia/Manila'));
+    $past = new DateTime($datetime, new DateTimeZone('Asia/Manila'));
     
-    if ($time < 60) return 'just now';
-    if ($time < 3600) return floor($time/60) . ' minutes ago';
-    if ($time < 86400) return floor($time/3600) . ' hours ago';
-    if ($time < 2592000) return floor($time/86400) . ' days ago';
-    return date('M j, Y', strtotime($datetime));
+    // Calculate difference in seconds
+    $diff = $now->getTimestamp() - $past->getTimestamp();
+    
+    if ($diff < 0) $diff = 0; // Handle future dates
+    
+    if ($diff < 60) return 'just now';
+    if ($diff < 3600) {
+        $minutes = floor($diff / 60);
+        return $minutes . ' minute' . ($minutes != 1 ? 's' : '') . ' ago';
+    }
+    if ($diff < 86400) {
+        $hours = floor($diff / 3600);
+        return $hours . ' hour' . ($hours != 1 ? 's' : '') . ' ago';
+    }
+    if ($diff < 2592000) {
+        $days = floor($diff / 86400);
+        return $days . ' day' . ($days != 1 ? 's' : '') . ' ago';
+    }
+    
+    return $past->format('M j, Y');
 }
 
 function getAlertIcon($alertType) {

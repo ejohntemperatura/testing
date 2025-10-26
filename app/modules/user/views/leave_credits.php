@@ -153,7 +153,7 @@ include '../../../../includes/user_header.php';
 
 <!-- Page Header -->
 <h1 class="elms-h1" style="margin-bottom: 0.5rem; display: flex; align-items: center;">
-    <i class="fas fa-wallet" style="color: #0891b2; margin-right: 0.75rem;"></i>Leave Credits
+    <i class="fas fa-calculator" style="color: #0891b2; margin-right: 0.75rem;"></i>Leave Credits
 </h1>
 <p class="elms-text-muted" style="margin-bottom: 2rem;">Civil Service compliant leave credit management</p>
 

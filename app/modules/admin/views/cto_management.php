@@ -119,12 +119,10 @@ include '../../../../includes/admin_header.php';
 ?>
                 <!-- Header -->
                 <div class="mb-8">
-                    <div class="flex items-center gap-4">
-                        <div class="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center">
-                            <i class="fas fa-clock text-2xl text-white"></i>
-                        </div>
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-clock text-3xl text-primary mr-2"></i>
                         <div>
-                            <h1 class="text-3xl font-bold text-white mb-2">CTO Management</h1>
+                            <h1 class="text-3xl font-bold text-white mb-1">CTO Management</h1>
                             <p class="text-slate-400">Manage Compensatory Time Off (CTO) earnings and usage</p>
                         </div>
                     </div>
@@ -248,72 +246,6 @@ include '../../../../includes/admin_header.php';
                         <div class="text-center py-8">
                             <i class="fas fa-wallet text-4xl text-slate-500 mb-4"></i>
                             <p class="text-slate-400">No employees currently have CTO balances</p>
-                        </div>
-                    <?php endif; ?>
-                </div>
-
-                <!-- CTO Earnings History -->
-                <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6 mb-8">
-                    <h3 class="text-xl font-semibold text-white mb-6 flex items-center">
-                        <i class="fas fa-history text-blue-400 mr-3"></i>
-                        CTO Earnings History
-                    </h3>
-                    
-                    <?php if (!empty($ctoEarnings)): ?>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm">
-                                <thead>
-                                    <tr class="border-b border-slate-700/50">
-                                        <th class="text-left py-3 px-4 text-slate-400">Employee</th>
-                                        <th class="text-left py-3 px-4 text-slate-400">Work Type</th>
-                                        <th class="text-left py-3 px-4 text-slate-400">Hours Worked</th>
-                                        <th class="text-left py-3 px-4 text-slate-400">CTO Earned</th>
-                                        <th class="text-left py-3 px-4 text-slate-400">Date</th>
-                                        <th class="text-left py-3 px-4 text-slate-400">Status</th>
-                                        <th class="text-left py-3 px-4 text-slate-400">Approved By</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($ctoEarnings as $earning): ?>
-                                        <tr class="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors">
-                                            <td class="py-3 px-4 text-white font-semibold">
-                                                <?php echo htmlspecialchars($earning['employee_name']); ?>
-                                                <div class="text-xs text-slate-400"><?php echo htmlspecialchars($earning['department']); ?></div>
-                                            </td>
-                                            <td class="py-3 px-4 text-slate-300">
-                                                <span class="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full">
-                                                    <?php echo ucwords(str_replace('_', ' ', $earning['work_type'])); ?>
-                                                </span>
-                                            </td>
-                                            <td class="py-3 px-4 text-slate-300 font-mono">
-                                                <?php echo number_format($earning['hours_worked'], 1); ?>h
-                                            </td>
-                                            <td class="py-3 px-4 text-green-400 font-mono font-semibold">
-                                                +<?php echo number_format($earning['cto_earned'], 1); ?>h
-                                            </td>
-                                            <td class="py-3 px-4 text-slate-300">
-                                                <?php echo date('M d, Y', strtotime($earning['earned_date'])); ?>
-                                            </td>
-                                            <td class="py-3 px-4">
-                                                <span class="px-2 py-1 rounded-full text-xs font-semibold <?php 
-                                                    echo $earning['status'] === 'approved' ? 'bg-green-500/20 text-green-400' : 
-                                                        ($earning['status'] === 'rejected' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'); 
-                                                ?>">
-                                                    <?php echo ucfirst($earning['status']); ?>
-                                                </span>
-                                            </td>
-                                            <td class="py-3 px-4 text-slate-300">
-                                                <?php echo $earning['approved_by_name'] ? htmlspecialchars($earning['approved_by_name']) : 'Pending'; ?>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    <?php else: ?>
-                        <div class="text-center py-8">
-                            <i class="fas fa-history text-4xl text-slate-500 mb-4"></i>
-                            <p class="text-slate-400">No CTO earnings recorded yet</p>
                         </div>
                     <?php endif; ?>
                 </div>

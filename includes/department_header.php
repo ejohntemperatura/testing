@@ -22,6 +22,9 @@ $dept_name = $dept_head['department'] ?? 'Technology';
     <link rel="stylesheet" href="../../../../assets/css/tailwind.css">
     <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
     <link rel="stylesheet" href="../../../../assets/css/elms-dark-theme.css">
+    <link rel="icon" type="image/png" href="/ELMS/elmsicon.png">
+    <link rel="shortcut icon" href="/ELMS/elmsicon.png">
+    <link rel="apple-touch-icon" href="/ELMS/elmsicon.png">
 </head>
 <body style="background-color: #0f172a; margin: 0;">
     <!-- Top Navbar (NO Notification Bell) -->

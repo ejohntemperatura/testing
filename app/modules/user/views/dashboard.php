@@ -377,7 +377,7 @@ include '../../../../includes/user_header.php';
                 </div>
             </div>
             <div class="p-6">
-                <form id="lateApplicationForm" method="POST" action="late_leave_application.php" enctype="multipart/form-data" class="space-y-6">
+                <form id="lateApplicationForm" method="POST" action="late_leave_application.php" enctype="multipart/form-data" class="space-y-6" onsubmit="return showLateProcessingModal(document.getElementById('modal_late_leave_type').value)">
                     <!-- Employee Information -->
                     <div class="bg-slate-700/30 rounded-xl p-6 border border-slate-600/50">
                         <h4 class="text-lg font-semibold text-white mb-4 flex items-center">
@@ -1306,6 +1306,9 @@ include '../../../../includes/user_header.php';
                             studyFields.classList.remove('hidden');
                         }
                     }
+                    
+                    // Show processing modal for late applications
+                    showLateProcessingModal(leaveType);
                 });
             }
         });
@@ -1810,6 +1813,37 @@ Date: ${info.event.start.toLocaleDateString()}
             const applyLeaveModal = document.getElementById('applyLeaveModal');
             if (applyLeaveModal) {
                 applyLeaveModal.classList.add('hidden');
+            }
+            
+            // Show processing modal immediately
+            const processingModal = document.getElementById('processingModal');
+            if (processingModal) {
+                processingModal.classList.remove('hidden');
+            }
+            
+            // Allow form to continue submitting
+            return true;
+        }
+        
+        // Function to show processing modal for late applications
+        function showLateProcessingModal(leaveType) {
+            // Clear any previous success modal state for new submission
+            sessionStorage.removeItem('successModalShown');
+            
+            // Format leave type for display
+            const leaveTypeDisplay = leaveType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            
+            // Update processing modal message
+            const processingMessage = document.querySelector('#processingModal p.text-slate-300');
+            if (processingMessage) {
+                processingMessage.textContent = `Please wait while we submit your late ${leaveTypeDisplay} leave request...`;
+            }
+            
+            // Hide the late application modal
+            const lateModal = document.getElementById('lateApplicationModal');
+            if (lateModal) {
+                lateModal.classList.add('hidden');
+                lateModal.classList.remove('flex');
             }
             
             // Show processing modal immediately

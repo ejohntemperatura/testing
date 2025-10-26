@@ -150,9 +150,15 @@ $recent_records = $stmt->fetchAll();
                 <!-- User Dropdown -->
                 <div style="position: relative;">
                     <button onclick="toggleUserDropdown()" style="display: flex; align-items: center; gap: 0.5rem; background: none; border: none; cursor: pointer; padding: 0;">
-                        <div style="width: 32px; height: 32px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.875rem;">
-                            <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
-                        </div>
+                        <?php if (!empty($user['profile_picture'])): ?>
+                            <img src="../../../../uploads/profile_pictures/<?php echo htmlspecialchars($user['profile_picture']); ?>" 
+                                 alt="Profile" 
+                                 style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid #10b981;">
+                        <?php else: ?>
+                            <div style="width: 32px; height: 32px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.875rem;">
+                                <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
+                            </div>
+                        <?php endif; ?>
                         <div style="text-align: left;">
                             <div style="color: white; font-weight: 600; font-size: 0.875rem;">
                                 <?php echo htmlspecialchars($user['name']); ?>

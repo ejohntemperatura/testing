@@ -32,6 +32,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->query("SHOW COLUMNS FROM employees");
         $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
         
+        // Add profile_picture column if it doesn't exist
+        if (!in_array('profile_picture', $columns)) {
+            $pdo->exec("ALTER TABLE employees ADD COLUMN profile_picture VARCHAR(255) NULL");
+        }
+        
+        // Handle profile picture upload
+        $profile_picture = $employee['profile_picture'] ?? null;
+        if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK) {
+            $upload_dir = '../../../../uploads/profile_pictures/';
+            if (!file_exists($upload_dir)) {
+                mkdir($upload_dir, 0777, true);
+            }
+            
+            $file_extension = strtolower(pathinfo($_FILES['profile_picture']['name'], PATHINFO_EXTENSION));
+            $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif'];
+            
+            if (in_array($file_extension, $allowed_extensions)) {
+                $new_filename = 'profile_' . $_SESSION['user_id'] . '_' . time() . '.' . $file_extension;
+                $upload_path = $upload_dir . $new_filename;
+                
+                if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $upload_path)) {
+                    // Delete old profile picture if exists
+                    if ($profile_picture && file_exists($upload_dir . basename($profile_picture))) {
+                        unlink($upload_dir . basename($profile_picture));
+                    }
+                    $profile_picture = $new_filename;
+                }
+            }
+        }
+        
         // Build the update query dynamically based on existing columns
         $updates = [];
         $params = [];
@@ -55,6 +85,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (in_array('contact', $columns)) {
             $updates[] = "contact = ?";
             $params[] = $contact;
+        }
+        if ($profile_picture) {
+            $updates[] = "profile_picture = ?";
+            $params[] = $profile_picture;
         }
         
         if (!empty($updates)) {
@@ -116,9 +150,15 @@ include '../../../../includes/user_header.php';
                     <!-- Profile Info Card -->
                     <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden">
                         <div class="p-6 text-center">
-                            <div class="w-24 h-24 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center mx-auto mb-4">
-                                <i class="fas fa-user text-3xl text-white"></i>
-                            </div>
+                            <?php if (!empty($employee['profile_picture'])): ?>
+                                <img src="../../../../uploads/profile_pictures/<?php echo htmlspecialchars($employee['profile_picture']); ?>" 
+                                     alt="Profile Picture" 
+                                     class="w-24 h-24 rounded-full object-cover mx-auto mb-4 border-4 border-primary/30">
+                            <?php else: ?>
+                                <div class="w-24 h-24 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <i class="fas fa-user text-3xl text-white"></i>
+                                </div>
+                            <?php endif; ?>
                             <h3 class="text-xl font-bold text-white mb-2"><?php echo htmlspecialchars($employee['name']); ?></h3>
                             <p class="text-slate-400 mb-6"><?php echo htmlspecialchars($employee['position']); ?></p>
                             
@@ -148,7 +188,17 @@ include '../../../../includes/user_header.php';
                                 </h3>
                             </div>
                             <div class="p-6">
-                                <form method="POST" action="" class="space-y-6">
+                                <form method="POST" action="" enctype="multipart/form-data" class="space-y-6">
+                                    <!-- Profile Picture Upload -->
+                                    <div>
+                                        <label class="block text-sm font-semibold text-slate-300 mb-2">
+                                            <i class="fas fa-camera mr-2 text-primary"></i>Profile Picture
+                                        </label>
+                                        <input type="file" name="profile_picture" accept="image/*"
+                                               class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90">
+                                        <p class="text-xs text-slate-400 mt-2">Accepted formats: JPG, PNG, GIF (Max 5MB)</p>
+                                    </div>
+                                    
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
                                             <label class="block text-sm font-semibold text-slate-300 mb-2">Full Name</label>

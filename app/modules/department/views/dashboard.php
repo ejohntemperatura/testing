@@ -201,13 +201,13 @@ include '../../../../includes/department_header.php';
 				<div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden hover:border-slate-600/50 transition-all duration-300 group">
 					<div class="p-6">
 						<div class="flex items-center mb-4">
-							<div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mr-4 group-hover:scale-110 transition-transform duration-300">
-								<i class="fas fa-calendar text-white text-lg"></i>
+							<div class="w-12 h-12 bg-slate-700 rounded-xl flex items-center justify-center mr-4 group-hover:scale-110 transition-transform duration-300">
+								<i class="fas fa-calendar text-primary text-lg"></i>
 							</div>
 							<h3 class="text-xl font-semibold text-white">Leave Chart</h3>
 						</div>
 						<p class="text-slate-400 mb-6">View comprehensive leave analytics and calendar overview across the department.</p>
-						<a href="view_chart.php" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors">
+						<a href="view_chart.php" class="inline-flex items-center px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition-colors">
 							<i class="fas fa-calendar mr-2"></i>View Leave Chart
 						</a>
 					</div>

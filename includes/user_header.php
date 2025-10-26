@@ -34,6 +34,9 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <link rel="stylesheet" href="../../../../assets/css/tailwind.css">
     <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
     <link rel="stylesheet" href="../../../../assets/css/elms-dark-theme.css">
+    <link rel="icon" type="image/png" href="/ELMS/elmsicon.png">
+    <link rel="shortcut icon" href="/ELMS/elmsicon.png">
+    <link rel="apple-touch-icon" href="/ELMS/elmsicon.png">
 </head>
 <body style="background-color: #0f172a; margin: 0;">
     <!-- Top Navbar -->
@@ -67,13 +70,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
                                 <p style="color: #94a3b8;">Loading alerts...</p>
                             </div>
                         </div>
-                        <div style="padding: 0.75rem; border-top: 1px solid #334155; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="padding: 0.75rem; border-top: 1px solid #334155; display: flex; justify-content: center; align-items: center;">
                             <button onclick="markAllNavbarAlertsRead()" style="font-size: 0.75rem; color: #94a3b8; background: none; border: none; cursor: pointer; display: flex; align-items: center;">
                                 <i class="fas fa-check-double" style="margin-right: 0.25rem;"></i>Clear All
                             </button>
-                            <a href="dashboard.php#alerts" style="font-size: 0.75rem; color: #60a5fa; text-decoration: none;">
-                                View All Notifications
-                            </a>
                         </div>
                     </div>
                 </div>
@@ -81,9 +81,15 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 <!-- User Dropdown -->
                 <div style="position: relative;">
                     <button onclick="toggleUserDropdown()" style="display: flex; align-items: center; gap: 0.5rem; background: none; border: none; cursor: pointer; padding: 0;">
-                        <div style="width: 32px; height: 32px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.875rem;">
-                            <?php echo strtoupper(substr($employee['name'], 0, 1)); ?>
-                        </div>
+                        <?php if (!empty($employee['profile_picture'])): ?>
+                            <img src="../../../../uploads/profile_pictures/<?php echo htmlspecialchars($employee['profile_picture']); ?>" 
+                                 alt="Profile" 
+                                 style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid #10b981;">
+                        <?php else: ?>
+                            <div style="width: 32px; height: 32px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.875rem;">
+                                <?php echo strtoupper(substr($employee['name'], 0, 1)); ?>
+                            </div>
+                        <?php endif; ?>
                         <div style="text-align: left;">
                             <div style="color: white; font-weight: 600; font-size: 0.875rem;">
                                 <?php echo htmlspecialchars($employee['name']); ?>

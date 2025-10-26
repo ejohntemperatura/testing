@@ -54,7 +54,7 @@ include '../../../../includes/user_header.php';
                 <div class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden">
                     <div class="px-6 py-4 border-b border-slate-700/50 bg-slate-700/30">
                         <h3 class="text-xl font-semibold text-white flex items-center">
-                            <i class="fas fa-calendar-alt text-purple-500 mr-3"></i>Your Leave Calendar
+                            <i class="fas fa-calendar text-primary mr-3"></i>Your Leave Calendar
                         </h3>
                         <p class="text-slate-400 text-sm mt-1">Your approved leave requests displayed in calendar format</p>
                     </div>

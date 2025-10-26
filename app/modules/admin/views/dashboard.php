@@ -96,6 +96,10 @@ $leave_requests = $stmt->fetchAll();
         
         <link rel="stylesheet" href="../../../../assets/css/elms-dark-theme.css">
         <script src="../../../../assets/libs/chartjs/chart.umd.min.js"></script>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/ELMS/elmsicon.png">
+    <link rel="shortcut icon" href="/ELMS/elmsicon.png">
+    <link rel="apple-touch-icon" href="/ELMS/elmsicon.png">
 </head>
 <body style="background-color: #0f172a; margin: 0;">
     <!-- Top Navbar -->

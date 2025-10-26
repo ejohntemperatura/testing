@@ -227,107 +227,62 @@ include '../../../../includes/admin_header.php';
     </style>
 
 <!-- Page Header -->
-<h1 class="elms-h1" style="margin-bottom: 0.5rem; display: flex; align-items: center;">
-    <i class="fas fa-bell" style="color: #0891b2; margin-right: 0.75rem;"></i>Leave Maximization Alerts
-</h1>
-<p class="elms-text-muted" style="margin-bottom: 2rem;">Monitor and send alerts to employees with low leave utilization</p>
+<div class="mb-8">
+    <div class="flex items-center gap-3">
+        <i class="fas fa-bell text-3xl text-primary mr-2"></i>
+        <div>
+            <h1 class="text-3xl font-bold text-white mb-1">Leave Alerts</h1>
+            <p class="text-slate-400">Send reminders to employees about their leave credits</p>
+        </div>
+    </div>
+</div>
 
 
-<!-- Enhanced Alert Statistics Dashboard -->
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <!-- Total Alerts Card -->
-                    <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <div>
-                                <p class="text-slate-400 text-sm font-semibold uppercase tracking-wider">Total Alerts</p>
-                                <h2 class="text-3xl font-bold text-white mt-2"><?php echo $alertStats['total_employees_with_alerts']; ?></h2>
-                            </div>
-                            <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-bell text-blue-400 text-xl"></i>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1 text-blue-400 text-sm font-medium">
-                            <i class="fas fa-users"></i>
-                            <span>Employees needing attention</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Urgent Alerts Card -->
-                    <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <div>
-                                <p class="text-slate-400 text-sm font-semibold uppercase tracking-wider">Urgent Alerts</p>
-                                <h2 class="text-3xl font-bold text-red-400 mt-2"><?php echo $alertStats['urgent_alerts']; ?></h2>
-                            </div>
-                            <div class="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-exclamation-triangle text-red-400 text-xl"></i>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1 text-red-400 text-sm font-medium">
-                            <i class="fas fa-clock"></i>
-                            <span>Immediate action required</span>
-                        </div>
-                    </div>
-                    
-                    <!-- CSC Compliance Card -->
-                    <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <div>
-                                <p class="text-slate-400 text-sm font-semibold uppercase tracking-wider">CSC Issues</p>
-                                <h2 class="text-3xl font-bold text-orange-400 mt-2"><?php echo $alertStats['csc_compliance_issues'] ?? 0; ?></h2>
-                            </div>
-                            <div class="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-chart-line text-orange-400 text-xl"></i>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1 text-orange-400 text-sm font-medium">
-                            <i class="fas fa-balance-scale"></i>
-                            <span>CSC compliance concerns</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Year-End Risks Card -->
-                    <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <div>
-                                <p class="text-slate-400 text-sm font-semibold uppercase tracking-wider">Year-End Risks</p>
-                                <h2 class="text-3xl font-bold text-yellow-400 mt-2"><?php echo $alertStats['year_end_risks']; ?></h2>
-                            </div>
-                            <div class="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-calendar-times text-yellow-400 text-xl"></i>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1 text-yellow-400 text-sm font-medium">
-                            <i class="fas fa-hourglass-end"></i>
-                            <span>Forfeiture risks</span>
-                        </div>
-                    </div>
-                </div>
+<!-- Alert Statistics -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <!-- Total Alerts -->
+    <div class="bg-slate-800 rounded-lg border border-slate-700 p-5">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-slate-400 text-xs uppercase tracking-wide mb-1">Total Employees</p>
+                <h2 class="text-3xl font-bold text-white"><?php echo $alertStats['total_employees_with_alerts']; ?></h2>
+                <p class="text-slate-400 text-xs mt-1">Need attention</p>
+            </div>
+            <div class="w-14 h-14 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                <i class="fas fa-users text-blue-400 text-2xl"></i>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Urgent Alerts -->
+    <div class="bg-slate-800 rounded-lg border border-slate-700 p-5">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-slate-400 text-xs uppercase tracking-wide mb-1">Urgent</p>
+                <h2 class="text-3xl font-bold text-red-400"><?php echo $alertStats['urgent_alerts']; ?></h2>
+                <p class="text-slate-400 text-xs mt-1">Immediate action</p>
+            </div>
+            <div class="w-14 h-14 bg-red-500/20 rounded-lg flex items-center justify-center">
+                <i class="fas fa-exclamation-triangle text-red-400 text-2xl"></i>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Year-End Risks -->
+    <div class="bg-slate-800 rounded-lg border border-slate-700 p-5">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-slate-400 text-xs uppercase tracking-wide mb-1">Year-End Risk</p>
+                <h2 class="text-3xl font-bold text-yellow-400"><?php echo $alertStats['year_end_risks']; ?></h2>
+                <p class="text-slate-400 text-xs mt-1">Credits expiring</p>
+            </div>
+            <div class="w-14 h-14 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+                <i class="fas fa-calendar-times text-yellow-400 text-2xl"></i>
+            </div>
+        </div>
+    </div>
+</div>
 
-                <!-- Alert Info -->
-                <div class="bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-2xl p-6 mb-8">
-                    <div class="flex items-center mb-4">
-                        <i class="fas fa-info-circle text-blue-400 text-2xl mr-4"></i>
-                        <div>
-                            <h3 class="text-xl font-semibold text-white mb-2">Leave Maximization Alert System</h3>
-                            <p class="text-slate-300">Simple and effective system to remind employees about their leave balance, low utilization, and year-end forfeiture risks.</p>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                        <div class="flex items-center space-x-2">
-                            <i class="fas fa-check-circle text-green-400"></i>
-                            <span class="text-slate-300 text-sm">Leave Balance Reminders</span>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <i class="fas fa-check-circle text-green-400"></i>
-                            <span class="text-slate-300 text-sm">Utilization Monitoring</span>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <i class="fas fa-check-circle text-green-400"></i>
-                            <span class="text-slate-300 text-sm">Year-End Warnings</span>
-                        </div>
-                    </div>
-                </div>
 
 
                 <!-- Success Message -->
@@ -346,7 +301,12 @@ include '../../../../includes/admin_header.php';
                     </div>
                 <?php endif; ?>
 
-                <!-- Employee List -->
+<!-- Employee List -->
+<div class="mb-4">
+    <h2 class="text-lg font-semibold text-white">Employees Needing Alerts</h2>
+    <p class="text-slate-400 text-sm">Click "Send Alert" to remind employees about their leave credits</p>
+</div>
+
                 <?php if (empty($employees)): ?>
                     <!-- No Alerts Card -->
                     <div class="flex flex-col items-center justify-center py-16">
@@ -474,7 +434,7 @@ include '../../../../includes/admin_header.php';
                                     <!-- Compact Alert Details -->
                                     <?php if (!empty($employee['alerts'])): ?>
                                     <div class="mb-3">
-                                        <div class="space-y-1">
+                                        <div class="space-y-1" id="alerts-<?php echo $employee['id']; ?>">
                                             <?php foreach (array_slice($employee['alerts'], 0, 2) as $alert): ?>
                                             <div class="p-2 rounded <?php 
                                                 echo $alert['severity'] === 'urgent' ? 'bg-red-500/10 border border-red-500/30' : 
@@ -493,25 +453,40 @@ include '../../../../includes/admin_header.php';
                                                 <?php endif; ?>
                                             </div>
                                             <?php endforeach; ?>
+                                            
+                                            <!-- Hidden alerts -->
+                                            <div class="hidden-alerts-<?php echo $employee['id']; ?>" style="display: none;">
+                                                <?php foreach (array_slice($employee['alerts'], 2) as $alert): ?>
+                                                <div class="p-2 rounded mt-1 <?php 
+                                                    echo $alert['severity'] === 'urgent' ? 'bg-red-500/10 border border-red-500/30' : 
+                                                        ($alert['severity'] === 'critical' ? 'bg-orange-500/10 border border-orange-500/30' : 'bg-yellow-500/10 border border-yellow-500/30'); 
+                                                ?>">
+                                                    <p class="text-xs font-medium <?php 
+                                                        echo $alert['severity'] === 'urgent' ? 'text-red-300' : 
+                                                            ($alert['severity'] === 'critical' ? 'text-orange-300' : 'text-yellow-300'); 
+                                                    ?>">
+                                                        <?php echo htmlspecialchars($alert['message']); ?>
+                                                    </p>
+                                                    <?php if (isset($alert['leave_name'])): ?>
+                                                    <p class="text-xs text-slate-400 mt-0.5">
+                                                        <?php echo $alert['leave_name']; ?> - <?php echo $alert['utilization']; ?>% used
+                                                    </p>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                            
                                             <?php if (count($employee['alerts']) > 2): ?>
                                             <div class="text-center">
-                                                <span class="px-2 py-0.5 bg-slate-500/20 text-slate-400 text-xs rounded-full">
+                                                <button type="button" 
+                                                    onclick="toggleAlerts(<?php echo $employee['id']; ?>, <?php echo count($employee['alerts']) - 2; ?>)"
+                                                    id="show-more-btn-<?php echo $employee['id']; ?>"
+                                                    class="px-3 py-1 bg-slate-600/30 hover:bg-slate-600/50 text-slate-300 hover:text-white text-xs rounded-full transition-all cursor-pointer">
                                                     +<?php echo count($employee['alerts']) - 2; ?> more
-                                                </span>
+                                                </button>
                                             </div>
                                             <?php endif; ?>
                                         </div>
-                                    </div>
-                                    <?php endif; ?>
-                                    
-                                    <!-- CSC Compliance Indicator -->
-                                    <?php if ($employee['csc_compliance']): ?>
-                                    <div class="mb-4 p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg">
-                                        <div class="flex items-center space-x-2">
-                                            <i class="fas fa-gavel text-orange-400 text-sm"></i>
-                                            <span class="text-orange-300 text-sm font-medium">CSC Compliance Issue</span>
-                                        </div>
-                                        <p class="text-orange-200 text-xs mt-1">Civil Service Commission compliance risk</p>
                                     </div>
                                     <?php endif; ?>
 
@@ -583,91 +558,69 @@ include '../../../../includes/admin_header.php';
                         </div>
                     </div>
                     
-                    <!-- Enhanced Alert Configuration -->
-                    <div class="px-6 py-4">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- Alert Type -->
-                        <div>
-                            <label for="alert_type" class="block text-sm font-medium text-slate-300 mb-2">
-                                <i class="fas fa-cog mr-1 text-primary text-xs"></i>Alert Type
-                            </label>
-                            <select name="alert_type" id="alert_type" required 
-                                class="w-full bg-slate-700/50 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200">
-                            <option value="">Select Alert Type</option>
-                                <option value="low_utilization">📊 Low Leave Utilization</option>
-                                <option value="year_end_warning">⏰ Year-End Forfeiture Warning</option>
-                                <option value="balance_reminder">📋 Leave Balance Reminder</option>
-                                <option value="custom">✏️ Custom Message</option>
-                        </select>
-                    </div>
-                    
-                        <!-- Priority Level -->
-                        <div>
-                            <label for="priority_level" class="block text-sm font-medium text-slate-300 mb-2">
-                                <i class="fas fa-flag mr-1 text-primary text-xs"></i>Priority Level
-                            </label>
-                            <select name="priority_level" id="priority_level" 
-                                class="w-full bg-slate-700/50 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200">
-                                <option value="urgent">🔴 Urgent Priority</option>
-                                <option value="critical">🟠 Critical Priority</option>
-                                <option value="moderate">🟡 Moderate Priority</option>
-                                <option value="low">🔵 Low Priority</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <!-- Alert Category -->
-                    <div class="px-6 py-4">
-                        <label for="alert_category" class="block text-sm font-medium text-slate-300 mb-2">
-                            <i class="fas fa-tags mr-1 text-primary text-xs"></i>Alert Category
-                        </label>
-                        <select name="alert_category" id="alert_category" 
-                            class="w-full bg-slate-700/50 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200">
-                                <option value="utilization">📊 Leave Utilization</option>
-                                <option value="year_end">📅 Year-End Forfeiture</option>
-                                <option value="custom">✏️ Custom Alert</option>
-                        </select>
-                    </div>
-
-                    <!-- Message Template Selection -->
-                    <div class="px-6 py-4">
-                        <label class="block text-sm font-medium text-slate-300 mb-2">
-                            <i class="fas fa-file-text mr-1 text-primary text-xs"></i>Message Template
-                        </label>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            <button type="button" onclick="selectTemplate('professional')" 
-                                class="p-3 bg-slate-700/30 hover:bg-slate-600/30 border border-slate-600/30 hover:border-primary/50 rounded-lg text-left transition-all duration-200 template-btn">
-                                <div class="flex items-center space-x-2">
-                                    <i class="fas fa-briefcase text-primary text-sm"></i>
-                                    <div>
-                                        <div class="text-white font-medium text-sm">Professional</div>
-                                        <div class="text-slate-400 text-xs">Formal business tone</div>
-                    </div>
-                </div>
+                    <!-- Message Templates -->
+                    <div class="px-6 py-4 border-b border-slate-700">
+                        <label class="block text-sm font-medium text-slate-300 mb-3">Choose a Template</label>
+                        <div class="space-y-2">
+                            <button type="button" onclick="selectTemplate('low_utilization')" 
+                                class="w-full p-3 bg-slate-700/30 hover:bg-orange-500/20 border border-slate-600 hover:border-orange-500 rounded-lg text-left transition-all">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-orange-500/20 rounded flex items-center justify-center flex-shrink-0">
+                                        <i class="fas fa-chart-line text-orange-400 text-sm"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="text-white font-medium text-sm">Low Utilization Reminder</div>
+                                        <div class="text-slate-400 text-xs">Encourage employee to use leave days</div>
+                                    </div>
+                                </div>
                             </button>
-                            <button type="button" onclick="selectTemplate('friendly')" 
-                                class="p-3 bg-slate-700/30 hover:bg-slate-600/30 border border-slate-600/30 hover:border-primary/50 rounded-lg text-left transition-all duration-200 template-btn">
-                                <div class="flex items-center space-x-2">
-                                    <i class="fas fa-heart text-primary text-sm"></i>
-                                    <div>
-                                        <div class="text-white font-medium text-sm">Friendly</div>
-                                        <div class="text-slate-400 text-xs">Warm and supportive</div>
+                            
+                            <button type="button" onclick="selectTemplate('year_end')" 
+                                class="w-full p-3 bg-slate-700/30 hover:bg-red-500/20 border border-slate-600 hover:border-red-500 rounded-lg text-left transition-all">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-red-500/20 rounded flex items-center justify-center flex-shrink-0">
+                                        <i class="fas fa-exclamation-triangle text-red-400 text-sm"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="text-white font-medium text-sm">Year-End Warning</div>
+                                        <div class="text-slate-400 text-xs">Urgent reminder about expiring credits</div>
+                                    </div>
+                                </div>
+                            </button>
+                            
+                            <button type="button" onclick="selectTemplate('friendly_reminder')" 
+                                class="w-full p-3 bg-slate-700/30 hover:bg-green-500/20 border border-slate-600 hover:border-green-500 rounded-lg text-left transition-all">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-green-500/20 rounded flex items-center justify-center flex-shrink-0">
+                                        <i class="fas fa-smile text-green-400 text-sm"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="text-white font-medium text-sm">Friendly Reminder</div>
+                                        <div class="text-slate-400 text-xs">Gentle reminder about leave balance</div>
                                     </div>
                                 </div>
                             </button>
                         </div>
                     </div>
+                    
+                    <!-- Hidden fields for form submission -->
+                    <input type="hidden" name="alert_type" id="alert_type" value="balance_reminder">
+                    <input type="hidden" name="priority_level" id="priority_level" value="moderate">
+                    <input type="hidden" name="alert_category" id="alert_category" value="utilization">
 
                     <!-- Message Editor -->
                     <div class="px-6 py-4">
                         <label for="message" class="block text-sm font-medium text-slate-300 mb-2">
-                            <i class="fas fa-edit mr-1 text-primary text-xs"></i>Message Content
+                            Message Content
                         </label>
                         <div class="relative">
-                            <textarea name="message" id="message" rows="5" required 
-                                placeholder="Enter your personalized message to the employee..."
-                                class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all duration-200"></textarea>
+                            <textarea name="message" id="message" rows="6" 
+                                placeholder="Click a template above or type your message..."
+                                class="w-full bg-slate-700/50 border border-slate-600 rounded-lg px-4 py-3 text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none transition-all duration-200"></textarea>
                         </div>
+                        <p class="text-slate-400 text-xs mt-2">
+                            <span id="charCount">0</span> characters
+                        </p>
                     </div>
 
 
@@ -700,6 +653,20 @@ include '../../../../includes/admin_header.php';
 
 
     <script>
+        // Toggle alerts visibility
+        function toggleAlerts(employeeId, count) {
+            const hiddenAlerts = document.querySelector('.hidden-alerts-' + employeeId);
+            const button = document.getElementById('show-more-btn-' + employeeId);
+            
+            if (hiddenAlerts.style.display === 'none') {
+                hiddenAlerts.style.display = 'block';
+                button.innerHTML = 'Show less';
+            } else {
+                hiddenAlerts.style.display = 'none';
+                button.innerHTML = '+' + count + ' more';
+            }
+        }
+        
         // Open alert modal with enhanced functionality
         function openAlertModal(employeeId, employeeName, priority = 'low', totalRemaining = 0) {
             console.log('Opening enhanced modal for employee:', employeeId, employeeName, priority, totalRemaining);
@@ -760,35 +727,44 @@ include '../../../../includes/admin_header.php';
                 }
             }
             
-            // Auto-select alert type and priority based on employee priority
+            // Auto-select alert type and priority based on employee priority and set default message
             const alertTypeField = document.getElementById('alert_type');
             const priorityField = document.getElementById('priority_level');
             const categoryField = document.getElementById('alert_category');
+            const messageField = document.getElementById('message');
             
-            if (alertTypeField && priorityField && categoryField) {
+            if (alertTypeField && priorityField && categoryField && messageField) {
+                let defaultMessage = '';
+                
                 switch(priority) {
                     case 'urgent':
                         alertTypeField.value = 'year_end_warning';
                         priorityField.value = 'urgent';
                         categoryField.value = 'year_end';
+                        defaultMessage = 'IMPORTANT REMINDER: Your leave credits will expire on December 31st. To avoid losing your credits, please file your leave applications as soon as possible. Contact HR if you need assistance.';
                         break;
                     case 'critical':
                         alertTypeField.value = 'low_utilization';
                         priorityField.value = 'critical';
                         categoryField.value = 'utilization';
+                        defaultMessage = 'Hello! We noticed you have unused leave credits available. We encourage you to use your leave days to rest and recharge. Please schedule your leave at your earliest convenience.';
                         break;
                     case 'moderate':
                         alertTypeField.value = 'balance_reminder';
                         priorityField.value = 'moderate';
                         categoryField.value = 'utilization';
+                        defaultMessage = 'Hi! Just a friendly reminder that you have leave days available. Taking time off is important for your well-being. Feel free to plan your leave and submit your application.';
                         break;
                     default:
                         alertTypeField.value = 'balance_reminder';
                         priorityField.value = 'low';
                         categoryField.value = 'utilization';
+                        defaultMessage = 'Hi! Just a friendly reminder that you have leave days available. Taking time off is important for your well-being. Feel free to plan your leave and submit your application.';
                 }
-                // Trigger change event to update message
-                alertTypeField.dispatchEvent(new Event('change'));
+                
+                // Set the default message
+                messageField.value = defaultMessage;
+                updateCharCount();
             }
             
             // Show modal with animation
@@ -823,46 +799,30 @@ include '../../../../includes/admin_header.php';
 
         // Select message template
         function selectTemplate(templateType) {
-            const templateButtons = document.querySelectorAll('.template-btn');
-            templateButtons.forEach(btn => btn.classList.remove('border-primary/50', 'bg-slate-600/30'));
-            
-            event.target.closest('.template-btn').classList.add('border-primary/50', 'bg-slate-600/30');
-            
-            // Update message based on template
             const messageField = document.getElementById('message');
-            const alertType = document.getElementById('alert_type').value;
+            const alertTypeField = document.getElementById('alert_type');
             
             let message = '';
-            if (templateType === 'professional') {
-                message = getProfessionalMessage(alertType);
-            } else {
-                message = getFriendlyMessage(alertType);
+            
+            switch(templateType) {
+                case 'low_utilization':
+                    alertTypeField.value = 'low_utilization';
+                    message = `Hello! We noticed you have unused leave credits available. We encourage you to use your leave days to rest and recharge. Please schedule your leave at your earliest convenience.`;
+                    break;
+                    
+                case 'year_end':
+                    alertTypeField.value = 'year_end_warning';
+                    message = `IMPORTANT REMINDER: Your leave credits will expire on December 31st. To avoid losing your credits, please file your leave applications as soon as possible. Contact HR if you need assistance.`;
+                    break;
+                    
+                case 'friendly_reminder':
+                    alertTypeField.value = 'balance_reminder';
+                    message = `Hi! Just a friendly reminder that you have leave days available. Taking time off is important for your well-being. Feel free to plan your leave and submit your application.`;
+                    break;
             }
             
             messageField.value = message;
             updateCharCount();
-        }
-
-        // Get professional message based on alert type
-        function getProfessionalMessage(alertType) {
-            const messages = {
-                'low_utilization': `Low leave utilization detected. Please schedule your remaining leave days.`,
-                'year_end_warning': `URGENT: Leave credits will be forfeited on Dec 31. Schedule immediately!`,
-                'balance_reminder': `Friendly reminder: You have leave days available for use.`
-            };
-            
-            return messages[alertType] || messages['balance_reminder'];
-        }
-
-        // Get friendly message based on alert type
-        function getFriendlyMessage(alertType) {
-            const messages = {
-                'low_utilization': `Hi! 👋 You have unused leave days. Time to take a break!`,
-                'year_end_warning': `Hey! ⏰ Leave credits expire Dec 31. Don't lose them!`,
-                'balance_reminder': `Hello! 😊 Just a friendly reminder about your leave balance.`
-            };
-            
-            return messages[alertType] || messages['balance_reminder'];
         }
 
         // Preview message
@@ -870,8 +830,12 @@ include '../../../../includes/admin_header.php';
         // Update character count
         function updateCharCount() {
             const message = document.getElementById('message');
+            const charCount = document.getElementById('charCount');
             const footerCharCount = document.getElementById('footerCharCount');
             
+            if (charCount) {
+                charCount.textContent = message.value.length;
+            }
             if (footerCharCount) {
                 footerCharCount.textContent = message.value.length + ' characters';
             }
@@ -879,7 +843,7 @@ include '../../../../includes/admin_header.php';
 
 
 
-        // Enhanced auto-fill message based on alert type
+        // Auto-fill message based on alert type
         document.addEventListener('DOMContentLoaded', function() {
             const alertTypeField = document.getElementById('alert_type');
             const messageField = document.getElementById('message');
@@ -888,7 +852,23 @@ include '../../../../includes/admin_header.php';
             if (alertTypeField && messageField) {
                 alertTypeField.addEventListener('change', function() {
                     const alertType = this.value;
-                    const message = getProfessionalMessage(alertType);
+                    let message = '';
+                    
+                    switch(alertType) {
+                        case 'low_utilization':
+                            message = 'Hello! We noticed you have unused leave credits available. We encourage you to use your leave days to rest and recharge. Please schedule your leave at your earliest convenience.';
+                            break;
+                        case 'year_end_warning':
+                            message = 'IMPORTANT REMINDER: Your leave credits will expire on December 31st. To avoid losing your credits, please file your leave applications as soon as possible. Contact HR if you need assistance.';
+                            break;
+                        case 'balance_reminder':
+                            message = 'Hi! Just a friendly reminder that you have leave days available. Taking time off is important for your well-being. Feel free to plan your leave and submit your application.';
+                            break;
+                        case 'custom':
+                            message = '';
+                            break;
+                    }
+                    
                     messageField.value = message;
                     updateCharCount();
                 });
@@ -946,13 +926,25 @@ include '../../../../includes/admin_header.php';
                     
                     // Validate form fields before submission
                     const employeeId = this.querySelector('input[name="employee_id"]').value;
-                    const alertType = this.querySelector('select[name="alert_type"]').value;
+                    const alertType = document.getElementById('alert_type').value;
                     const message = this.querySelector('textarea[name="message"]').value;
                     
                     // Check if form is properly filled
-                    if (!employeeId || !alertType || !message.trim()) {
-                        alert('Please fill in all required fields before sending the alert.');
-                        console.log('Form validation failed: missing required fields');
+                    if (!employeeId) {
+                        alert('Employee ID is missing. Please close and reopen the modal.');
+                        console.log('Form validation failed: missing employee ID');
+                        return false;
+                    }
+                    
+                    if (!alertType) {
+                        alert('Alert type is missing. Please select a template.');
+                        console.log('Form validation failed: missing alert type');
+                        return false;
+                    }
+                    
+                    if (!message.trim()) {
+                        alert('Please enter a message or select a template.');
+                        console.log('Form validation failed: empty message');
                         return false;
                     }
                     

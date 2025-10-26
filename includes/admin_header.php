@@ -31,6 +31,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <link rel="stylesheet" href="../../../../assets/css/tailwind.css">
     <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
     <link rel="stylesheet" href="../../../../assets/css/elms-dark-theme.css">
+    <link rel="icon" type="image/png" sizes="32x32" href="/ELMS/elmsicon.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/ELMS/elmsicon.png">
+    <link rel="shortcut icon" href="/ELMS/elmsicon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/ELMS/elmsicon.png">
 </head>
 <body style="background-color: #0f172a; margin: 0;">
     <!-- Top Navbar -->
@@ -66,11 +70,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                                 <?php echo htmlspecialchars($admin['email'] ?? 'admin@elms.com'); ?>
                             </div>
                             <span style="display: inline-block; background: #06b6d4; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.6875rem; font-weight: 600;">
-                                <?php 
-                                    $roleDisplay = ucfirst($_SESSION['role']);
-                                    if ($_SESSION['role'] === 'manager') $roleDisplay = 'Department Head';
-                                    echo $roleDisplay;
-                                ?>
+                                Administrator
                             </span>
                         </div>
                         

@@ -30,6 +30,9 @@ $logoColor = $role === 'director' ? 'from-purple-500 to-pink-500' :
     <link rel="stylesheet" href="../../assets/libs/fontawesome/css/all.min.css">
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="assets/css/dark-theme.css">
+    <link rel="icon" type="image/png" href="/ELMS/elmsicon.png">
+    <link rel="shortcut icon" href="/ELMS/elmsicon.png">
+    <link rel="apple-touch-icon" href="/ELMS/elmsicon.png">
     
 </head>
 <body class="bg-slate-900 text-white">

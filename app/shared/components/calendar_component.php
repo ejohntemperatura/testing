@@ -64,7 +64,7 @@ $leaveTypes = getLeaveTypes();
 <div class="bg-slate-800 rounded-2xl border border-slate-700/50 overflow-hidden">
     <div class="px-6 py-4 border-b border-slate-700/50 bg-slate-700/30">
         <h3 class="text-xl font-semibold text-white flex items-center">
-            <i class="fas fa-chart-line text-primary mr-3"></i>Leave Chart
+            <i class="fas fa-calendar text-primary mr-3"></i>Leave Chart
         </h3>
     </div>
     <div class="p-6">

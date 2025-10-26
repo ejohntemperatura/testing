@@ -159,12 +159,10 @@ include '../../../../includes/admin_header.php';
     </style>
                 <!-- Page Header -->
                 <div class="mb-8">
-                    <div class="flex items-center gap-4">
-                        <div class="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
-                            <i class="fas fa-chart-line text-2xl text-white"></i>
-                        </div>
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-file-alt text-3xl text-primary mr-2"></i>
                         <div>
-                            <h1 class="text-3xl font-bold text-white mb-2">Reports & Analytics</h1>
+                            <h1 class="text-3xl font-bold text-white mb-1">Reports & Analytics</h1>
                             <p class="text-slate-400">Comprehensive leave management insights and analytics</p>
                         </div>
                     </div>
