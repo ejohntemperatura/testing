@@ -140,7 +140,7 @@ $stmt = $pdo->prepare("
         CASE 
             WHEN lr.approved_days IS NOT NULL AND lr.approved_days > 0 
             THEN lr.approved_days
-            ELSE DATEDIFF(lr.end_date, lr.start_date) + 1 
+            ELSE lr.days_requested
         END as actual_days_approved
     FROM leave_requests lr 
     WHERE lr.employee_id = ? 
@@ -733,7 +733,7 @@ include '../../../../includes/user_header.php';
                 <i class="fas fa-arrow-right"></i> Submit new request
             </p>
         </div>
-        <div class="elms-stat-icon-container" style="background-color: rgba(37, 99, 235, 0.2);">
+        <div class="elms-stat-icon-container" style="background-color: #1e3a8a;">
             <i class="fas fa-calendar-plus elms-stat-icon" style="color: #60a5fa;"></i>
         </div>
     </button>
@@ -747,7 +747,7 @@ include '../../../../includes/user_header.php';
                 <i class="fas fa-arrow-right"></i> Submit late request
             </p>
         </div>
-        <div class="elms-stat-icon-container" style="background-color: rgba(249, 115, 22, 0.2);">
+        <div class="elms-stat-icon-container" style="background-color: #7c2d12;">
             <i class="fas fa-exclamation-triangle elms-stat-icon" style="color: #fb923c;"></i>
         </div>
     </button>
@@ -761,7 +761,7 @@ include '../../../../includes/user_header.php';
                 <i class="fas fa-arrow-right"></i> View all requests
             </p>
         </div>
-        <div class="elms-stat-icon-container" style="background-color: rgba(37, 99, 235, 0.2);">
+        <div class="elms-stat-icon-container" style="background-color: #1e3a8a;">
             <i class="fas fa-history elms-stat-icon" style="color: #60a5fa;"></i>
         </div>
     </a>
@@ -775,7 +775,7 @@ include '../../../../includes/user_header.php';
                 <i class="fas fa-arrow-right"></i> Time in/out and attendance
             </p>
         </div>
-        <div class="elms-stat-icon-container" style="background-color: rgba(16, 185, 129, 0.2);">
+        <div class="elms-stat-icon-container" style="background-color: #064e3b;">
             <i class="fas fa-clock elms-stat-icon" style="color: #34d399;"></i>
         </div>
     </a>
@@ -818,10 +818,27 @@ include '../../../../includes/user_header.php';
                                                 <p class="text-slate-400 text-sm">
                                                     <?php echo date('M j, Y', strtotime($request['start_date'])); ?> - 
                                                     <?php 
-                                                    // Use approved end date if available, otherwise original end date
-                                                    if ($request['status'] === 'approved' && $request['actual_days_approved'] != $request['days_requested']) {
-                                                        $approved_end_date = date('Y-m-d', strtotime($request['start_date'] . ' +' . ($request['actual_days_approved'] - 1) . ' days'));
-                                                        echo date('M j, Y', strtotime($approved_end_date));
+                                                    // Calculate correct end date based on approved days (excluding weekends)
+                                                    if ($request['status'] === 'approved' && $request['actual_days_approved'] > 0) {
+                                                        $start = new DateTime($request['start_date']);
+                                                        $daysToCount = $request['actual_days_approved'];
+                                                        $weekdaysCounted = 0;
+                                                        $current = clone $start;
+                                                        
+                                                        $dayOfWeek = (int)$current->format('N');
+                                                        if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
+                                                            $weekdaysCounted++;
+                                                        }
+                                                        
+                                                        while ($weekdaysCounted < $daysToCount) {
+                                                            $current->modify('+1 day');
+                                                            $dayOfWeek = (int)$current->format('N');
+                                                            if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
+                                                                $weekdaysCounted++;
+                                                            }
+                                                        }
+                                                        
+                                                        echo date('M j, Y', $current->getTimestamp());
                                                     } else {
                                                         echo date('M j, Y', strtotime($request['end_date']));
                                                     }
@@ -920,7 +937,7 @@ include '../../../../includes/user_header.php';
             }
         });
 
-        // Calculate days between dates
+        // Calculate days between dates excluding weekends
         function calculateDays() {
             const startDate = document.getElementById('modal_start_date').value;
             const endDate = document.getElementById('modal_end_date').value;
@@ -929,9 +946,21 @@ include '../../../../includes/user_header.php';
             if (startDate && endDate) {
                 const start = new Date(startDate);
                 const end = new Date(endDate);
-                const timeDiff = end.getTime() - start.getTime();
-                const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
-                totalDaysInput.value = daysDiff + ' day' + (daysDiff !== 1 ? 's' : '');
+                
+                // Count only weekdays (Monday to Friday)
+                let weekdayCount = 0;
+                let current = new Date(start);
+                
+                while (current <= end) {
+                    const dayOfWeek = current.getDay(); // 0 (Sunday) to 6 (Saturday)
+                    // Only count Monday (1) to Friday (5)
+                    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                        weekdayCount++;
+                    }
+                    current.setDate(current.getDate() + 1);
+                }
+                
+                totalDaysInput.value = weekdayCount + ' day' + (weekdayCount !== 1 ? 's' : '');
             }
         }
 
@@ -943,9 +972,21 @@ include '../../../../includes/user_header.php';
             if (startDate && endDate) {
                 const start = new Date(startDate);
                 const end = new Date(endDate);
-                const timeDiff = end.getTime() - start.getTime();
-                const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
-                totalDaysInput.value = daysDiff + ' day' + (daysDiff !== 1 ? 's' : '');
+                
+                // Count only weekdays (Monday to Friday)
+                let weekdayCount = 0;
+                let current = new Date(start);
+                
+                while (current <= end) {
+                    const dayOfWeek = current.getDay(); // 0 (Sunday) to 6 (Saturday)
+                    // Only count Monday (1) to Friday (5)
+                    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                        weekdayCount++;
+                    }
+                    current.setDate(current.getDate() + 1);
+                }
+                
+                totalDaysInput.value = weekdayCount + ' day' + (weekdayCount !== 1 ? 's' : '');
             }
         }
 
@@ -1193,6 +1234,26 @@ include '../../../../includes/user_header.php';
         document.getElementById('modal_end_date').addEventListener('change', calculateDays);
         document.getElementById('modal_late_start_date').addEventListener('change', calculateLateDays);
         document.getElementById('modal_late_end_date').addEventListener('change', calculateLateDays);
+        
+        // Disable weekends in date pickers
+        function disableWeekends(dateInput) {
+            dateInput.addEventListener('input', function(e) {
+                const selectedDate = new Date(this.value);
+                const dayOfWeek = selectedDate.getDay();
+                
+                // If Saturday (6) or Sunday (0), clear the selection
+                if (dayOfWeek === 0 || dayOfWeek === 6) {
+                    alert('Weekends (Saturday and Sunday) cannot be selected for leave applications.');
+                    this.value = '';
+                }
+            });
+        }
+        
+        // Apply weekend restriction to all date inputs
+        disableWeekends(document.getElementById('modal_start_date'));
+        disableWeekends(document.getElementById('modal_end_date'));
+        disableWeekends(document.getElementById('modal_late_start_date'));
+        disableWeekends(document.getElementById('modal_late_end_date'));
         
         // Test textarea functionality
         const reasonTextarea = document.getElementById('modal_reason');
@@ -1647,7 +1708,7 @@ include '../../../../includes/user_header.php';
                             CASE 
                                 WHEN lr.approved_days IS NOT NULL AND lr.approved_days > 0 
                                 THEN lr.approved_days
-                                ELSE DATEDIFF(lr.end_date, lr.start_date) + 1 
+                                ELSE lr.days_requested
                             END as actual_days_approved
                         FROM leave_requests lr 
                         WHERE lr.employee_id = ? 

@@ -268,7 +268,7 @@ $leave_requests = $stmt->fetchAll();
                         <i class="fas fa-arrow-up"></i> Active users
                     </p>
                 </div>
-                <div class="elms-stat-icon-container" style="background-color: rgba(37, 99, 235, 0.2);">
+                <div class="elms-stat-icon-container" style="background-color: #1e3a8a;">
                     <i class="fas fa-users elms-stat-icon" style="color: #60a5fa;"></i>
                 </div>
             </a>
@@ -282,7 +282,7 @@ $leave_requests = $stmt->fetchAll();
                         <i class="fas fa-hourglass-half"></i> Awaiting review
                     </p>
                 </div>
-                <div class="elms-stat-icon-container" style="background-color: rgba(249, 115, 22, 0.2);">
+                <div class="elms-stat-icon-container" style="background-color: #7c2d12;">
                     <i class="fas fa-clock elms-stat-icon" style="color: #fb923c;"></i>
                 </div>
             </a>
@@ -296,7 +296,7 @@ $leave_requests = $stmt->fetchAll();
                         <i class="fas fa-arrow-up"></i> This month
                     </p>
                 </div>
-                <div class="elms-stat-icon-container" style="background-color: rgba(5, 150, 105, 0.2);">
+                <div class="elms-stat-icon-container" style="background-color: #064e3b;">
                     <i class="fas fa-check-circle elms-stat-icon" style="color: #34d399;"></i>
                 </div>
             </a>
@@ -310,7 +310,7 @@ $leave_requests = $stmt->fetchAll();
                         <i class="fas fa-arrow-down"></i> This month
                     </p>
                 </div>
-                <div class="elms-stat-icon-container" style="background-color: rgba(100, 116, 139, 0.2);">
+                <div class="elms-stat-icon-container" style="background-color: #334155;">
                     <i class="fas fa-times-circle elms-stat-icon" style="color: #94a3b8;"></i>
                 </div>
             </a>
@@ -324,7 +324,7 @@ $leave_requests = $stmt->fetchAll();
                         <i class="fas fa-users"></i> Need attention
                     </p>
                 </div>
-                <div class="elms-stat-icon-container" style="background-color: rgba(37, 99, 235, 0.2);">
+                <div class="elms-stat-icon-container" style="background-color: #1e3a8a;">
                     <i class="fas fa-bell elms-stat-icon" style="color: #60a5fa;"></i>
                 </div>
             </a>
@@ -379,10 +379,27 @@ $leave_requests = $stmt->fetchAll();
                                                     </span>
                                                     <div class="text-slate-400 text-xs mt-1">
                                                         <?php 
-                                                        // Use approved end date if available and different from requested days, otherwise original end date
-                                                        if ($request['status'] === 'approved' && $request['approved_days'] && $request['approved_days'] != $request['days_requested']) {
-                                                            $approved_end_date = date('Y-m-d', strtotime($request['start_date'] . ' +' . ($request['approved_days'] - 1) . ' days'));
-                                                            echo date('M d', strtotime($request['start_date'])) . ' - ' . date('M d', strtotime($approved_end_date));
+                                                        // Calculate correct end date based on approved days (excluding weekends)
+                                                        if ($request['status'] === 'approved' && $request['approved_days'] && $request['approved_days'] > 0) {
+                                                            $start = new DateTime($request['start_date']);
+                                                            $daysToCount = $request['approved_days'];
+                                                            $weekdaysCounted = 0;
+                                                            $current = clone $start;
+                                                            
+                                                            $dayOfWeek = (int)$current->format('N');
+                                                            if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
+                                                                $weekdaysCounted++;
+                                                            }
+                                                            
+                                                            while ($weekdaysCounted < $daysToCount) {
+                                                                $current->modify('+1 day');
+                                                                $dayOfWeek = (int)$current->format('N');
+                                                                if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
+                                                                    $weekdaysCounted++;
+                                                                }
+                                                            }
+                                                            
+                                                            echo date('M d', strtotime($request['start_date'])) . ' - ' . date('M d', $current->getTimestamp());
                                                         } else {
                                                             echo date('M d', strtotime($request['start_date'])) . ' - ' . date('M d', strtotime($request['end_date']));
                                                         }
@@ -400,10 +417,27 @@ $leave_requests = $stmt->fetchAll();
                                     <td class="px-3 md:px-6 py-4 text-slate-300 text-sm hidden md:table-cell"><?php echo date('M d, Y', strtotime($request['start_date'])); ?></td>
                                     <td class="px-3 md:px-6 py-4 text-slate-300 text-sm hidden md:table-cell">
                                         <?php 
-                                        // Use approved end date if available and different from requested days, otherwise original end date
-                                        if ($request['status'] === 'approved' && $request['approved_days'] && $request['approved_days'] != $request['days_requested']) {
-                                            $approved_end_date = date('Y-m-d', strtotime($request['start_date'] . ' +' . ($request['approved_days'] - 1) . ' days'));
-                                            echo date('M d, Y', strtotime($approved_end_date));
+                                        // Calculate correct end date based on approved days (excluding weekends)
+                                        if ($request['status'] === 'approved' && $request['approved_days'] && $request['approved_days'] > 0) {
+                                            $start = new DateTime($request['start_date']);
+                                            $daysToCount = $request['approved_days'];
+                                            $weekdaysCounted = 0;
+                                            $current = clone $start;
+                                            
+                                            $dayOfWeek = (int)$current->format('N');
+                                            if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
+                                                $weekdaysCounted++;
+                                            }
+                                            
+                                            while ($weekdaysCounted < $daysToCount) {
+                                                $current->modify('+1 day');
+                                                $dayOfWeek = (int)$current->format('N');
+                                                if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
+                                                    $weekdaysCounted++;
+                                                }
+                                            }
+                                            
+                                            echo date('M d, Y', $current->getTimestamp());
                                         } else {
                                             echo date('M d, Y', strtotime($request['end_date']));
                                         }
@@ -685,12 +719,28 @@ $leave_requests = $stmt->fetchAll();
                                         <div>
                                             <label class="text-sm font-medium text-slate-400">End Date</label>
                                             <p class="text-white">${(() => {
-                                                // Use approved end date if available, otherwise original end date
-                                                if (leave.status === 'approved' && leave.approved_days && leave.approved_days !== leave.days_requested) {
+                                                // Calculate correct end date based on approved days (excluding weekends)
+                                                if (leave.status === 'approved' && leave.approved_days && leave.approved_days > 0) {
                                                     const startDate = new Date(leave.start_date);
-                                                    const approvedEndDate = new Date(startDate);
-                                                    approvedEndDate.setDate(startDate.getDate() + (leave.approved_days - 1));
-                                                    return approvedEndDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                                                    let current = new Date(startDate);
+                                                    let weekdaysCounted = 0;
+                                                    
+                                                    // Count the first day if it's a weekday
+                                                    let dayOfWeek = current.getDay(); // 0=Sunday, 6=Saturday
+                                                    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                                                        weekdaysCounted++;
+                                                    }
+                                                    
+                                                    // Continue counting until we reach approved days
+                                                    while (weekdaysCounted < leave.approved_days) {
+                                                        current.setDate(current.getDate() + 1);
+                                                        dayOfWeek = current.getDay();
+                                                        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                                                            weekdaysCounted++;
+                                                        }
+                                                    }
+                                                    
+                                                    return current.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
                                                 } else {
                                                     return leave.end_date ? new Date(leave.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
                                                 }

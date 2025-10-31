@@ -379,13 +379,56 @@ document.addEventListener('DOMContentLoaded', function() {
                 if ($request['leave_type'] === 'without_pay' && !empty($request['original_leave_type'])) {
                     $colorClass = 'leave-' . $request['original_leave_type'];
                 }
+                
+                // Collect all weekday dates and group consecutive weekdays
+                $start = new DateTime($request['start_date']);
+                $daysToCount = $request['actual_days_approved'];
+                $weekdaysCounted = 0;
+                $current = clone $start;
+                $weekdayGroups = [];
+                $currentGroup = null;
+                
+                // Collect all weekday dates
+                while ($weekdaysCounted < $daysToCount) {
+                    $dayOfWeek = (int)$current->format('N');
+                    
+                    if ($dayOfWeek >= 1 && $dayOfWeek <= 5) { // Weekday
+                        if ($currentGroup === null) {
+                            $currentGroup = ['start' => $current->format('Y-m-d'), 'end' => $current->format('Y-m-d')];
+                        } else {
+                            $currentGroup['end'] = $current->format('Y-m-d');
+                        }
+                        $weekdaysCounted++;
+                    } else { // Weekend
+                        if ($currentGroup !== null) {
+                            $weekdayGroups[] = $currentGroup;
+                            $currentGroup = null;
+                        }
+                    }
+                    
+                    if ($weekdaysCounted < $daysToCount) {
+                        $current->modify('+1 day');
+                    }
+                }
+                
+                // Add the last group
+                if ($currentGroup !== null) {
+                    $weekdayGroups[] = $currentGroup;
+                }
+                
+                // Create separate events for each weekday group
+                foreach ($weekdayGroups as $index => $group):
+                    $groupEnd = new DateTime($group['end']);
+                    $groupEnd->modify('+1 day');
             ?>
             {
-                id: '<?php echo $request['id']; ?>',
+                id: '<?php echo $request['id'] . '_' . $index; ?>',
                 title: '<?php echo addslashes($request['employee_name']); ?> - <?php echo addslashes($leaveDisplayName); ?> (<?php echo $request['actual_days_approved']; ?> day<?php echo $request['actual_days_approved'] != 1 ? 's' : ''; ?>)',
-                start: '<?php echo $request['start_date']; ?>',
-                end: '<?php echo date('Y-m-d', strtotime($request['start_date'] . ' +' . $request['actual_days_approved'] . ' days')); ?>',
+                start: '<?php echo $group['start']; ?>',
+                end: '<?php echo $groupEnd->format('Y-m-d'); ?>',
+                allDay: true,
                 className: '<?php echo $colorClass; ?>',
+                display: 'block',
                 extendedProps: {
                     leave_type: '<?php echo $request['leave_type']; ?>',
                     employee_name: '<?php echo addslashes($request['employee_name']); ?>',
@@ -396,6 +439,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     display_name: '<?php echo addslashes($leaveDisplayName); ?>'
                 }
             },
+            <?php endforeach; ?>
             <?php endforeach; ?>
         ],
         eventClick: function(info) {

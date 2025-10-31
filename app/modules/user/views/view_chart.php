@@ -19,7 +19,7 @@ $stmt = $pdo->prepare("
         CASE 
             WHEN lr.approved_days IS NOT NULL AND lr.approved_days > 0 
             THEN lr.approved_days
-            ELSE DATEDIFF(lr.end_date, lr.start_date) + 1 
+            ELSE lr.days_requested
         END as actual_days_approved
     FROM leave_requests lr 
     WHERE lr.employee_id = ? 

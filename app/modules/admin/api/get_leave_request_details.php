@@ -80,11 +80,19 @@ try {
         exit();
     }
     
-    // Calculate days requested if not already set
-    if (!$leave_request['days_requested']) {
+    // Calculate days requested if not already set (excluding weekends)
+    if (!$leave_request['days_requested'] || $leave_request['days_requested'] == 0) {
         $start = new DateTime($leave_request['start_date']);
         $end = new DateTime($leave_request['end_date']);
-        $days = $start->diff($end)->days + 1;
+        $days = 0;
+        $current = clone $start;
+        while ($current <= $end) {
+            $dayOfWeek = (int)$current->format('N');
+            if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
+                $days++;
+            }
+            $current->modify('+1 day');
+        }
         $leave_request['days_requested'] = $days;
     }
     

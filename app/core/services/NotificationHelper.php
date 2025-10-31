@@ -193,7 +193,8 @@ class NotificationHelper {
     private function generateDepartmentHeadNotificationHTML($leaveRequest, $deptHead) {
         $startDate = date('M d, Y', strtotime($leaveRequest['start_date']));
         $endDate = date('M d, Y', strtotime($leaveRequest['end_date']));
-        $days = (new DateTime($leaveRequest['start_date']))->diff(new DateTime($leaveRequest['end_date']))->days + 1;
+        // Use days_requested from database (excludes weekends)
+        $days = $leaveRequest['days_requested'] ?? 0;
         
         return "
         <!DOCTYPE html>
@@ -276,7 +277,8 @@ class NotificationHelper {
     private function generateDepartmentHeadNotificationPlain($leaveRequest, $deptHead) {
         $startDate = date('M d, Y', strtotime($leaveRequest['start_date']));
         $endDate = date('M d, Y', strtotime($leaveRequest['end_date']));
-        $days = (new DateTime($leaveRequest['start_date']))->diff(new DateTime($leaveRequest['end_date']))->days + 1;
+        // Use days_requested from database (excludes weekends)
+        $days = $leaveRequest['days_requested'] ?? 0;
         
         return "
 NEW LEAVE REQUEST - ACTION REQUIRED
@@ -311,7 +313,8 @@ Please do not reply to this email.
     private function generateDirectorNotificationHTML($leaveRequest, $director) {
         $startDate = date('M d, Y', strtotime($leaveRequest['start_date']));
         $endDate = date('M d, Y', strtotime($leaveRequest['end_date']));
-        $days = (new DateTime($leaveRequest['start_date']))->diff(new DateTime($leaveRequest['end_date']))->days + 1;
+        // Use approved_days if available (from dept head), otherwise days_requested (excludes weekends)
+        $days = $leaveRequest['approved_days'] ?? $leaveRequest['days_requested'] ?? 0;
         
         return "
         <!DOCTYPE html>
@@ -388,7 +391,8 @@ Please do not reply to this email.
     private function generateDirectorNotificationPlain($leaveRequest, $director) {
         $startDate = date('M d, Y', strtotime($leaveRequest['start_date']));
         $endDate = date('M d, Y', strtotime($leaveRequest['end_date']));
-        $days = (new DateTime($leaveRequest['start_date']))->diff(new DateTime($leaveRequest['end_date']))->days + 1;
+        // Use approved_days if available (from dept head), otherwise days_requested (excludes weekends)
+        $days = $leaveRequest['approved_days'] ?? $leaveRequest['days_requested'] ?? 0;
         
         return "
 LEAVE REQUEST APPROVED BY DEPARTMENT HEAD - ACTION REQUIRED

@@ -149,10 +149,8 @@ $leaveTypes = getLeaveTypes();
 								<td class="px-6 py-4 text-slate-300 text-sm"><?php echo date('M d, Y', strtotime($request['end_date'])); ?></td>
 								<td class="px-6 py-4 text-slate-300 text-sm">
 									<?php 
-									$start = new DateTime($request['start_date']);
-									$end = new DateTime($request['end_date']);
-									$days = $start->diff($end)->days + 1;
-									echo $days;
+									// Use days_requested from database (excludes weekends)
+									echo $request['days_requested'] ?? 0;
 									?>
 								</td>
 								<td class="px-6 py-4 text-slate-300 text-sm max-w-xs truncate" title="<?php echo htmlspecialchars($request['reason']); ?>">

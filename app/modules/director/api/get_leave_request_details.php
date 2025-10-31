@@ -51,15 +51,26 @@ try {
         exit();
     }
     
-    // Calculate days requested
-    $start_date = new DateTime($request['start_date']);
-    $end_date = new DateTime($request['end_date']);
-    $days_requested = $start_date->diff($end_date)->days + 1;
+    // Use days_requested from database (already excludes weekends)
+    // If not set, calculate excluding weekends
+    if (!isset($request['days_requested']) || $request['days_requested'] == 0) {
+        $start_date = new DateTime($request['start_date']);
+        $end_date = new DateTime($request['end_date']);
+        $days_requested = 0;
+        $current = clone $start_date;
+        while ($current <= $end_date) {
+            $dayOfWeek = (int)$current->format('N');
+            if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
+                $days_requested++;
+            }
+            $current->modify('+1 day');
+        }
+        $request['days_requested'] = $days_requested;
+    }
     
     // Format dates
     $request['start_date'] = date('M d, Y', strtotime($request['start_date']));
     $request['end_date'] = date('M d, Y', strtotime($request['end_date']));
-    $request['days_requested'] = $days_requested;
     
     // Get leave types configuration
     $leaveTypes = getLeaveTypes();

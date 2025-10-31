@@ -75,9 +75,9 @@ $stmt = $pdo->prepare("
         CASE 
             WHEN status = 'approved' AND approved_days IS NOT NULL AND approved_days > 0 
             THEN approved_days
-            ELSE DATEDIFF(end_date, start_date) + 1 
+            ELSE days_requested
         END as days_used,
-        COALESCE(days_requested, DATEDIFF(end_date, start_date) + 1) as days_requested,
+        COALESCE(days_requested, 0) as days_requested,
         approved_days,
         pay_status,
         status,

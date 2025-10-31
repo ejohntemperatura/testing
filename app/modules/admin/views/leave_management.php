@@ -225,7 +225,7 @@ try {
                CASE 
                    WHEN lr.approved_days IS NOT NULL AND lr.approved_days > 0 
                    THEN lr.approved_days
-                   ELSE DATEDIFF(lr.end_date, lr.start_date) + 1 
+                   ELSE lr.days_requested
                END as actual_days_approved
         FROM leave_requests lr 
         JOIN employees e ON lr.employee_id = e.id 
@@ -413,10 +413,27 @@ include '../../../../includes/admin_header.php';
                                                 <td class="py-4 px-4 text-slate-300"><?php echo date('M d, Y', strtotime($request['start_date'])); ?></td>
                                                 <td class="py-4 px-4 text-slate-300">
                                                     <?php 
-                                                    // Use approved end date if available, otherwise original end date
-                                                    if ($request['status'] === 'approved' && $request['approved_days'] && $request['approved_days'] != $request['days_requested']) {
-                                                        $approved_end_date = date('Y-m-d', strtotime($request['start_date'] . ' +' . ($request['approved_days'] - 1) . ' days'));
-                                                        echo date('M d, Y', strtotime($approved_end_date));
+                                                    // Calculate correct end date based on approved days (excluding weekends)
+                                                    if ($request['status'] === 'approved' && $request['approved_days'] && $request['approved_days'] > 0) {
+                                                        $start = new DateTime($request['start_date']);
+                                                        $daysToCount = $request['approved_days'];
+                                                        $weekdaysCounted = 0;
+                                                        $current = clone $start;
+                                                        
+                                                        $dayOfWeek = (int)$current->format('N');
+                                                        if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
+                                                            $weekdaysCounted++;
+                                                        }
+                                                        
+                                                        while ($weekdaysCounted < $daysToCount) {
+                                                            $current->modify('+1 day');
+                                                            $dayOfWeek = (int)$current->format('N');
+                                                            if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
+                                                                $weekdaysCounted++;
+                                                            }
+                                                        }
+                                                        
+                                                        echo date('M d, Y', $current->getTimestamp());
                                                     } else {
                                                         echo date('M d, Y', strtotime($request['end_date']));
                                                     }
@@ -425,14 +442,12 @@ include '../../../../includes/admin_header.php';
                                                 <td class="py-4 px-4">
                                                     <span class="inline-flex items-center justify-center w-8 h-8 bg-slate-700 rounded-full text-sm font-semibold text-white">
                                                     <?php 
-                                                    // Use approved days if available, otherwise calculate from dates
+                                                    // Use approved days if available, otherwise use days_requested (which excludes weekends)
                                                     if ($request['status'] === 'approved' && $request['approved_days'] && $request['approved_days'] > 0) {
                                                         echo $request['approved_days'];
                                                     } else {
-                                                        $start = new DateTime($request['start_date']);
-                                                        $end = new DateTime($request['end_date']);
-                                                        $days = $start->diff($end)->days + 1;
-                                                        echo $days;
+                                                        // Use days_requested which already excludes weekends
+                                                        echo $request['days_requested'] ?? $request['actual_days_approved'];
                                                     }
                                                     ?>
                                                     </span>
@@ -753,12 +768,28 @@ include '../../../../includes/admin_header.php';
                 day: 'numeric'
             });
             const endDate = (() => {
-                // Use approved end date if available, otherwise original end date
-                if (leaveRequest.status === 'approved' && leaveRequest.approved_days && leaveRequest.approved_days !== leaveRequest.days_requested) {
+                // Calculate correct end date based on approved days (excluding weekends)
+                if (leaveRequest.status === 'approved' && leaveRequest.approved_days && leaveRequest.approved_days > 0) {
                     const startDate = new Date(leaveRequest.start_date);
-                    const approvedEndDate = new Date(startDate);
-                    approvedEndDate.setDate(startDate.getDate() + (leaveRequest.approved_days - 1));
-                    return approvedEndDate.toLocaleDateString('en-US', {
+                    let current = new Date(startDate);
+                    let weekdaysCounted = 0;
+                    
+                    // Count the first day if it's a weekday
+                    let dayOfWeek = current.getDay(); // 0=Sunday, 6=Saturday
+                    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                        weekdaysCounted++;
+                    }
+                    
+                    // Continue counting until we reach approved days
+                    while (weekdaysCounted < leaveRequest.approved_days) {
+                        current.setDate(current.getDate() + 1);
+                        dayOfWeek = current.getDay();
+                        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                            weekdaysCounted++;
+                        }
+                    }
+                    
+                    return current.toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric'

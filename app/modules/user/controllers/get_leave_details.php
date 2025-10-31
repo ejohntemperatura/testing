@@ -24,7 +24,7 @@ try {
     $stmt = $pdo->prepare("
         SELECT 
             lr.*,
-            DATEDIFF(lr.end_date, lr.start_date) + 1 as total_days
+            lr.days_requested as total_days
         FROM leave_requests lr
         WHERE lr.id = ? AND lr.employee_id = ?
     ");

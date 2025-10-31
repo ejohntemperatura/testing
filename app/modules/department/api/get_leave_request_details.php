@@ -74,13 +74,26 @@ try {
         exit();
     }
     
-    // Calculate days requested
-    $startDate = new DateTime($leaveRequest['start_date']);
-    $endDate = new DateTime($leaveRequest['end_date']);
-    $daysRequested = $startDate->diff($endDate)->days + 1;
-    $leaveRequest['days_requested'] = $daysRequested;
+    // Use days_requested from database (already excludes weekends)
+    // If not set, calculate excluding weekends
+    if (!isset($leaveRequest['days_requested']) || $leaveRequest['days_requested'] == 0) {
+        $startDate = new DateTime($leaveRequest['start_date']);
+        $endDate = new DateTime($leaveRequest['end_date']);
+        $daysRequested = 0;
+        $current = clone $startDate;
+        while ($current <= $endDate) {
+            $dayOfWeek = (int)$current->format('N');
+            if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
+                $daysRequested++;
+            }
+            $current->modify('+1 day');
+        }
+        $leaveRequest['days_requested'] = $daysRequested;
+    }
     
     // Format dates for display
+    $startDate = new DateTime($leaveRequest['start_date']);
+    $endDate = new DateTime($leaveRequest['end_date']);
     $leaveRequest['start_date'] = $startDate->format('F j, Y');
     $leaveRequest['end_date'] = $endDate->format('F j, Y');
     

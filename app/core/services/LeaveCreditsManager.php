@@ -29,12 +29,25 @@ class LeaveCreditsManager {
     }
     
     /**
-     * Calculate days between start and end date
+     * Calculate days between start and end date excluding weekends
      */
     private function calculateDays($start_date, $end_date) {
         $start = new DateTime($start_date);
         $end = new DateTime($end_date);
-        return $end->diff($start)->days + 1;
+        
+        // Calculate days excluding Saturdays and Sundays
+        $days = 0;
+        $current = clone $start;
+        while ($current <= $end) {
+            $dayOfWeek = (int)$current->format('N'); // 1 (Monday) to 7 (Sunday)
+            // Only count weekdays (Monday=1 to Friday=5)
+            if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
+                $days++;
+            }
+            $current->modify('+1 day');
+        }
+        
+        return $days;
     }
     
     /**

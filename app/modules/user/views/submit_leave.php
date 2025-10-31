@@ -77,7 +77,7 @@ if ($leave_type === 'sick' && isset($_FILES['medical_certificate']) && $_FILES['
     }
 }
 
-// Calculate number of days (inclusive)
+// Calculate number of days (inclusive) excluding weekends
 $start = new DateTime($start_date);
 $end = new DateTime($end_date);
 if ($end < $start) {
@@ -85,8 +85,18 @@ if ($end < $start) {
     header('Location: dashboard.php');
     exit();
 }
-$interval = $start->diff($end);
-$days = $interval->days + 1; // Include both start and end dates
+
+// Calculate days excluding Saturdays and Sundays
+$days = 0;
+$current = clone $start;
+while ($current <= $end) {
+    $dayOfWeek = (int)$current->format('N'); // 1 (Monday) to 7 (Sunday)
+    // Only count weekdays (Monday=1 to Friday=5)
+    if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
+        $days++;
+    }
+    $current->modify('+1 day');
+}
 
 // Check if the leave application is for past dates (late application)
 $today = new DateTime();

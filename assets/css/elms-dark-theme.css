@@ -229,11 +229,19 @@ body {
     align-items: center;
     justify-content: space-between;
     transition: all 0.2s;
+    box-shadow: none !important;
 }
 
 .elms-stat-card:hover {
     border-color: #475569; /* slate-600 */
     transform: scale(1.02);
+    box-shadow: none !important;
+}
+
+.elms-stat-card * {
+    box-shadow: none !important;
+    filter: none !important;
+    text-shadow: none !important;
 }
 
 .elms-stat-label {
@@ -255,6 +263,10 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: none !important;
+    filter: none !important;
+    border: none !important;
+    outline: none !important;
 }
 
 .elms-stat-icon {
@@ -269,6 +281,13 @@ body {
     font-variant: normal;
     text-rendering: auto;
     line-height: 1;
+    text-shadow: none !important;
+    filter: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    outline: none !important;
+    -webkit-text-stroke: 0 !important;
+    text-stroke: 0 !important;
 }
 
 /* Buttons */

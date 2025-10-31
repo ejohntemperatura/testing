@@ -88,8 +88,7 @@ function getLeaveRequirements($leaveType) {
             'color' => 'text-cyan-400'
         ],
         'vawc' => [
-            'court_order' => true,
-            'description' => 'Court order or police report required',
+            'description' => 'VAWC Leave - 10 days with full pay',
             'icon' => 'fas fa-shield-alt',
             'color' => 'text-red-600'
         ],

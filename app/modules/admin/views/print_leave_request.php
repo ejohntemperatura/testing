@@ -308,7 +308,14 @@ try {
                     </tr>
                     <tr>
                         <td>Total Days:</td>
-                        <td><?php echo !empty($leaveRequest['days_requested']) ? $leaveRequest['days_requested'] : 'N/A'; ?> day(s)</td>
+                        <td><?php 
+                        // Show approved days if available, otherwise show requested days
+                        if ($leaveRequest['status'] === 'approved' && isset($leaveRequest['approved_days']) && $leaveRequest['approved_days'] > 0) {
+                            echo $leaveRequest['approved_days'] . ' day(s) (Approved)';
+                        } else {
+                            echo (!empty($leaveRequest['days_requested']) ? $leaveRequest['days_requested'] : 'N/A') . ' day(s)';
+                        }
+                        ?></td>
                     </tr>
                     <tr>
                         <td>Start Date:</td>
@@ -316,7 +323,32 @@ try {
                     </tr>
                     <tr>
                         <td>End Date:</td>
-                        <td><?php echo formatDate($leaveRequest['end_date']); ?></td>
+                        <td><?php 
+                        // Calculate correct end date based on approved days (excluding weekends)
+                        if ($leaveRequest['status'] === 'approved' && isset($leaveRequest['approved_days']) && $leaveRequest['approved_days'] > 0) {
+                            $start = new DateTime($leaveRequest['start_date']);
+                            $daysToCount = $leaveRequest['approved_days'];
+                            $weekdaysCounted = 0;
+                            $current = clone $start;
+                            
+                            $dayOfWeek = (int)$current->format('N');
+                            if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
+                                $weekdaysCounted++;
+                            }
+                            
+                            while ($weekdaysCounted < $daysToCount) {
+                                $current->modify('+1 day');
+                                $dayOfWeek = (int)$current->format('N');
+                                if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
+                                    $weekdaysCounted++;
+                                }
+                            }
+                            
+                            echo formatDate($current->format('Y-m-d'));
+                        } else {
+                            echo formatDate($leaveRequest['end_date']);
+                        }
+                        ?></td>
                     </tr>
                     <tr>
                         <td>Application Date:</td>
