@@ -1,12 +1,16 @@
 <?php
 session_start();
 require_once '../../../../config/database.php';
+require_once '../../../../config/leave_types.php';
 
 // Check if user is logged in and has admin privileges
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header('Location: ../../../auth/views/login.php');
     exit();
 }
+
+// Load leave types
+$leaveTypes = getLeaveTypes();
 
 // Get leave request ID
 $leave_id = $_GET['id'] ?? null;
@@ -69,7 +73,10 @@ try {
     <link rel="stylesheet" href="../../../../assets/css/tailwind.css">
         <!-- Font Awesome Local - No internet required! -->
     <link rel="stylesheet" href="../../../../assets/libs/fontawesome/css/all.min.css">
-    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/ELMS/elmsicon.png">
+    <link rel="shortcut icon" href="/ELMS/elmsicon.png">
+    <link rel="apple-touch-icon" href="/ELMS/elmsicon.png">
 
     <title>Leave Request - <?php echo htmlspecialchars($leaveRequest['employee_name']); ?></title>
     <meta charset="UTF-8">
@@ -262,7 +269,38 @@ try {
                     <tr>
                         <td>Leave Type:</td>
                         <td>
-                            <?php echo strtoupper(str_replace('_', ' ', $leaveRequest['leave_type'])); ?>
+                            <?php 
+                            // Get proper leave type display name
+                            $leaveType = $leaveRequest['leave_type'];
+                            $originalLeaveType = $leaveRequest['original_leave_type'] ?? null;
+                            
+                            // Check if it's without pay
+                            $isWithoutPay = false;
+                            if ($leaveType === 'without_pay') {
+                                $isWithoutPay = true;
+                            } elseif ($originalLeaveType && ($leaveType === 'without_pay' || !$leaveType)) {
+                                $isWithoutPay = true;
+                            } elseif (isset($leaveTypes[$leaveType]) && isset($leaveTypes[$leaveType]['without_pay']) && $leaveTypes[$leaveType]['without_pay']) {
+                                $isWithoutPay = true;
+                            } elseif ($originalLeaveType && isset($leaveTypes[$originalLeaveType]) && isset($leaveTypes[$originalLeaveType]['without_pay']) && $leaveTypes[$originalLeaveType]['without_pay']) {
+                                $isWithoutPay = true;
+                            }
+                            
+                            // Determine base type
+                            $baseType = ($originalLeaveType && ($leaveType === 'without_pay' || !$leaveType)) ? $originalLeaveType : $leaveType;
+                            
+                            // Get display name
+                            if (isset($leaveTypes[$baseType])) {
+                                if ($isWithoutPay) {
+                                    echo htmlspecialchars($leaveTypes[$baseType]['name_with_note'] ?? $leaveTypes[$baseType]['name'] . ' (WITHOUT PAY)');
+                                } else {
+                                    echo htmlspecialchars($leaveTypes[$baseType]['name']);
+                                }
+                            } else {
+                                $displayName = ucfirst(str_replace('_', ' ', $baseType));
+                                echo htmlspecialchars($isWithoutPay ? $displayName . ' (WITHOUT PAY)' : $displayName);
+                            }
+                            ?>
                             <?php if ($leaveRequest['is_late'] == 1): ?>
                                 <span style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 5px; font-weight: bold;">LATE</span>
                             <?php endif; ?>
@@ -313,14 +351,20 @@ try {
             <?php
             // Show conditional details based on leave type
             $leaveType = strtolower($leaveRequest['leave_type']);
-            $hasConditionalDetails = false;
+            $originalLeaveType = !empty($leaveRequest['original_leave_type']) ? strtolower($leaveRequest['original_leave_type']) : null;
+            
+            // Determine which leave type to check for conditional fields
+            $checkLeaveType = $originalLeaveType ?: $leaveType;
+            
+            // Check if this leave type has conditional fields
+            $hasConditionalDetails = in_array($checkLeaveType, ['vacation', 'special_privilege', 'sick', 'special_women', 'study', 'maternity', 'paternity']);
             ?>
             
-            <?php if (in_array($leaveType, ['vacation', 'special_privilege', 'sick', 'special_women', 'study'])): ?>
+            <?php if ($hasConditionalDetails): ?>
             <div class="section">
                 <h2 class="section-title">Additional Details</h2>
                 <table class="info-table">
-                    <?php if (in_array($leaveType, ['vacation', 'special_privilege'])): ?>
+                    <?php if (in_array($checkLeaveType, ['vacation', 'special_privilege'])): ?>
                         <tr>
                             <td>Location Type:</td>
                             <td><?php echo !empty($leaveRequest['location_type']) ? ucfirst(str_replace('_', ' ', $leaveRequest['location_type'])) : 'N/A'; ?></td>
@@ -331,10 +375,20 @@ try {
                         </tr>
                     <?php endif; ?>
                     
-                    <?php if ($leaveType === 'sick'): ?>
+                    <?php if ($checkLeaveType === 'sick'): ?>
                         <tr>
                             <td>Medical Condition:</td>
-                            <td><?php echo !empty($leaveRequest['medical_condition']) ? ucfirst(str_replace('_', ' ', $leaveRequest['medical_condition'])) : 'N/A'; ?></td>
+                            <td>
+                                <?php 
+                                $medCondition = $leaveRequest['medical_condition'] ?? '';
+                                $conditionLabels = [
+                                    'in_hospital' => 'In Hospital',
+                                    'out_patient' => 'Out Patient',
+                                    'other' => 'Other'
+                                ];
+                                echo !empty($medCondition) ? ($conditionLabels[$medCondition] ?? ucfirst(str_replace('_', ' ', $medCondition))) : 'N/A';
+                                ?>
+                            </td>
                         </tr>
                         <tr>
                             <td>Illness Specification:</td>
@@ -353,18 +407,39 @@ try {
                         </tr>
                     <?php endif; ?>
                     
-                    <?php if ($leaveType === 'special_women'): ?>
+                    <?php if ($checkLeaveType === 'special_women'): ?>
                         <tr>
-                            <td>Illness Specification:</td>
+                            <td>Condition/Illness Specification:</td>
                             <td><?php echo !empty($leaveRequest['special_women_condition']) ? htmlspecialchars($leaveRequest['special_women_condition']) : 'N/A'; ?></td>
                         </tr>
                     <?php endif; ?>
                     
-                    <?php if ($leaveType === 'study'): ?>
+                    <?php if ($checkLeaveType === 'study'): ?>
                         <tr>
-                            <td>Study Type:</td>
-                            <td><?php echo !empty($leaveRequest['study_type']) ? ucfirst(str_replace('_', ' ', $leaveRequest['study_type'])) : 'N/A'; ?></td>
+                            <td>Course/Program Type:</td>
+                            <td>
+                                <?php 
+                                $studyType = $leaveRequest['study_type'] ?? '';
+                                $studyLabels = [
+                                    'masters_degree' => "Master's Degree",
+                                    'bar_board' => 'BAR/Board Examination Review'
+                                ];
+                                echo !empty($studyType) ? ($studyLabels[$studyType] ?? ucfirst(str_replace('_', ' ', $studyType))) : 'N/A';
+                                ?>
+                            </td>
                         </tr>
+                    <?php endif; ?>
+                    
+                    <?php if (in_array($checkLeaveType, ['maternity', 'paternity'])): ?>
+                        <?php if (!empty($leaveRequest['medical_certificate_path'])): ?>
+                        <tr>
+                            <td>Medical Certificate:</td>
+                            <td>
+                                <span style="color: #10b981; font-weight: bold;">✓ Medical Certificate Attached</span>
+                                <br><small style="color: #666;">File: <?php echo basename($leaveRequest['medical_certificate_path']); ?></small>
+                            </td>
+                        </tr>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </table>
             </div>

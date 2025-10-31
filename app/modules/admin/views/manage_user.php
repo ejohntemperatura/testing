@@ -13,6 +13,25 @@ $stmt = $pdo->prepare("SELECT * FROM employees WHERE id = ?");
 $stmt->execute([$_SESSION['user_id']]);
 $admin = $stmt->fetch(PDO::FETCH_ASSOC);
 
+// Handle AJAX request for getting user details
+if (isset($_GET['action']) && $_GET['action'] === 'get_user' && isset($_GET['id'])) {
+    header('Content-Type: application/json');
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM employees WHERE id = ?");
+        $stmt->execute([$_GET['id']]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($user) {
+            echo json_encode(['success' => true, 'user' => $user]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'User not found']);
+        }
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+    exit();
+}
+
 // Handle user actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
@@ -20,8 +39,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'add':
                 // Validate required fields
                 if (empty($_POST['name']) || empty($_POST['email'])) {
-                    $error_message = "Name and email are required!";
-                    break;
+                    $_SESSION['error'] = "Name and email are required!";
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit();
                 }
                 
                 $name = trim($_POST['name']);
@@ -33,16 +53,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Validate email format
                 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                    $error_message = "Invalid email format!";
-                    break;
+                    $_SESSION['error'] = "Invalid email format!";
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit();
                 }
 
-                // Check if email already exists
-                $stmt = $pdo->prepare("SELECT COUNT(*) FROM employees WHERE email = ?");
+                // Check if email already exists (only check active/verified accounts)
+                $stmt = $pdo->prepare("SELECT id, name, account_status, email_verified FROM employees WHERE email = ? AND (account_status = 'active' OR email_verified = 1)");
                 $stmt->execute([$email]);
-                if ($stmt->fetchColumn() > 0) {
-                    $error_message = "Email already exists!";
-                    break;
+                $existingUser = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($existingUser) {
+                    $status = $existingUser['account_status'] ?? 'active';
+                    $userName = $existingUser['name'];
+                    $_SESSION['error'] = "Email already exists! It is currently used by '{$userName}' (Status: {$status}). Please use a different email.";
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit();
+                }
+                
+                // If email exists but is pending/unverified, delete the old pending account
+                $stmt = $pdo->prepare("SELECT id FROM employees WHERE email = ? AND account_status = 'pending' AND email_verified = 0");
+                $stmt->execute([$email]);
+                $pendingUser = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($pendingUser) {
+                    // Delete the old pending account
+                    $stmt = $pdo->prepare("DELETE FROM employees WHERE id = ?");
+                    $stmt->execute([$pendingUser['id']]);
                 }
 
                 try {
@@ -76,23 +111,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $emailService = new RobustEmail($pdo);
                     
                     if ($emailService->sendVerificationEmail($email, $name, $verificationToken)) {
-                        $success_message = "User added successfully! A verification email has been sent to {$email}";
+                        $_SESSION['success'] = "User added successfully! A verification email has been sent to {$email}";
                     } else {
-                        $success_message = "User added successfully! However, there was an issue sending the verification email. Please contact the user directly.";
+                        $_SESSION['success'] = "User added successfully! However, there was an issue sending the verification email. Please contact the user directly.";
                     }
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit();
                     
                 } catch (PDOException $e) {
-                    $error_message = "Error adding user: " . $e->getMessage();
+                    // Check if it's a duplicate entry error
+                    if ($e->getCode() == 23000) {
+                        $_SESSION['error'] = "Email already exists for another user!";
+                    } else {
+                        $_SESSION['error'] = "Error adding user: " . $e->getMessage();
+                    }
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit();
                 } catch (Exception $e) {
-                    $error_message = "Error sending verification email: " . $e->getMessage();
+                    $_SESSION['error'] = "Error sending verification email: " . $e->getMessage();
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit();
                 }
                 break;
 
             case 'edit':
                 // Validate required fields
                 if (empty($_POST['id']) || empty($_POST['name']) || empty($_POST['email'])) {
-                    $error_message = "ID, name, and email are required!";
-                    break;
+                    $_SESSION['error'] = "ID, name, and email are required!";
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit();
                 }
                 
                 $id = $_POST['id'];
@@ -105,16 +152,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Validate email format
                 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                    $error_message = "Invalid email format!";
-                    break;
+                    $_SESSION['error'] = "Invalid email format!";
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit();
                 }
 
-                // Check if email already exists for other users
-                $stmt = $pdo->prepare("SELECT COUNT(*) FROM employees WHERE email = ? AND id != ?");
+                // Check if email already exists for other users (only active/verified accounts)
+                $stmt = $pdo->prepare("SELECT id, name, account_status, email_verified FROM employees WHERE email = ? AND id != ? AND (account_status = 'active' OR email_verified = 1)");
                 $stmt->execute([$email, $id]);
-                if ($stmt->fetchColumn() > 0) {
-                    $error_message = "Email already exists for another user!";
-                    break;
+                $existingUser = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($existingUser) {
+                    $status = $existingUser['account_status'] ?? 'active';
+                    $userName = $existingUser['name'];
+                    $_SESSION['error'] = "Email already exists! It is currently used by '{$userName}' (Status: {$status}). Please use a different email.";
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit();
+                }
+                
+                // If email exists but is pending/unverified for another user, delete the old pending account
+                $stmt = $pdo->prepare("SELECT id FROM employees WHERE email = ? AND id != ? AND account_status = 'pending' AND email_verified = 0");
+                $stmt->execute([$email, $id]);
+                $pendingUser = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($pendingUser) {
+                    // Delete the old pending account
+                    $stmt = $pdo->prepare("DELETE FROM employees WHERE id = ?");
+                    $stmt->execute([$pendingUser['id']]);
                 }
 
                 try {
@@ -124,9 +186,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         WHERE id = ?
                     ");
                     $stmt->execute([$name, $email, $position, $department, $contact, $role, $id]);
-                    $success_message = "User updated successfully!";
+                    $_SESSION['success'] = "User updated successfully!";
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit();
                 } catch (PDOException $e) {
-                    $error_message = "Error updating user: " . $e->getMessage();
+                    // Check if it's a duplicate entry error
+                    if ($e->getCode() == 23000) {
+                        $_SESSION['error'] = "Email already exists for another user!";
+                    } else {
+                        $_SESSION['error'] = "Error updating user: " . $e->getMessage();
+                    }
+                    header('Location: ' . $_SERVER['PHP_SELF']);
+                    exit();
                 }
                 break;
 
@@ -234,9 +305,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Fetch all users
-$stmt = $pdo->query("SELECT * FROM employees ORDER BY position ASC, name ASC");
+// Fetch all users and group by department
+$stmt = $pdo->query("SELECT * FROM employees ORDER BY department ASC, position ASC, name ASC");
 $users = $stmt->fetchAll();
+
+// Group users by department
+$departmentGroups = [];
+$departmentStats = [];
+foreach ($users as $user) {
+    $dept = $user['department'] ?: 'Unassigned';
+    if (!isset($departmentGroups[$dept])) {
+        $departmentGroups[$dept] = [];
+        $departmentStats[$dept] = [
+            'total' => 0,
+            'admin' => 0,
+            'manager' => 0,
+            'director' => 0,
+            'employee' => 0
+        ];
+    }
+    $departmentGroups[$dept][] = $user;
+    $departmentStats[$dept]['total']++;
+    $role = $user['role'] ?? 'employee';
+    if (isset($departmentStats[$dept][$role])) {
+        $departmentStats[$dept][$role]++;
+    }
+}
+
+// Sort departments alphabetically
+ksort($departmentGroups);
 
 // Set page title
 $page_title = "Manage Users";
@@ -244,6 +341,60 @@ $page_title = "Manage Users";
 // Include admin header
 include '../../../../includes/admin_header.php';
 ?>
+<script>
+    // Toggle all user checkboxes
+    function toggleAllUsers(checkbox) {
+        const checkboxes = document.querySelectorAll('.user-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = checkbox.checked;
+        });
+    }
+    
+    // View user details
+    function viewUser(id) {
+        // Fetch user details from server
+        fetch('manage_user.php?action=get_user&id=' + id)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const user = data.user;
+                    
+                    // Store for edit function
+                    currentViewUserId = id;
+                    currentViewUserData = user;
+                    
+                    // Populate modal
+                    document.getElementById('viewName').textContent = user.name || 'N/A';
+                    document.getElementById('viewEmail').textContent = user.email || 'N/A';
+                    document.getElementById('viewContact').textContent = user.contact || 'Not set';
+                    document.getElementById('viewPosition').textContent = user.position || 'Not set';
+                    document.getElementById('viewDepartment').textContent = user.department || 'Not set';
+                    
+                    // Format role display
+                    let roleDisplay = user.role;
+                    if (user.role === 'manager') roleDisplay = 'Department Head';
+                    else if (user.role === 'director') roleDisplay = 'Director';
+                    else if (user.role === 'admin') roleDisplay = 'Admin';
+                    else roleDisplay = 'Employee';
+                    document.getElementById('viewRole').textContent = roleDisplay;
+                    
+                    // Format status
+                    const statusText = user.account_status === 'active' ? 'Active' : 
+                                     user.account_status === 'pending' ? 'Pending Verification' : 
+                                     user.account_status === 'inactive' ? 'Inactive' : 'Unknown';
+                    document.getElementById('viewStatus').textContent = statusText;
+                    
+                    openViewUserModal();
+                } else {
+                    showNotification('Error loading user details', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Error loading user details', 'error');
+            });
+    }
+</script>
 <!-- Page Header -->
 <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 2rem;">
     <div>
@@ -253,74 +404,98 @@ include '../../../../includes/admin_header.php';
         <p class="elms-text-muted">Add, edit, and manage user accounts</p>
     </div>
     <button type="button" onclick="openAddUserModal()" class="elms-btn elms-btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; white-space: nowrap; padding: 0.625rem 1.25rem; font-weight: 600;">
-        <i class="fas fa-plus"></i>Add New User
+        <i class="fas fa-plus"></i>Add New Employee
     </button>
 </div>
 
-                <!-- Search Section -->
-                <div class="bg-slate-800 rounded-2xl p-6 mb-8 border border-slate-700">
-                    <div class="relative">
-                        <input type="text" 
-                               id="searchInput" 
-                               placeholder="Search users by name, email, or department..." 
-                               class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 pl-12 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                        <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                <!-- Search and Filter Bar -->
+                <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 mb-6">
+                    <div class="flex items-center justify-between gap-4">
+                        <!-- Search -->
+                        <div class="flex-1">
+                            <div class="relative">
+                                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                                <input type="text" id="searchUsers" placeholder="Search User" 
+                                       class="w-full pl-10 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                       onkeyup="filterUsers()">
+                            </div>
+                        </div>
+                        
+                        <!-- Role Filter -->
+                        <div class="w-48">
+                            <select id="filterRole" class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" onchange="filterUsers()">
+                                <option value="">All</option>
+                                <option value="admin">Admin</option>
+                                <option value="director">Director</option>
+                                <option value="manager">Department Head</option>
+                                <option value="employee">Employee</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Filter Status -->
+                    <div id="filterStatus" class="mt-3 text-sm text-slate-400" style="display: none;">
+                        Showing <span id="filteredCount" class="text-primary font-semibold">0</span> of <span id="totalCount" class="font-semibold"><?php echo count($users); ?></span> users
                     </div>
                 </div>
 
-                <!-- Users Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="usersRow">
-                    <?php foreach ($users as $user): ?>
-                    <div id="user-card-<?php echo $user['id']; ?>" class="bg-slate-800 rounded-2xl p-6 border border-slate-700 hover:border-slate-600/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl">
-                        <div class="flex items-start mb-4">
-                            <div class="w-12 h-12 bg-gradient-to-r from-primary to-accent rounded-xl flex items-center justify-center flex-shrink-0">
-                                <i class="fas fa-user text-white text-lg"></i>
-                            </div>
-                            <div class="ml-3 flex-1 min-w-0">
-                                <div class="flex items-center justify-between">
-                                    <h3 class="text-lg font-semibold text-white truncate"><?php echo htmlspecialchars($user['name']); ?></h3>
-                                    <span class="ml-2 px-2 py-1 rounded text-xs font-bold uppercase tracking-wide whitespace-nowrap flex-shrink-0 <?php 
-                                        echo $user['role'] === 'admin' ? 'bg-red-500/20 text-red-400' : 
-                                            ($user['role'] === 'manager' ? 'bg-orange-500/20 text-orange-400' : 
-                                            ($user['role'] === 'director' ? 'bg-purple-500/20 text-purple-400' : 'bg-green-500/20 text-green-400')); 
-                                    ?>">
-                                        <?php 
-                                            echo $user['role'] === 'manager' ? 'DEPARTMENT HEAD' : 
-                                                ($user['role'] === 'director' ? 'DIRECTOR HEAD' : strtoupper($user['role'])); 
-                                        ?>
-                                    </span>
-                                </div>
-                                <p class="text-slate-400 text-sm mt-1"><?php echo htmlspecialchars($user['email']); ?></p>
-                            </div>
-                        </div>
-                        
-                        <div class="space-y-3 mb-6">
-                            <div class="flex items-center text-slate-300">
-                                <i class="fas fa-phone w-5 text-slate-400 mr-3"></i>
-                                <span class="text-sm"><?php echo htmlspecialchars($user['contact'] ?? 'Not set'); ?></span>
-                            </div>
-                            <div class="flex items-center text-slate-300">
-                                <i class="fas fa-briefcase w-5 text-slate-400 mr-3"></i>
-                                <span class="text-sm"><?php echo htmlspecialchars($user['position'] ?? 'Not set'); ?></span>
-                            </div>
-                            <div class="flex items-center text-slate-300">
-                                <i class="fas fa-building w-5 text-slate-400 mr-3"></i>
-                                <span class="text-sm"><?php echo htmlspecialchars($user['department'] ?? 'Not set'); ?></span>
-                            </div>
-                        </div>
-                        
-                        <div class="flex gap-2">
-                            <button onclick="editUser(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['name']); ?>', '<?php echo htmlspecialchars($user['email']); ?>', '<?php echo htmlspecialchars($user['contact'] ?? ''); ?>', '<?php echo htmlspecialchars($user['position'] ?? ''); ?>', '<?php echo htmlspecialchars($user['department'] ?? ''); ?>', '<?php echo htmlspecialchars($user['role']); ?>')" 
-                                    class="flex-1 bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-lg transition-colors">
-                                <i class="fas fa-edit mr-2"></i>Edit
-                            </button>
-                            <button onclick="deleteUser(<?php echo $user['id']; ?>)" 
-                                    class="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition-colors">
-                                <i class="fas fa-trash mr-2"></i>Delete
-                            </button>
-                        </div>
+                <!-- Users Table -->
+                <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="bg-slate-700/50 border-b border-slate-700">
+                                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Name</th>
+                                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Email</th>
+                                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-300 uppercase tracking-wider">Role</th>
+                                    <th class="px-6 py-4 text-center text-xs font-semibold text-slate-300 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-700">
+                                <?php foreach ($users as $user): ?>
+                                <tr id="user-row-<?php echo $user['id']; ?>" class="user-row hover:bg-slate-700/30 transition-colors" 
+                                    data-name="<?php echo htmlspecialchars($user['name']); ?>" 
+                                    data-email="<?php echo htmlspecialchars($user['email']); ?>" 
+                                    data-role="<?php echo htmlspecialchars($user['role']); ?>">
+                                    <td class="px-6 py-4">
+                                        <div class="text-sm font-medium text-white"><?php echo htmlspecialchars($user['name']); ?></div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="text-sm text-slate-300"><?php echo htmlspecialchars($user['email']); ?></div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-3 py-1 rounded-full text-xs font-semibold <?php 
+                                            echo $user['role'] === 'admin' ? 'bg-red-500/20 text-red-400' : 
+                                                ($user['role'] === 'manager' ? 'bg-orange-500/20 text-orange-400' : 
+                                                ($user['role'] === 'director' ? 'bg-purple-500/20 text-purple-400' : 'bg-green-500/20 text-green-400')); 
+                                        ?>">
+                                            <?php 
+                                                echo $user['role'] === 'manager' ? 'Department Head' : 
+                                                    ($user['role'] === 'director' ? 'Director' : ucfirst($user['role'])); 
+                                            ?>
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center justify-center gap-2">
+                                            <button onclick="editUser(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['name']); ?>', '<?php echo htmlspecialchars($user['email']); ?>', '<?php echo htmlspecialchars($user['contact'] ?? ''); ?>', '<?php echo htmlspecialchars($user['position'] ?? ''); ?>', '<?php echo htmlspecialchars($user['department'] ?? ''); ?>', '<?php echo htmlspecialchars($user['role']); ?>')" 
+                                                    class="text-slate-400 hover:text-primary transition-colors" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button onclick="viewUser(<?php echo $user['id']; ?>)" 
+                                                    class="text-slate-400 hover:text-blue-400 transition-colors" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button onclick="deleteUser(<?php echo $user['id']; ?>)" 
+                                                    class="text-slate-400 hover:text-red-400 transition-colors" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     </div>
-                    <?php endforeach; ?>
                 </div>
             </div>
         </main>
@@ -333,7 +508,7 @@ include '../../../../includes/admin_header.php';
         <div class="bg-slate-800 rounded-2xl p-8 w-full max-w-2xl mx-4 max-h-screen overflow-y-auto border border-slate-700">
             <div class="flex items-center justify-between mb-6">
                 <h5 class="text-2xl font-bold text-white flex items-center">
-                    <i class="fas fa-user-plus text-primary mr-3"></i>Add New User
+                    <i class="fas fa-user-plus text-primary mr-3"></i>Add New Employee
                 </h5>
                 <button type="button" onclick="closeAddUserModal()" class="text-slate-400 hover:text-white transition-colors">
                     <i class="fas fa-times text-xl"></i>
@@ -394,10 +569,81 @@ include '../../../../includes/admin_header.php';
                         Cancel
                     </button>
                     <button type="submit" class="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-[1.02]">
-                        <i class="fas fa-plus mr-2"></i>Add User
+                        <i class="fas fa-plus mr-2"></i>Add Employee
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- View User Modal -->
+    <div id="viewUserModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-slate-800 rounded-2xl p-8 w-full max-w-2xl mx-4 max-h-screen overflow-y-auto border border-slate-700">
+            <div class="flex items-center justify-between mb-6">
+                <h5 class="text-2xl font-bold text-white flex items-center">
+                    <i class="fas fa-user text-blue-400 mr-3"></i>User Details
+                </h5>
+                <button type="button" onclick="closeViewUserModal()" class="text-slate-400 hover:text-white transition-colors">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- User Avatar -->
+                <div class="flex items-center justify-center mb-6">
+                    <div class="w-24 h-24 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center">
+                        <i class="fas fa-user text-white text-4xl"></i>
+                    </div>
+                </div>
+                
+                <!-- User Information -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-slate-700/50 rounded-xl p-4">
+                        <label class="block text-xs font-semibold text-slate-400 uppercase mb-2">Name</label>
+                        <p id="viewName" class="text-white font-medium"></p>
+                    </div>
+                    <div class="bg-slate-700/50 rounded-xl p-4">
+                        <label class="block text-xs font-semibold text-slate-400 uppercase mb-2">Email</label>
+                        <p id="viewEmail" class="text-white font-medium"></p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-slate-700/50 rounded-xl p-4">
+                        <label class="block text-xs font-semibold text-slate-400 uppercase mb-2">Contact</label>
+                        <p id="viewContact" class="text-white font-medium"></p>
+                    </div>
+                    <div class="bg-slate-700/50 rounded-xl p-4">
+                        <label class="block text-xs font-semibold text-slate-400 uppercase mb-2">Position</label>
+                        <p id="viewPosition" class="text-white font-medium"></p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-slate-700/50 rounded-xl p-4">
+                        <label class="block text-xs font-semibold text-slate-400 uppercase mb-2">Department</label>
+                        <p id="viewDepartment" class="text-white font-medium"></p>
+                    </div>
+                    <div class="bg-slate-700/50 rounded-xl p-4">
+                        <label class="block text-xs font-semibold text-slate-400 uppercase mb-2">Role</label>
+                        <p id="viewRole" class="text-white font-medium"></p>
+                    </div>
+                </div>
+                
+                <div class="bg-slate-700/50 rounded-xl p-4">
+                    <label class="block text-xs font-semibold text-slate-400 uppercase mb-2">Account Status</label>
+                    <p id="viewStatus" class="text-white font-medium"></p>
+                </div>
+                
+                <div class="flex justify-end space-x-4 pt-6">
+                    <button type="button" onclick="closeViewUserModal()" class="bg-slate-600 hover:bg-slate-500 text-white font-semibold py-3 px-6 rounded-xl transition-colors">
+                        Close
+                    </button>
+                    <button type="button" onclick="editUserFromView()" class="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-[1.02]">
+                        <i class="fas fa-edit mr-2"></i>Edit User
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -489,24 +735,46 @@ include '../../../../includes/admin_header.php';
             document.getElementById('editUserModal').classList.remove('flex');
         }
 
+        function openViewUserModal() {
+            document.getElementById('viewUserModal').classList.remove('hidden');
+            document.getElementById('viewUserModal').classList.add('flex');
+        }
+
+        function closeViewUserModal() {
+            document.getElementById('viewUserModal').classList.add('hidden');
+            document.getElementById('viewUserModal').classList.remove('flex');
+        }
+
+        // Store current user data for edit from view
+        let currentViewUserId = null;
+        let currentViewUserData = {};
+
+        function editUserFromView() {
+            closeViewUserModal();
+            if (currentViewUserId && currentViewUserData) {
+                editUser(
+                    currentViewUserId,
+                    currentViewUserData.name,
+                    currentViewUserData.email,
+                    currentViewUserData.contact,
+                    currentViewUserData.position,
+                    currentViewUserData.department,
+                    currentViewUserData.role
+                );
+            }
+        }
+
         // Global functions
         function deleteUser(userId) {
             if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
                 return;
             }
             
-            // Find and hide the user card immediately
-            const userCard = document.getElementById(`user-card-${userId}`);
-            if (userCard) {
-                userCard.style.opacity = '0.5';
-                userCard.style.pointerEvents = 'none';
-                // Add loading animation
-                userCard.innerHTML = `
-                    <div class="flex items-center justify-center h-32">
-                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                        <span class="ml-3 text-slate-300">Deleting user...</span>
-                    </div>
-                `;
+            // Find and hide the user row immediately
+            const userRow = document.getElementById(`user-row-${userId}`);
+            if (userRow) {
+                userRow.style.opacity = '0.5';
+                userRow.style.pointerEvents = 'none';
             }
             
             showNotification('Deleting user...', 'info');
@@ -517,10 +785,9 @@ include '../../../../includes/admin_header.php';
             
             // Add timeout to prevent hanging
             const timeoutId = setTimeout(() => {
-                if (userCard) {
-                    userCard.style.opacity = '1';
-                    userCard.style.pointerEvents = 'auto';
-                    userCard.innerHTML = ''; // Clear loading content
+                if (userRow) {
+                    userRow.style.opacity = '1';
+                    userRow.style.pointerEvents = 'auto';
                     window.location.reload(); // Reload to restore original state
                 }
                 showNotification('Delete request timed out. Please try again.', 'error');
@@ -539,10 +806,10 @@ include '../../../../includes/admin_header.php';
                 
                 // Check if the response contains an error message
                 if (data.includes('error_message') || data.includes('Error') || data.includes('Failed')) {
-                    // Restore the user card if deletion failed
-                    if (userCard) {
-                        userCard.style.opacity = '1';
-                        userCard.style.pointerEvents = 'auto';
+                    // Restore the user row if deletion failed
+                    if (userRow) {
+                        userRow.style.opacity = '1';
+                        userRow.style.pointerEvents = 'auto';
                         // Reload the page to restore the original content
                         window.location.reload();
                     }
@@ -553,9 +820,9 @@ include '../../../../includes/admin_header.php';
                     showNotification(errorMsg, 'error');
                 } else {
                     showNotification('User deleted successfully!', 'success');
-                    // Remove the user card from DOM immediately
-                    if (userCard) {
-                        userCard.remove();
+                    // Remove the user row from DOM immediately
+                    if (userRow) {
+                        userRow.remove();
                     }
                     // Force immediate page reload as backup
                     setTimeout(() => {
@@ -566,11 +833,10 @@ include '../../../../includes/admin_header.php';
             .catch(error => {
                 clearTimeout(timeoutId);
                 console.error('Delete error:', error);
-                // Restore the user card if deletion failed
-                if (userCard) {
-                    userCard.style.opacity = '1';
-                    userCard.style.pointerEvents = 'auto';
-                    userCard.innerHTML = ''; // Clear loading content
+                // Restore the user row if deletion failed
+                if (userRow) {
+                    userRow.style.opacity = '1';
+                    userRow.style.pointerEvents = 'auto';
                     window.location.reload(); // Reload to restore original state
                 }
                 showNotification('Error deleting user: ' + error.message, 'error');
@@ -645,112 +911,82 @@ include '../../../../includes/admin_header.php';
             const addUserForm = document.getElementById('addUserForm');
             if (addUserForm) {
                 addUserForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    
-                    const formData = new FormData(this);
-                    formData.append('action', 'add');
-                    
-                    showNotification('Adding new user...', 'info');
-                    
-                    fetch('manage_user.php', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.text())
-                    .then(data => {
-                        console.log('Response data:', data); // Debug log
-                        
-                        // Check if the response contains an error message
-                        if (data.includes('Email already exists!') || data.includes('error_message') || data.includes('Error') || data.includes('Email already exists')) {
-                            // Try to extract the specific error message
-                            let errorMsg = 'Error adding user. Please try again.';
-                            
-                            if (data.includes('Email already exists!')) {
-                                errorMsg = 'Email already exists!';
-                            } else {
-                                const errorMatch = data.match(/error_message.*?['"](.*?)['"]/);
-                                if (errorMatch) {
-                                    errorMsg = errorMatch[1];
-                                }
-                            }
-                            
-                            showNotification(errorMsg, 'error');
-                        } else {
-                            showNotification('User added successfully!', 'success');
-                            closeAddUserModal();
-                            this.reset();
-                            
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 1500);
-                        }
-                    })
-                    .catch(error => {
-                        showNotification('Error adding user: ' + error.message, 'error');
-                    });
+                    // Don't prevent default - let the form submit normally
+                    // The server will handle redirect with session messages
+                    const actionInput = document.createElement('input');
+                    actionInput.type = 'hidden';
+                    actionInput.name = 'action';
+                    actionInput.value = 'add';
+                    this.appendChild(actionInput);
                 });
             }
 
             const editUserForm = document.getElementById('editUserForm');
             if (editUserForm) {
                 editUserForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    
-                    const formData = new FormData(this);
-                    formData.append('action', 'edit');
-                    
-                    showNotification('Updating user...', 'info');
-                    
-                    fetch('manage_user.php', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.text())
-                    .then(data => {
-                        console.log('Edit response data:', data); // Debug log
-                        
-                        // Check if the response contains an error message
-                        if (data.includes('Email already exists for another user!') || data.includes('error_message') || data.includes('Error') || data.includes('Email already exists')) {
-                            // Try to extract the specific error message
-                            let errorMsg = 'Error updating user. Please try again.';
-                            
-                            if (data.includes('Email already exists for another user!')) {
-                                errorMsg = 'Email already exists for another user!';
-                            } else {
-                                const errorMatch = data.match(/error_message.*?['"](.*?)['"]/);
-                                if (errorMatch) {
-                                    errorMsg = errorMatch[1];
-                                }
-                            }
-                            
-                            showNotification(errorMsg, 'error');
-                        } else {
-                            showNotification('User updated successfully!', 'success');
-                            closeEditUserModal();
-                            
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 1500);
-                        }
-                    })
-                    .catch(error => {
-                        showNotification('Error updating user: ' + error.message, 'error');
-                    });
+                    // Don't prevent default - let the form submit normally
+                    // The server will handle redirect with session messages
+                    const actionInput = document.createElement('input');
+                    actionInput.type = 'hidden';
+                    actionInput.name = 'action';
+                    actionInput.value = 'edit';
+                    this.appendChild(actionInput);
                 });
             }
 
-            // Show existing messages
-            <?php if (isset($success_message)): ?>
-                showNotification('<?php echo addslashes($success_message); ?>', 'success');
-            <?php endif; ?>
             
-            <?php if (isset($error_message)): ?>
-                showNotification('<?php echo addslashes($error_message); ?>', 'error');
-            <?php endif; ?>
+            // Filter Users Function
+            window.filterUsers = function() {
+                const searchTerm = document.getElementById('searchUsers').value.toLowerCase().trim();
+                const roleFilter = document.getElementById('filterRole').value.toLowerCase().trim();
+                
+                console.log('Filtering - Search:', searchTerm, 'Role:', roleFilter);
+                
+                let visibleCount = 0;
+                const totalCount = document.querySelectorAll('.user-row').length;
+                
+                document.querySelectorAll('.user-row').forEach(row => {
+                    const name = row.dataset.name ? row.dataset.name.toLowerCase() : '';
+                    const email = row.dataset.email ? row.dataset.email.toLowerCase() : '';
+                    const role = row.dataset.role ? row.dataset.role.toLowerCase() : '';
+                    
+                    console.log('Row role:', role, 'Filter:', roleFilter, 'Match:', role === roleFilter);
+                    
+                    const matchesSearch = !searchTerm || name.includes(searchTerm) || email.includes(searchTerm);
+                    const matchesRole = !roleFilter || role === roleFilter;
+                    
+                    if (matchesSearch && matchesRole) {
+                        row.style.display = '';
+                        visibleCount++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+                
+                console.log('Visible count:', visibleCount, 'Total:', totalCount);
+                
+                // Update filter status
+                const filterStatus = document.getElementById('filterStatus');
+                const filteredCount = document.getElementById('filteredCount');
+                
+                if (filteredCount) {
+                    filteredCount.textContent = visibleCount;
+                }
+                
+                // Show/hide filter status based on whether filtering is active
+                if (filterStatus) {
+                    if (searchTerm || roleFilter) {
+                        filterStatus.style.display = 'block';
+                    } else {
+                        filterStatus.style.display = 'none';
+                    }
+                }
+            }
+            
 
             // Function to fetch pending leave count
             function fetchPendingLeaveCount() {
-                fetch('api/get_pending_leave_count.php')
+                fetch('../../../../api/get_pending_leave_count.php')
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
@@ -798,6 +1034,17 @@ include '../../../../includes/admin_header.php';
                 }
             });
         }
+        
+        // Show existing messages from session
+        <?php if (isset($_SESSION['success'])): ?>
+            showNotification('<?php echo addslashes($_SESSION['success']); ?>', 'success');
+            <?php unset($_SESSION['success']); ?>
+        <?php endif; ?>
+        
+        <?php if (isset($_SESSION['error'])): ?>
+            showNotification('<?php echo addslashes($_SESSION['error']); ?>', 'error');
+            <?php unset($_SESSION['error']); ?>
+        <?php endif; ?>
     </script>
     
     <style>

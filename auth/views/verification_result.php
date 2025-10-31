@@ -11,6 +11,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Email Verification - ELMS</title>
     <script>
+        function togglePassword(inputId, iconId) {
+            const passwordInput = document.getElementById(inputId);
+            const eyeIcon = document.getElementById(iconId);
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
+        }
     </script>
     
     <link rel="stylesheet" href="../../assets/css/style.css">
@@ -57,20 +71,32 @@
                             <label for="password" class="block text-sm font-semibold text-slate-300 mb-2">
                                 <i class="fas fa-lock mr-2"></i>New Password
                             </label>
-                            <input type="password" id="password" name="password" required 
-                                   minlength="6"
-                                   class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                                   placeholder="Enter your password (minimum 6 characters)">
+                            <div class="relative">
+                                <input type="password" id="password" name="password" required 
+                                       minlength="6"
+                                       class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 pr-12 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                       placeholder="Enter your password (minimum 6 characters)">
+                                <button type="button" onclick="togglePassword('password', 'eyeIcon1')" 
+                                        class="absolute top-0 right-0 h-full flex items-center px-4 text-slate-400 hover:text-slate-200 transition-colors focus:outline-none">
+                                    <i id="eyeIcon1" class="fas fa-eye"></i>
+                                </button>
+                            </div>
                         </div>
                         
                         <div class="text-left">
                             <label for="confirm_password" class="block text-sm font-semibold text-slate-300 mb-2">
                                 <i class="fas fa-lock mr-2"></i>Confirm Password
                             </label>
-                            <input type="password" id="confirm_password" name="confirm_password" required 
-                                   minlength="6"
-                                   class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                                   placeholder="Confirm your password">
+                            <div class="relative">
+                                <input type="password" id="confirm_password" name="confirm_password" required 
+                                       minlength="6"
+                                       class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 pr-12 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                       placeholder="Confirm your password">
+                                <button type="button" onclick="togglePassword('confirm_password', 'eyeIcon2')" 
+                                        class="absolute top-0 right-0 h-full flex items-center px-4 text-slate-400 hover:text-slate-200 transition-colors focus:outline-none">
+                                    <i id="eyeIcon2" class="fas fa-eye"></i>
+                                </button>
+                            </div>
                         </div>
                         
                         <div class="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-4 text-left">

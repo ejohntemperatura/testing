@@ -81,8 +81,9 @@ $totalUsers = $userCountStmt->fetchColumn();
 $alertData = $alertService->getUrgentAlerts(50);
 $alertStats = $alertService->getAlertStatistics();
 
-// Process alert data for display
+// Process alert data for display and group by department
 $employees = [];
+$departmentGroups = [];
 foreach ($alertData as $employeeId => $data) {
     $employee = $data['employee'];
     $alerts = $data['alerts'];
@@ -148,7 +149,17 @@ foreach ($alertData as $employeeId => $data) {
     }
     
     $employees[] = $employee;
+    
+    // Group by department
+    $dept = $employee['department'] ?: 'Unassigned';
+    if (!isset($departmentGroups[$dept])) {
+        $departmentGroups[$dept] = [];
+    }
+    $departmentGroups[$dept][] = $employee;
 }
+
+// Sort departments alphabetically
+ksort($departmentGroups);
 
 // Set page title
 $page_title = "Leave Alerts";
@@ -302,9 +313,26 @@ include '../../../../includes/admin_header.php';
                 <?php endif; ?>
 
 <!-- Employee List -->
-<div class="mb-4">
-    <h2 class="text-lg font-semibold text-white">Employees Needing Alerts</h2>
-    <p class="text-slate-400 text-sm">Click "Send Alert" to remind employees about their leave credits</p>
+<div class="mb-6">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+        <div>
+            <h2 class="text-lg font-semibold text-white">Employees Needing Alerts</h2>
+            <p class="text-slate-400 text-sm">Organized by department - Click department headers to expand/collapse</p>
+        </div>
+        <div class="text-slate-400 text-sm">
+            <span class="text-white font-semibold"><?php echo count($employees); ?></span> employees in <span class="text-white font-semibold"><?php echo count($departmentGroups); ?></span> departments
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="flex items-center gap-3 mb-4">
+        <button onclick="expandAllDepartments()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm transition-colors">
+            <i class="fas fa-chevron-down mr-2"></i>Expand All
+        </button>
+        <button onclick="collapseAllDepartments()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm transition-colors">
+            <i class="fas fa-chevron-up mr-2"></i>Collapse All
+        </button>
+    </div>
 </div>
 
                 <?php if (empty($employees)): ?>
@@ -340,8 +368,47 @@ include '../../../../includes/admin_header.php';
                         </div>
                     </div>
                 <?php else: ?>
-                    <div class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        <?php foreach ($employees as $index => $employee): ?>
+                    <!-- Department Groups -->
+                    <div class="space-y-6">
+                        <?php foreach ($departmentGroups as $department => $deptEmployees): ?>
+                            <div class="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+                                <!-- Department Header -->
+                                <button onclick="toggleDepartment('<?php echo md5($department); ?>')" 
+                                        class="w-full flex items-center justify-between p-4 hover:bg-slate-700/50 transition-colors">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-building text-primary"></i>
+                                        </div>
+                                        <div class="text-left">
+                                            <h3 class="text-lg font-semibold text-white"><?php echo htmlspecialchars($department); ?></h3>
+                                            <p class="text-slate-400 text-sm"><?php echo count($deptEmployees); ?> employee<?php echo count($deptEmployees) > 1 ? 's' : ''; ?> needing attention</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <!-- Priority Summary -->
+                                        <div class="flex items-center gap-2">
+                                            <?php
+                                            $urgentCount = count(array_filter($deptEmployees, fn($e) => $e['priority'] === 'urgent'));
+                                            $criticalCount = count(array_filter($deptEmployees, fn($e) => $e['priority'] === 'critical'));
+                                            if ($urgentCount > 0): ?>
+                                                <span class="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs font-semibold">
+                                                    <?php echo $urgentCount; ?> Urgent
+                                                </span>
+                                            <?php endif;
+                                            if ($criticalCount > 0): ?>
+                                                <span class="px-2 py-1 bg-orange-500/20 text-orange-400 rounded text-xs font-semibold">
+                                                    <?php echo $criticalCount; ?> Critical
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <i class="fas fa-chevron-down text-slate-400 transition-transform dept-chevron-<?php echo md5($department); ?>"></i>
+                                    </div>
+                                </button>
+                                
+                                <!-- Department Employees -->
+                                <div id="dept-<?php echo md5($department); ?>" class="dept-content">
+                                    <div class="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4 bg-slate-900/30">
+                        <?php foreach ($deptEmployees as $index => $employee): ?>
                             <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden hover:border-slate-600/50 transition-all duration-300 <?php 
                                 echo $employee['priority'] === 'urgent' ? 'ring-2 ring-red-500/50' : 
                                     ($employee['priority'] === 'critical' ? 'ring-2 ring-orange-500/50' : 
@@ -503,7 +570,11 @@ include '../../../../includes/admin_header.php';
                             </div>
                         </div>
                     <?php endforeach; ?>
-                </div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
                 <?php endif; ?>
             </div>
 
@@ -1120,6 +1191,43 @@ include '../../../../includes/admin_header.php';
             }
         }
 
+
+        // Department Toggle Functionality
+        function toggleDepartment(deptId) {
+            const content = document.getElementById('dept-' + deptId);
+            const chevron = document.querySelector('.dept-chevron-' + deptId);
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                chevron.style.transform = 'rotate(180deg)';
+            } else {
+                content.style.display = 'none';
+                chevron.style.transform = 'rotate(0deg)';
+            }
+        }
+        
+        function expandAllDepartments() {
+            document.querySelectorAll('.dept-content').forEach(content => {
+                content.style.display = 'block';
+            });
+            document.querySelectorAll('[class*="dept-chevron-"]').forEach(chevron => {
+                chevron.style.transform = 'rotate(180deg)';
+            });
+        }
+        
+        function collapseAllDepartments() {
+            document.querySelectorAll('.dept-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            document.querySelectorAll('[class*="dept-chevron-"]').forEach(chevron => {
+                chevron.style.transform = 'rotate(0deg)';
+            });
+        }
+        
+        // Initialize - expand all departments by default
+        document.addEventListener('DOMContentLoaded', function() {
+            expandAllDepartments();
+        });
 
         // Function to fetch pending leave count
         function fetchPendingLeaveCount() {

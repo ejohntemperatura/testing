@@ -75,8 +75,13 @@ include '../../../../includes/user_header.php';
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-700/50">
-                                <?php foreach ($leave_requests as $request): ?>
-                                    <tr class="hover:bg-slate-700/30 transition-colors">
+                                <?php 
+                                $index = 0;
+                                foreach ($leave_requests as $request): 
+                                    $index++;
+                                    $hidden_class = $index > 10 ? 'hidden leave-row-hidden' : '';
+                                ?>
+                                    <tr class="hover:bg-slate-700/30 transition-colors <?php echo $hidden_class; ?>">
                                         <td class="px-6 py-4">
                                             <div class="flex flex-col gap-2">
                                                 <span class="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide">
@@ -140,6 +145,18 @@ include '../../../../includes/user_header.php';
                             </tbody>
                         </table>
                     </div>
+                    
+                    <!-- Show More / Show Less Button -->
+                    <?php if (count($leave_requests) > 10): ?>
+                        <div class="mt-6 text-center">
+                            <button id="toggleRowsBtn" onclick="toggleLeaveRows()" 
+                                    class="bg-primary hover:bg-primary/90 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-xl flex items-center mx-auto">
+                                <i class="fas fa-chevron-down mr-2"></i>
+                                <span id="toggleBtnText">Show More</span>
+                                <span class="ml-2 bg-white/20 px-2 py-1 rounded-full text-xs"><?php echo count($leave_requests) - 10; ?> more</span>
+                            </button>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </main>
@@ -172,6 +189,37 @@ include '../../../../includes/user_header.php';
     <script>
         // Pass leave types data to JavaScript
         window.leaveTypes = <?php echo json_encode($leaveTypes); ?>;
+        
+        // Toggle Show More / Show Less
+        function toggleLeaveRows() {
+            const hiddenRows = document.querySelectorAll('.leave-row-hidden');
+            const btn = document.getElementById('toggleRowsBtn');
+            const btnText = document.getElementById('toggleBtnText');
+            const icon = btn.querySelector('i');
+            const badge = btn.querySelector('.bg-white\\/20');
+            
+            const isHidden = hiddenRows[0].classList.contains('hidden');
+            
+            hiddenRows.forEach(row => {
+                if (isHidden) {
+                    row.classList.remove('hidden');
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+            
+            if (isHidden) {
+                btnText.textContent = 'Show Less';
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+                badge.style.display = 'none';
+            } else {
+                btnText.textContent = 'Show More';
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+                badge.style.display = 'inline-block';
+            }
+        }
         
         // Helper function to get leave type display name in JavaScript
         function getLeaveTypeDisplayNameJS(leaveType, originalLeaveType = null) {
