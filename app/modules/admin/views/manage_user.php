@@ -404,7 +404,7 @@ include '../../../../includes/admin_header.php';
         <p class="elms-text-muted">Add, edit, and manage user accounts</p>
     </div>
     <button type="button" onclick="openAddUserModal()" class="elms-btn elms-btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; white-space: nowrap; padding: 0.625rem 1.25rem; font-weight: 600;">
-        <i class="fas fa-plus"></i>Add New Employee
+        <i class="fas fa-plus"></i>Add New User
     </button>
 </div>
 
@@ -508,7 +508,7 @@ include '../../../../includes/admin_header.php';
         <div class="bg-slate-800 rounded-2xl p-8 w-full max-w-2xl mx-4 max-h-screen overflow-y-auto border border-slate-700">
             <div class="flex items-center justify-between mb-6">
                 <h5 class="text-2xl font-bold text-white flex items-center">
-                    <i class="fas fa-user-plus text-primary mr-3"></i>Add New Employee
+                    <i class="fas fa-user-plus text-primary mr-3"></i>Add New User
                 </h5>
                 <button type="button" onclick="closeAddUserModal()" class="text-slate-400 hover:text-white transition-colors">
                     <i class="fas fa-times text-xl"></i>
@@ -550,17 +550,23 @@ include '../../../../includes/admin_header.php';
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="addDepartment" class="block text-sm font-semibold text-slate-300 mb-2">Department</label>
-                        <input type="text" id="addDepartment" name="department" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                    </div>
-                    <div>
                         <label for="addRole" class="block text-sm font-semibold text-slate-300 mb-2">Role</label>
-                        <select id="addRole" name="role" required class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <select id="addRole" name="role" required onchange="toggleDepartmentField('add')" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
                             <option value="employee">Employee</option>
                             <option value="manager">Department Head</option>
                             <option value="director">Director Head</option>
                             <option value="admin">Admin</option>
                         </select>
+                    </div>
+                    <div>
+                        <label for="addDepartment" class="block text-sm font-semibold text-slate-300 mb-2">Department</label>
+                        <!-- Dropdown for non-manager roles -->
+                        <select id="addDepartmentSelect" name="department" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                            <option value="">Select Department</option>
+                            <!-- Departments will be loaded dynamically -->
+                        </select>
+                        <!-- Text input for manager role (new department) -->
+                        <input type="text" id="addDepartmentInput" name="department" placeholder="Enter new department name" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" style="display: none;">
                     </div>
                 </div>
                 
@@ -569,7 +575,7 @@ include '../../../../includes/admin_header.php';
                         Cancel
                     </button>
                     <button type="submit" class="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-[1.02]">
-                        <i class="fas fa-plus mr-2"></i>Add Employee
+                        <i class="fas fa-plus mr-2"></i>Add User
                     </button>
                 </div>
             </form>
@@ -687,17 +693,23 @@ include '../../../../includes/admin_header.php';
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="editDepartment" class="block text-sm font-semibold text-slate-300 mb-2">Department</label>
-                        <input type="text" id="editDepartment" name="department" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                    </div>
-                    <div>
                         <label for="editRole" class="block text-sm font-semibold text-slate-300 mb-2">Role</label>
-                        <select id="editRole" name="role" required class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <select id="editRole" name="role" required onchange="toggleDepartmentField('edit')" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
                             <option value="employee">Employee</option>
                             <option value="manager">Department Head</option>
                             <option value="director">Director Head</option>
                             <option value="admin">Admin</option>
                         </select>
+                    </div>
+                    <div>
+                        <label for="editDepartment" class="block text-sm font-semibold text-slate-300 mb-2">Department</label>
+                        <!-- Dropdown for non-manager roles -->
+                        <select id="editDepartmentSelect" name="department" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                            <option value="">Select Department</option>
+                            <!-- Departments will be loaded dynamically -->
+                        </select>
+                        <!-- Text input for manager role (new department) -->
+                        <input type="text" id="editDepartmentInput" name="department" placeholder="Enter new department name" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" style="display: none;">
                     </div>
                 </div>
                 
@@ -714,8 +726,67 @@ include '../../../../includes/admin_header.php';
     </div>
 
     <script>
+        // Toggle department field between dropdown and text input based on role
+        function toggleDepartmentField(modalType) {
+            const roleSelect = document.getElementById(modalType + 'Role');
+            const deptSelect = document.getElementById(modalType + 'DepartmentSelect');
+            const deptInput = document.getElementById(modalType + 'DepartmentInput');
+            
+            if (roleSelect.value === 'manager') {
+                // Department Head - show text input for new department
+                deptSelect.style.display = 'none';
+                deptSelect.removeAttribute('name');
+                deptInput.style.display = 'block';
+                deptInput.setAttribute('name', 'department');
+                deptInput.value = '';
+            } else {
+                // Other roles - show dropdown
+                deptSelect.style.display = 'block';
+                deptSelect.setAttribute('name', 'department');
+                deptInput.style.display = 'none';
+                deptInput.removeAttribute('name');
+                deptInput.value = '';
+            }
+        }
+
+        // Load departments into dropdown
+        function loadDepartments() {
+            // Add timestamp to prevent caching
+            const timestamp = new Date().getTime();
+            fetch('../api/get_departments.php?t=' + timestamp)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const addDeptSelect = document.getElementById('addDepartmentSelect');
+                        const editDeptSelect = document.getElementById('editDepartmentSelect');
+                        
+                        // Clear existing options except the first one
+                        addDeptSelect.innerHTML = '<option value="">Select Department</option>';
+                        editDeptSelect.innerHTML = '<option value="">Select Department</option>';
+                        
+                        // Add departments to both dropdowns
+                        data.departments.forEach(dept => {
+                            const addOption = document.createElement('option');
+                            addOption.value = dept;
+                            addOption.textContent = dept;
+                            addDeptSelect.appendChild(addOption);
+                            
+                            const editOption = document.createElement('option');
+                            editOption.value = dept;
+                            editOption.textContent = dept;
+                            editDeptSelect.appendChild(editOption);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading departments:', error);
+                });
+        }
+
         // Modal functions
         function openAddUserModal() {
+            loadDepartments(); // Load departments when opening modal
+            toggleDepartmentField('add'); // Set initial department field state
             document.getElementById('addUserModal').classList.remove('hidden');
             document.getElementById('addUserModal').classList.add('flex');
         }
@@ -726,6 +797,7 @@ include '../../../../includes/admin_header.php';
         }
 
         function openEditUserModal() {
+            loadDepartments(); // Load departments when opening modal
             document.getElementById('editUserModal').classList.remove('hidden');
             document.getElementById('editUserModal').classList.add('flex');
         }
@@ -849,10 +921,45 @@ include '../../../../includes/admin_header.php';
             document.getElementById('editEmail').value = email || '';
             document.getElementById('editContact').value = contact || '';
             document.getElementById('editPosition').value = position || '';
-            document.getElementById('editDepartment').value = department || '';
             document.getElementById('editRole').value = role || 'employee';
             
+            // Open modal first, then set department after departments are loaded
             openEditUserModal();
+            
+            // Set department value after a short delay to ensure departments are loaded
+            setTimeout(() => {
+                toggleDepartmentField('edit'); // Toggle field based on role
+                
+                if (role === 'manager') {
+                    // For Department Head, use text input
+                    document.getElementById('editDepartmentInput').value = department || '';
+                } else {
+                    // For other roles, use dropdown
+                    const deptSelect = document.getElementById('editDepartmentSelect');
+                    if (department) {
+                        // Check if the department exists in the dropdown
+                        let optionExists = false;
+                        for (let i = 0; i < deptSelect.options.length; i++) {
+                            if (deptSelect.options[i].value === department) {
+                                optionExists = true;
+                                break;
+                            }
+                        }
+                        
+                        // If department doesn't exist in dropdown, add it
+                        if (!optionExists && department !== '') {
+                            const newOption = document.createElement('option');
+                            newOption.value = department;
+                            newOption.textContent = department;
+                            deptSelect.appendChild(newOption);
+                        }
+                        
+                        deptSelect.value = department;
+                    } else {
+                        deptSelect.value = '';
+                    }
+                }
+            }, 100);
         }
 
         function showNotification(message, type = 'info') {

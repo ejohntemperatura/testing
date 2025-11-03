@@ -1,4 +1,6 @@
 <?php
+// Disable output buffering to prevent issues
+ob_start();
 session_start();
 require_once dirname(__DIR__, 2) . '/config/database.php';
 require_once dirname(__DIR__, 2) . '/app/core/services/RobustEmail.php';
@@ -10,20 +12,27 @@ if (!isset($_GET['token']) || empty($_GET['token'])) {
     exit();
 }
 
-$token = $_GET['token'];
+$token = trim($_GET['token']);
 
 try {
-    // Find the verification token
+    // First check if user exists with this token in email_verification_logs
     $stmt = $pdo->prepare("
-        SELECT e.*, evl.expires_at 
-        FROM employees e 
-        JOIN email_verification_logs evl ON e.id = evl.employee_id 
-        WHERE e.verification_token = ? AND e.email_verified = 0
-        ORDER BY evl.sent_at DESC 
+        SELECT e.*, evl.verification_token as log_token, evl.expires_at 
+        FROM email_verification_logs evl
+        INNER JOIN employees e ON e.id = evl.employee_id
+        WHERE evl.verification_token = ?
+        ORDER BY evl.sent_at DESC
         LIMIT 1
     ");
     $stmt->execute([$token]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    // If not found in logs, try employees table directly
+    if (!$user) {
+        $stmt = $pdo->prepare("SELECT * FROM employees WHERE verification_token = ?");
+        $stmt->execute([$token]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
     
     if (!$user) {
         $error_message = "Invalid or expired verification token. Please contact your administrator.";
@@ -31,8 +40,19 @@ try {
         exit();
     }
     
-    // Check if token has expired
-    if (strtotime($user['expires_at']) < time()) {
+    // Check if already verified
+    if ($user['email_verified'] == 1) {
+        $success_message = "Your email has already been verified! You can now log in with your credentials.";
+        $user_name = $user['name'];
+        $user_email = $user['email'];
+        include 'verification_result.php';
+        exit();
+    }
+    
+    // Check if token has expired (from the JOIN query or employees table)
+    $expiresAt = $user['expires_at'] ?? $user['verification_expires'] ?? null;
+    
+    if ($expiresAt && strtotime($expiresAt) < time()) {
         $error_message = "Verification token has expired. Please contact your administrator for a new verification link.";
         include 'verification_result.php';
         exit();
@@ -106,7 +126,11 @@ try {
         $pdo->rollBack();
     }
     
+    error_log("Verification error: " . $e->getMessage() . " | Token: " . $token);
     $error_message = "An error occurred during verification: " . $e->getMessage();
     include 'verification_result.php';
 }
+
+// Flush output buffer
+ob_end_flush();
 ?>

@@ -446,15 +446,91 @@ $leaveTypes = getLeaveTypes();
 													</div>
 												</div>
 											</div>
+											
 										</div>
 										
-										<!-- Reason -->
-										<div class="bg-slate-700/30 rounded-xl p-6 border border-slate-600/50 mb-6">
+										<!-- Additional Information - Full Width -->
+										<div class="bg-slate-700/30 rounded-xl p-6 border border-slate-600/50 mb-6" id="conditionalDetailsSection">
+											<h4 class="text-lg font-semibold text-white mb-4 flex items-center">
+												<i class="fas fa-info-circle text-cyan-500 mr-3"></i>
+												Additional Information
+											</h4>
+											<div id="conditionalDetailsContent">
+													<!-- Vacation/Special Privilege Details -->
+													<div id="vacationDetails" style="display: none;">
+														<div class="space-y-3">
+															<div>
+																<label class="block text-sm font-semibold text-slate-300 mb-1">Location Type</label>
+																<p class="text-white">${request.location_type ? (request.location_type === 'within_philippines' ? 'Within Philippines' : 'Outside Philippines') : 'N/A'}</p>
+															</div>
+															<div>
+																<label class="block text-sm font-semibold text-slate-300 mb-1">Specific Address</label>
+																<p class="text-slate-300">${request.location_specify || 'N/A'}</p>
+															</div>
+														</div>
+													</div>
+													
+													<!-- Sick Leave Details -->
+													<div id="sickDetails" style="display: none;">
+														<div class="space-y-3">
+															<div>
+																<label class="block text-sm font-semibold text-slate-300 mb-1">Medical Condition</label>
+																<p class="text-white">${request.medical_condition ? (request.medical_condition === 'in_hospital' ? 'In Hospital' : 'Out Patient') : 'N/A'}</p>
+															</div>
+															<div>
+																<label class="block text-sm font-semibold text-slate-300 mb-1">Illness Specification</label>
+																<p class="text-slate-300">${request.illness_specify || 'N/A'}</p>
+															</div>
+															${request.medical_certificate_path ? `
+															<div>
+																<label class="block text-sm font-semibold text-slate-300 mb-1">Medical Certificate</label>
+																<div class="flex items-center space-x-3">
+																	<a href="../../api/view_medical_certificate.php?file=${encodeURIComponent(request.medical_certificate_path.replace(/^.*uploads\/medical_certificates\//, ''))}" target="_blank" 
+																	   class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+																		<i class="fas fa-file-medical mr-2"></i>View Medical Certificate
+																	</a>
+																	<span class="text-slate-400 text-sm">Medical certificate attached</span>
+																</div>
+															</div>
+															` : `
+															<div>
+																<label class="block text-sm font-semibold text-slate-300 mb-1">Medical Certificate</label>
+																<p class="text-slate-400">No medical certificate provided</p>
+															</div>
+															`}
+														</div>
+													</div>
+													
+													<!-- Special Women Leave Details -->
+													<div id="specialWomenDetails" style="display: none;">
+														<div class="space-y-3">
+															<div>
+																<label class="block text-sm font-semibold text-slate-300 mb-1">Illness Specification</label>
+																<p class="text-slate-300">${request.special_women_condition || 'N/A'}</p>
+															</div>
+														</div>
+													</div>
+													
+													<!-- Study Leave Details -->
+													<div id="studyDetails" style="display: none;">
+														<div class="space-y-3">
+															<div>
+																<label class="block text-sm font-semibold text-slate-300 mb-1">Course/Program Type</label>
+																<p class="text-white">${request.study_type ? (request.study_type === 'masters_degree' ? "Master's Degree" : 'BAR/Board Examination Review') : 'Not specified'}</p>
+															</div>
+														</div>
+													</div>
+												</div>
+											</div>
+										</div>
+										
+										<!-- Reason for Leave Section -->
+										<div class="bg-slate-700/30 rounded-xl p-6 border border-slate-600/50 mb-6" style="width: 100%;">
 											<h4 class="text-lg font-semibold text-white mb-4 flex items-center">
 												<i class="fas fa-comment-alt text-purple-500 mr-3"></i>
 												Reason for Leave
 											</h4>
-											<p class="text-slate-300 leading-relaxed">${request.reason}</p>
+											<p class="text-slate-300 leading-relaxed mb-0">${request.reason}</p>
 										</div>
 										
 										<!-- Late Justification (only for late applications) -->
@@ -467,81 +543,6 @@ $leaveTypes = getLeaveTypes();
 											<p class="text-slate-300 leading-relaxed bg-orange-500/5 p-4 rounded-lg">${request.late_justification || 'No justification provided'}</p>
 										</div>
 										` : ''}
-										
-										<!-- Conditional Details -->
-										<div class="bg-slate-700/30 rounded-xl p-6 border border-slate-600/50 mb-6" id="conditionalDetailsSection">
-											<h4 class="text-lg font-semibold text-white mb-4 flex items-center">
-												<i class="fas fa-info-circle text-cyan-500 mr-3"></i>
-												Additional Details
-											</h4>
-											<div id="conditionalDetailsContent">
-												<!-- Vacation/Special Privilege Details -->
-												<div id="vacationDetails" style="display: none;">
-													<div class="space-y-3">
-														<div>
-															<label class="block text-sm font-semibold text-slate-300 mb-1">Location Type</label>
-															<p class="text-white">${request.location_type || 'N/A'}</p>
-														</div>
-														<div>
-															<label class="block text-sm font-semibold text-slate-300 mb-1">Specific Address</label>
-															<p class="text-slate-300">${request.location_specify || 'N/A'}</p>
-														</div>
-													</div>
-												</div>
-												
-												<!-- Sick Leave Details -->
-												<div id="sickDetails" style="display: none;">
-													<div class="space-y-3">
-														<div>
-															<label class="block text-sm font-semibold text-slate-300 mb-1">Medical Condition</label>
-															<p class="text-white">${request.medical_condition || 'N/A'}</p>
-														</div>
-														<div>
-															<label class="block text-sm font-semibold text-slate-300 mb-1">Illness Specification</label>
-															<p class="text-slate-300">${request.illness_specify || 'N/A'}</p>
-														</div>
-														${request.medical_certificate_path ? `
-														<div>
-															<label class="block text-sm font-semibold text-slate-300 mb-1">Medical Certificate</label>
-															<div class="flex items-center space-x-3">
-																<a href="../../api/view_medical_certificate.php?file=${encodeURIComponent(request.medical_certificate_path.replace(/^.*uploads\/medical_certificates\//, ''))}" target="_blank" 
-																   class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
-																	<i class="fas fa-file-medical mr-2"></i>View Medical Certificate
-																</a>
-																<span class="text-slate-400 text-sm">Medical certificate attached</span>
-															</div>
-														</div>
-														` : `
-														<div>
-															<label class="block text-sm font-semibold text-slate-300 mb-1">Medical Certificate</label>
-															<p class="text-slate-400">No medical certificate provided</p>
-														</div>
-														`}
-													</div>
-												</div>
-												
-												<!-- Special Women Leave Details -->
-												<div id="specialWomenDetails" style="display: none;">
-													<div class="space-y-3">
-														<div>
-															<label class="block text-sm font-semibold text-slate-300 mb-1">Illness Specification</label>
-															<p class="text-slate-300">${request.special_women_condition || 'N/A'}</p>
-														</div>
-													</div>
-												</div>
-												
-												<!-- Study Leave Details -->
-												<div id="studyDetails" style="display: none;">
-													<div class="space-y-3">
-														<div>
-															<label class="block text-sm font-semibold text-slate-300 mb-1">Study Type</label>
-															<p class="text-white">${request.study_type || 'N/A'}</p>
-														</div>
-													</div>
-												</div>
-											</div>
-										</div>
-										
 										
 										<!-- Approval Options -->
 										<div class="bg-slate-700/30 rounded-xl p-6 border border-slate-600/50 mb-6" id="approvalOptionsSection" style="display: none;">
@@ -644,8 +645,8 @@ $leaveTypes = getLeaveTypes();
 						// Add modal to body
 						document.body.insertAdjacentHTML('beforeend', modalHtml);
 						
-						// Show conditional details based on leave type
-						showConditionalDetails(request.leave_type);
+						// Show conditional details based on leave type (use raw type for matching)
+						showConditionalDetails(request.leave_type_raw || request.leave_type);
 					} else {
 						alert('Error loading leave request details');
 					}
@@ -877,24 +878,32 @@ $leaveTypes = getLeaveTypes();
 			if (specialWomenDetails) specialWomenDetails.style.display = 'none';
 			if (studyDetails) studyDetails.style.display = 'none';
 			
+			// Normalize leave type to lowercase for comparison
+			const normalizedType = leaveType.toLowerCase().replace(/\s+/g, '_').replace(/[()]/g, '');
+			console.log('Normalized type:', normalizedType);
+			
+			// Also check if it contains the leave type name (fallback for formatted names)
+			const leaveTypeLower = leaveType.toLowerCase();
+			
 			// Show relevant section based on leave type
-			if (leaveType === 'vacation' || leaveType === 'special_privilege' || leaveType === 'Vacation' || leaveType === 'Special Privilege') {
+			if (normalizedType === 'vacation' || normalizedType === 'special_privilege' || leaveTypeLower.includes('vacation')) {
 				if (vacationDetails) vacationDetails.style.display = 'block';
-			} else if (leaveType === 'sick' || leaveType === 'Sick') {
+			} else if (normalizedType === 'sick' || leaveTypeLower.includes('sick')) {
 				if (sickDetails) sickDetails.style.display = 'block';
-			} else if (leaveType === 'special_women' || leaveType === 'Special Women') {
+			} else if (normalizedType === 'special_women' || leaveTypeLower.includes('special') && leaveTypeLower.includes('women')) {
 				if (specialWomenDetails) specialWomenDetails.style.display = 'block';
-			} else if (leaveType === 'study' || leaveType === 'Study') {
+			} else if (normalizedType === 'study' || normalizedType.includes('study') || leaveTypeLower.includes('study')) {
 				if (studyDetails) studyDetails.style.display = 'block';
 			}
 			
 			// Hide the entire conditional section if no relevant details
-			const hasRelevantDetails = (leaveType === 'vacation' || leaveType === 'special_privilege' || 
-										leaveType === 'sick' || leaveType === 'special_women' || leaveType === 'study' ||
-										leaveType === 'Vacation' || leaveType === 'Special Privilege' || 
-										leaveType === 'Sick' || leaveType === 'Special Women' || leaveType === 'Study');
+			const hasRelevantDetails = ['vacation', 'special_privilege', 'sick', 'special_women', 'study'].includes(normalizedType) ||
+										leaveTypeLower.includes('vacation') || leaveTypeLower.includes('sick') || 
+										leaveTypeLower.includes('study') || leaveTypeLower.includes('special');
+			console.log('Has relevant details:', hasRelevantDetails);
 			if (conditionalSection) {
 				conditionalSection.style.display = hasRelevantDetails ? 'block' : 'none';
+				console.log('Conditional section display:', conditionalSection.style.display);
 			}
 		}
 

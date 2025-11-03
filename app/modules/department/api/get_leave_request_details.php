@@ -100,6 +100,9 @@ try {
     // Get leave types configuration
     $leaveTypes = getLeaveTypes();
     
+    // Store raw leave type for conditional field matching (use original_leave_type if available, otherwise use leave_type)
+    $leaveRequest['leave_type_raw'] = $leaveRequest['original_leave_type'] ?? $leaveRequest['leave_type'];
+    
     // Format leave type display using helper function
     $leaveRequest['leave_type'] = getLeaveTypeDisplayName($leaveRequest['leave_type'], $leaveRequest['original_leave_type'] ?? null, $leaveTypes);
     
